@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anthropic 风格排版示例</title>
+    <style>
+        /* 1. 颜色与全局变量定义 */
+        :root {
+            --bg-color: #F9F9F7;
+            --text-main: #181818;
+            --text-muted: #666666;
+            --border-subtle: #E5E4DF;
+            --selection-bg: #E0DFD8;
+        }
+
+        /* 2. 基础页面重置与排版设定 */
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            /* 优先使用系统自带的优秀衬线体 */
+            font-family: "Georgia", "Times New Roman", "Songti SC", "SimSun", serif;
+            font-size: 18px;
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* 自定义选中文本样式 */
+        ::selection {
+            background: var(--selection-bg);
+            color: var(--text-main);
+        }
+
+        /* 3. 核心布局容器：控制阅读宽度 */
+        .container {
+            max-width: 65ch;
+            /* 黄金阅读宽度 */
+            margin: 0 auto;
+            padding: clamp(2rem, 5vh, 4rem) 1.5rem;
+            /* 响应式上下留白 */
+        }
+
+        /* 4. 极简导航栏 */
+        header {
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 1.5rem;
+            margin-bottom: 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .logo {
+            font-size: 1.2rem;
+            letter-spacing: 0.02em;
+            text-decoration: none;
+            color: var(--text-main);
+        }
+
+        nav a {
+            font-size: 0.9rem;
+            margin-left: 1.5rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        nav a:hover {
+            color: var(--text-main);
+        }
+
+        /* 5. 标题层级系统：克制字重，依靠字号和间距区分 */
+        h1,
+        h2,
+        h3 {
+            font-weight: 400;
+            line-height: 1.2;
+            margin-top: 2.5em;
+            margin-bottom: 0.8em;
+        }
+
+        h1 {
+            font-size: clamp(2.2rem, 5vw, 3.5rem);
+            letter-spacing: -0.03em;
+            margin-top: 0;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+        }
+
+        .meta {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+            font-style: italic;
+        }
+
+        /* 6. 内容细节与内联元素 */
+        p {
+            margin-bottom: 1.5em;
+        }
+
+        /* 优雅的链接下划线 */
+        .content a {
+            color: inherit;
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .content a:hover {
+            text-decoration-thickness: 2px;
+            color: var(--text-muted);
+        }
+
+        /* 引用块样式 */
+        blockquote {
+            margin: 2.5rem 0;
+            padding-left: 1.5rem;
+            border-left: 1px solid var(--text-main);
+            font-size: 1.25rem;
+            font-style: italic;
+            color: var(--text-muted);
+        }
+
+        /* 分割线 */
+        hr {
+            border: none;
+            border-top: 1px solid var(--border-subtle);
+            margin: 4rem 0;
+        }
+
+        footer {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 4rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <a href="#" class="logo">Company Name</a>
+            <nav>
+                <a href="#">Research</a>
+                <a href="#">Product</a>
+                <a href="#">Company</a>
+            </nav>
+        </header>
+
+        <main class="content">
+            <h1>The Future of Helpful, Honest, and Harmless AI.</h1>
+            <div class="meta">Published March 6, 2026 • By Research Team</div>
+
+            <p>在设计界，真正的优雅往往来自于克制。我们摒弃了多余的视觉噪音，将注意力重新聚焦于最基本的信息传递介质：<strong>文字与空间</strong>。</p>
+
+            <p>当你限制了一行文字的宽度（例如使用
+                <code>65ch</code>），并赋予其充足的行高时，读者的视线就能在换行时保持平稳，不会产生疲劳感。这是数百年来传统印刷排版沉淀下来的智慧，现在我们将它带回了现代网页中。</p>
+
+            <h2>A Subdued Approach to Interface</h2>
+
+            <p>现代 UI 设计常常试图通过高饱和度的渐变、厚重的阴影和无处不在的微交互来抓住用户的眼球。但对于传达复杂思想和严谨科研成果的平台来说，这种做法反而会喧宾夺主。</p>
+
+            <blockquote>
+                "Good design is obvious. Great design is transparent." <br>
+                — 优秀的设计是显而易见的，而伟大的设计是透明的。
+            </blockquote>
+
+            <p>通过使用类似燕麦色的背景（<code>#F9F9F7</code>）和深炭灰色的文字（<code>#181818</code>），我们降低了屏幕发光带来的刺眼感。你可以<a
+                    href="#">点击这里了解更多关于排版心理学的研究</a>。</p>
+
+            <hr>
+
+            <p>最终，网站的风格不仅仅是一层视觉外衣，它直接反映了品牌的核心价值观。低调、克制、注重细节——这就是我们通过代码传达的声音。</p>
+        </main>
+
+        <footer>
+            © 2026 Company Name. All rights reserved.
+        </footer>
+    </div>
+
+</body>
+
+</html>

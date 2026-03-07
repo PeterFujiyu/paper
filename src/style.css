@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/* ─── Editorial Design System ─── */
+:root {
+  /* Light mode */
+  --bg:           #F9F9F7;
+  --bg-subtle:    #F2F2EE;
+  --text-main:    #181818;
+  --text-muted:   #666666;
+  --border:       #E5E4DF;
+  --selection-bg: #E0DFD8;
+
+  /* Typography */
+  font-family: "Georgia", "Times New Roman", "Songti SC", "SimSun", serif;
+  font-size: 18px;
+  line-height: 1.7;
+  font-weight: 400;
+  color: var(--text-main);
+  background-color: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark mode token overrides */
+:root.dark {
+  --bg:           #141412;
+  --bg-subtle:    #1E1E1B;
+  --text-main:    #E8E8E4;
+  --text-muted:   #888882;
+  --border:       #2E2E2A;
+  --selection-bg: #3A3A34;
+}
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--text-main);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100vh;
+  margin: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-main);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'liga';
+}
