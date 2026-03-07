@@ -29,22 +29,23 @@
   </main>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { generateHTML } from '@tiptap/core'
+import { generateHTML, type Extensions, type JSONContent } from '@tiptap/core'
 import StarterKit   from '@tiptap/starter-kit'
 import Image        from '@tiptap/extension-image'
 import Typography   from '@tiptap/extension-typography'
 import Underline    from '@tiptap/extension-underline'
 import Link         from '@tiptap/extension-link'
 import TextAlign    from '@tiptap/extension-text-align'
+import type { PostDocument } from '../types/content'
 
 const props = defineProps({
   slug: { type: String, required: true },
 })
 
-const post    = ref(null)
+const post = ref<PostDocument | null>(null)
 const loading = ref(true)
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
@@ -53,13 +54,13 @@ onMounted(async () => {
   try {
     const res = await fetch(`${API_BASE}/posts/${props.slug}`)
     if (!res.ok) { post.value = null; return }
-    post.value = await res.json()
+    post.value = await res.json() as PostDocument
   } finally {
     loading.value = false
   }
 })
 
-const extensions = [
+const extensions: Extensions = [
   StarterKit,
   Image.configure({ allowBase64: true }),
   Typography,
@@ -71,13 +72,13 @@ const extensions = [
 const renderedHTML = computed(() => {
   if (!post.value?.content) return ''
   try {
-    return generateHTML(post.value.content, extensions)
+    return generateHTML(post.value.content as JSONContent, extensions)
   } catch {
     return '<p>Content unavailable.</p>'
   }
 })
 
-function formatDate(iso) {
+function formatDate(iso?: string): string {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }

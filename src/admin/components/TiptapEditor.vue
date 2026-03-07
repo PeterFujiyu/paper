@@ -11,7 +11,7 @@
       >{{ btn.label }}</button>
 
       <!-- Image upload — separate from the v-for loop to use a ref -->
-      <button class="tb-btn" title="Image" @click="fileInputRef.click()">Img</button>
+      <button class="tb-btn" title="Image" @click="fileInputRef?.click()">Img</button>
     </div>
 
     <!-- Hidden file input -->
@@ -30,7 +30,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit   from '@tiptap/starter-kit'
@@ -40,15 +40,16 @@ import Underline    from '@tiptap/extension-underline'
 import Link         from '@tiptap/extension-link'
 import TextAlign    from '@tiptap/extension-text-align'
 import Image        from '@tiptap/extension-image'
+import type { JsonValue } from '../../types/content'
 
 const props = defineProps({
-  modelValue: { type: Object, default: null },
+  modelValue: { type: Object as () => JsonValue | null, default: null },
 })
 const emit = defineEmits(['update:modelValue'])
 
 // ─── File input ref ───────────────────────────────────────
-const fileInputRef = ref(null)
-const uploading    = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const uploading = ref(false)
 
 // ─── Editor ──────────────────────────────────────────────
 const editor = useEditor({
@@ -73,7 +74,7 @@ watch(() => props.modelValue, (val) => {
   const current  = JSON.stringify(editor.value.getJSON())
   const incoming = JSON.stringify(val)
   if (current !== incoming) {
-    editor.value.commands.setContent(val ?? '', false)
+    editor.value.commands.setContent(val ?? '', { emitUpdate: false })
   }
 })
 
@@ -82,13 +83,14 @@ onBeforeUnmount(() => editor.value?.destroy())
 // ─── Image upload ─────────────────────────────────────────
 const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
 
-function onFileSelected(e) {
-  const file = e.target.files?.[0]
+function onFileSelected(event: Event): void {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
   if (!file) return
 
   if (file.size > MAX_SIZE) {
     alert(`Image is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 5 MB.`)
-    e.target.value = ''
+    target.value = ''
     return
   }
 
@@ -96,18 +98,20 @@ function onFileSelected(e) {
   const reader = new FileReader()
 
   reader.onload = () => {
-    editor.value?.chain().focus().setImage({ src: reader.result }).run()
+    if (typeof reader.result === 'string') {
+      editor.value?.chain().focus().setImage({ src: reader.result }).run()
+    }
     uploading.value = false
+    target.value = ''
   }
 
   reader.onerror = () => {
     alert('Failed to read image file.')
     uploading.value = false
+    target.value = ''
   }
 
   reader.readAsDataURL(file)
-  // Reset so the same file can be re-selected
-  e.target.value = ''
 }
 
 // ─── Toolbar ──────────────────────────────────────────────
@@ -165,7 +169,7 @@ const toolbarButtons = computed(() => {
       isActive: () => e.isActive('orderedList'),
       action: () => e.chain().focus().toggleOrderedList().run(),
     },
-  ]
+  ] as Array<{ label: string; isActive?: () => boolean; action: () => void }>
 })
 </script>
 

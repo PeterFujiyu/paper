@@ -9,14 +9,14 @@
           <input type="checkbox" v-model="form.published" />
           <span>{{ form.published ? 'Live' : 'Draft' }}</span>
         </label>
-        <button class="btn-save" @click="save" :disabled="saving">
+        <button class="btn-save" :class="{ 'btn-save--saving': saving }" @click="save" :disabled="saving || !!validationMessage">
           {{ saving ? 'Saving…' : 'Save' }}
         </button>
         <button v-if="isEdit" class="btn-delete" @click="remove">Delete</button>
       </div>
     </header>
 
-    <p v-if="error" class="edit-error">{{ error }}</p>
+    <p v-if="error || validationMessage" class="edit-error">{{ error || validationMessage }}</p>
 
     <!-- Title + meta fields -->
     <div class="meta-fields">
@@ -29,7 +29,10 @@
       <div class="field-row">
         <div class="field-group">
           <label>Slug</label>
-          <input v-model="form.slug" class="field-input" placeholder="url-slug" />
+          <input v-model="form.slug" class="field-input" placeholder="url-slug" @blur="checkSlugAvailability" />
+          <p v-if="slugMessage" class="field-help" :class="slugAvailable ? 'field-help--ok' : 'field-help--error'">
+            {{ slugMessage }}
+          </p>
         </div>
       </div>
       <div class="field-group">
@@ -44,18 +47,20 @@
   </div>
 </template>
 
-<script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+<script setup lang="ts">
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
-import { apiFetch } from '../store.js'
+import { apiFetch } from '../store'
 import TiptapEditor from '../components/TiptapEditor.vue'
+import type { PostDocument, PostForm } from '../../types/content'
 
 const route  = useRoute()
 const router = useRouter()
 
 const isEdit = computed(() => !!route.params.id && route.params.id !== 'new')
+const postId = computed(() => String(route.params.id ?? ''))
 
-const form = reactive({
+const form = reactive<PostForm>({
   title:     '',
   slug:      '',
   excerpt:   '',
@@ -65,10 +70,63 @@ const form = reactive({
 
 const saving = ref(false)
 const error  = ref('')
+const slugAvailable = ref(true)
+const slugMessage = ref('')
+const checkingSlug = ref(false)
+
+const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+const validationMessage = computed(() => {
+  if (!form.title.trim()) return 'Title is required.'
+  if (form.title.trim().length < 3) return 'Title must be at least 3 characters.'
+  if (!form.slug.trim()) return 'Slug is required.'
+  if (!slugPattern.test(form.slug.trim())) return 'Slug must use lowercase letters, numbers, and hyphens only.'
+  if (!slugAvailable.value) return 'Slug is already in use.'
+  if (!form.excerpt.trim()) return 'Excerpt is required.'
+  if (form.excerpt.trim().length < 12) return 'Excerpt should be at least 12 characters.'
+  if (!form.content) return 'Body content is required.'
+  return ''
+})
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Request failed'
+}
+
+function setSlugState(available: boolean, message = ''): void {
+  slugAvailable.value = available
+  slugMessage.value = message
+}
+
+async function checkSlugAvailability(): Promise<void> {
+  const slug = form.slug.trim().toLowerCase()
+
+  if (!slug) {
+    setSlugState(true, '')
+    return
+  }
+
+  if (!slugPattern.test(slug)) {
+    setSlugState(false, 'Slug must use lowercase letters, numbers, and hyphens only.')
+    return
+  }
+
+  checkingSlug.value = true
+  try {
+    const query = new URLSearchParams({ slug })
+    if (isEdit.value) query.set('excludeId', postId.value)
+
+    const result = await apiFetch<{ available: boolean }>(`/posts/admin/slug/check?${query.toString()}`)
+    setSlugState(result.available, result.available ? 'Slug is available.' : 'Slug is already in use.')
+  } catch (err: unknown) {
+    setSlugState(false, getErrorMessage(err))
+  } finally {
+    checkingSlug.value = false
+  }
+}
 
 onMounted(async () => {
   if (!isEdit.value) return
-  const post = await apiFetch(`/posts/admin/${route.params.id}`)
+  const post = await apiFetch<PostDocument>(`/posts/admin/${postId.value}`)
   Object.assign(form, {
     title:     post.title,
     slug:      post.slug,
@@ -76,6 +134,11 @@ onMounted(async () => {
     content:   post.content ?? null,
     published: post.published,
   })
+  setSlugState(true, '')
+})
+
+watch(() => form.slug, () => {
+  setSlugState(true, '')
 })
 
 function autoSlug() {
@@ -85,26 +148,36 @@ function autoSlug() {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
   }
+  void checkSlugAvailability()
 }
 
 async function save() {
+  if (saving.value) return
+
+  await checkSlugAvailability()
+
+  if (validationMessage.value) {
+    error.value = validationMessage.value
+    return
+  }
+
   saving.value = true
   error.value  = ''
   try {
     if (isEdit.value) {
-      await apiFetch(`/posts/${route.params.id}`, {
+      await apiFetch<PostDocument>(`/posts/${postId.value}`, {
         method: 'PUT',
         body: JSON.stringify(form),
       })
     } else {
-      const post = await apiFetch('/posts', {
+      const post = await apiFetch<PostDocument>('/posts', {
         method: 'POST',
         body: JSON.stringify(form),
       })
       router.replace(`/admin/posts/${post._id}`)
     }
-  } catch (e) {
-    error.value = e.message
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e)
   } finally {
     saving.value = false
   }
@@ -112,7 +185,7 @@ async function save() {
 
 async function remove() {
   if (!confirm('Delete this post? This cannot be undone.')) return
-  await apiFetch(`/posts/${route.params.id}`, { method: 'DELETE' })
+  await apiFetch<{ ok: boolean }>(`/posts/${postId.value}`, { method: 'DELETE' })
   router.push('/admin')
 }
 </script>
@@ -170,7 +243,12 @@ async function remove() {
   transition: opacity 0.2s;
 }
 .btn-save:hover:not(:disabled) { opacity: 0.75; }
-.btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-save:disabled { cursor: not-allowed; }
+
+.btn-save--saving,
+.btn-save--saving:hover {
+  opacity: 0.82;
+}
 
 .btn-delete {
   font-family: inherit;
@@ -247,6 +325,20 @@ async function remove() {
   transition: border-color 0.2s;
 }
 .field-input:focus { border-bottom-color: var(--text-main); }
+
+.field-help {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.field-help--ok {
+  color: #3a7a3a;
+}
+
+.field-help--error {
+  color: #c0392b;
+}
 
 .field-textarea {
   background: transparent;

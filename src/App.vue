@@ -32,13 +32,41 @@
         <span>© {{ year }} Peter Fujiyu</span>
         <span class="footer-sep">·</span>
         <span style="color: var(--text-muted); font-style: italic;">All opinions are my own.</span>
+        <span class="footer-sep">·</span>
+        <button
+          class="eth-toggle"
+          type="button"
+          @click="showEth = !showEth"
+          :aria-expanded="showEth"
+          aria-label="Show Ethereum address"
+        >
+          <svg viewBox="0 0 256 417" aria-hidden="true" class="eth-icon">
+            <path fill="currentColor" d="M127.9 0L124.7 10.9V279.1L127.9 282.3L255.8 210.7z" />
+            <path fill="currentColor" opacity="0.72" d="M127.9 0L0 210.7L127.9 282.3V152.2z" />
+            <path fill="currentColor" opacity="0.88" d="M127.9 306.5L126.1 308.7V416.2L127.9 421.4L255.9 234.9z" />
+            <path fill="currentColor" opacity="0.6" d="M127.9 421.4V306.5L0 234.9z" />
+            <path fill="currentColor" opacity="0.76" d="M127.9 282.3L255.8 210.7L127.9 152.2z" />
+            <path fill="currentColor" opacity="0.52" d="M0 210.7L127.9 282.3V152.2z" />
+          </svg>
+        </button>
+        <transition name="eth-fade">
+          <button
+            v-if="showEth"
+            class="eth-address"
+            type="button"
+            @click="copyEthAddress"
+            :aria-label="copiedEth ? 'Ethereum address copied' : 'Copy Ethereum address'"
+          >
+            {{ copiedEth ? 'Copied' : ethAddress }}
+          </button>
+        </transition>
       </footer>
     </div>
 
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 
@@ -52,15 +80,32 @@ function toggleDark() {
 
 // ─── Current year ───
 const year = computed(() => new Date().getFullYear())
+const showEth = ref(false)
+const copiedEth = ref(false)
+const ethAddress = '0x590aef1cb9d2c66f2543cbeaa64f603e07fd1679'
+let copiedTimer: ReturnType<typeof setTimeout> | null = null
+
+async function copyEthAddress() {
+  try {
+    await navigator.clipboard.writeText(ethAddress)
+    copiedEth.value = true
+    if (copiedTimer) clearTimeout(copiedTimer)
+    copiedTimer = setTimeout(() => {
+      copiedEth.value = false
+    }, 1400)
+  } catch {
+    copiedEth.value = false
+  }
+}
 
 // ─── Wordmark scroll animation ───
 const WORDMARK = 'PeterFujiyu'
 const wordmarkChars = WORDMARK.split('')
 
 const isScrolling = ref(false)
-let scrollTimer = null
+let scrollTimer: ReturnType<typeof setTimeout> | null = null
 
-function charStyle(i) {
+function charStyle(i: number): Record<string, string> {
   if (i === 0) return {}
   const collapseDelay = (wordmarkChars.length - 1 - i) * 28
   const expandDelay   = (i - 1) * 38
@@ -70,7 +115,7 @@ function charStyle(i) {
 
 function onScroll() {
   isScrolling.value = true
-  clearTimeout(scrollTimer)
+  if (scrollTimer) clearTimeout(scrollTimer)
   scrollTimer = setTimeout(() => {
     isScrolling.value = false
   }, 320)
@@ -79,7 +124,8 @@ function onScroll() {
 onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
-  clearTimeout(scrollTimer)
+  if (scrollTimer) clearTimeout(scrollTimer)
+  if (copiedTimer) clearTimeout(copiedTimer)
 })
 </script>
 
@@ -206,5 +252,57 @@ onUnmounted(() => {
 
 .footer-sep {
   opacity: 0.4;
+}
+
+.eth-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  opacity: 0.62;
+  cursor: pointer;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.eth-toggle:hover {
+  opacity: 1;
+  color: var(--text-main);
+}
+
+.eth-icon {
+  width: 0.78rem;
+  height: 0.78rem;
+}
+
+.eth-address {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+  word-break: break-all;
+  cursor: pointer;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.eth-address:hover {
+  color: var(--text-main);
+}
+
+.eth-fade-enter-active,
+.eth-fade-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.eth-fade-enter-from,
+.eth-fade-leave-to {
+  opacity: 0;
+  transform: translateY(2px);
 }
 </style>

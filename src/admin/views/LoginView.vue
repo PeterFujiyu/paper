@@ -22,9 +22,9 @@
           <input v-model="form.password" type="password" placeholder="••••••••" required autocomplete="current-password" />
         </div>
 
-        <p v-if="error" class="auth-error">{{ error }}</p>
+        <p v-if="error || validationMessage" class="auth-error">{{ error || validationMessage }}</p>
 
-        <button type="submit" class="auth-btn" :disabled="loading">
+        <button type="submit" class="auth-btn" :disabled="loading || !!validationMessage">
           {{ loading ? 'Please wait…' : (isRegister ? 'Create account' : 'Sign in') }}
         </button>
       </form>
@@ -39,10 +39,10 @@
   </div>
 </template>
 
-<script setup>
-import { ref, reactive } from 'vue'
+<script setup lang="ts">
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { setAuth, apiFetch } from '../store.js'
+import { setAuth, apiFetch, type AuthResponse } from '../store'
 
 const router = useRouter()
 const isRegister = ref(false)
@@ -51,7 +51,29 @@ const error = ref('')
 
 const form = reactive({ name: '', email: '', password: '', inviteCode: '' })
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+const validationMessage = computed(() => {
+  if (isRegister.value && !form.name.trim()) return 'Name is required.'
+  if (isRegister.value && form.name.trim().length < 2) return 'Name must be at least 2 characters.'
+  if (isRegister.value && !form.inviteCode.trim()) return 'Invite code is required.'
+  if (!form.email.trim()) return 'Email is required.'
+  if (!emailPattern.test(form.email.trim())) return 'Enter a valid email address.'
+  if (!form.password) return 'Password is required.'
+  if (form.password.length < 8) return 'Password must be at least 8 characters.'
+  return ''
+})
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Request failed'
+}
+
 async function submit() {
+  if (validationMessage.value) {
+    error.value = validationMessage.value
+    return
+  }
+
   loading.value = true
   error.value = ''
   try {
@@ -60,14 +82,14 @@ async function submit() {
       ? { name: form.name, email: form.email, password: form.password, inviteCode: form.inviteCode }
       : { email: form.email, password: form.password }
 
-    const data = await apiFetch(endpoint, {
+    const data = await apiFetch<AuthResponse>(endpoint, {
       method: 'POST',
       body: JSON.stringify(body),
     })
     setAuth(data.token, data.user)
     router.push('/admin')
-  } catch (e) {
-    error.value = e.message
+  } catch (e: unknown) {
+    error.value = getErrorMessage(e)
   } finally {
     loading.value = false
   }

@@ -29,24 +29,25 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { apiFetch, clearAuth } from '../store.js'
+import { apiFetch, clearAuth } from '../store'
+import type { PostSummary } from '../../types/content'
 
 const router = useRouter()
-const posts  = ref([])
+const posts = ref<PostSummary[]>([])
 const loading = ref(true)
 
 onMounted(async () => {
   try {
-    posts.value = await apiFetch('/posts/admin/all')
+    posts.value = await apiFetch<PostSummary[]>('/posts/admin/all')
   } finally {
     loading.value = false
   }
 })
 
-function formatDate(iso) {
+function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 

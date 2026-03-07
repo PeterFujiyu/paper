@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "api:dev": "node api/server.js",
+    "api:dev": "tsx api/server.ts",
+    "typecheck": "vue-tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -30,8 +31,13 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.3.5",
     "@vitejs/plugin-vue": "^6.0.2",
     "tailwindcss": "^4.2.1",
-    "vite": "^7.3.1"
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vue-tsc": "^3.2.5"
   }
 }

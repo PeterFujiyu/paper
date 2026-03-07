@@ -63,11 +63,12 @@
   </main>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import type { PostSummary } from '../types/content'
 
-const posts   = ref([])
+const posts = ref<PostSummary[]>([])
 const loading = ref(true)
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
@@ -75,13 +76,13 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 onMounted(async () => {
   try {
     const res = await fetch(`${API_BASE}/posts`)
-    if (res.ok) posts.value = await res.json()
+    if (res.ok) posts.value = await res.json() as PostSummary[]
   } finally {
     loading.value = false
   }
 })
 
-function formatDate(iso) {
+function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 </script>

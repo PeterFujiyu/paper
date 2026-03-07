@@ -1,3 +1,11 @@
+interface LegacyPost {
+  slug: string
+  date: string
+  title: string
+  excerpt: string
+  content: string
+}
+
 /**
  * posts.js — 文章数据集中管理
  *
@@ -8,7 +16,7 @@
  *   excerpt 列表页摘要（1–2 句）
  *   content 正文，支持换行（\n\n 为段落分隔）
  */
-export const posts = [
+export const posts: LegacyPost[] = [
   {
     slug: 'on-whitespace',
     date: 'March 2026',
@@ -64,6 +72,6 @@ But metrics are a choice too. You can measure what you decide matters. The quest
 /**
  * 按 slug 查找文章
  */
-export function getPostBySlug(slug) {
+export function getPostBySlug(slug: string): LegacyPost | null {
   return posts.find((p) => p.slug === slug) ?? null
 }
