@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import authRoutes from './routes/auth'
-import postsRoutes from './routes/posts'
-import { requireAuth, type AppBindings } from './lib/auth'
-import { requestLogger } from './lib/logger'
+import authRoutes from './routes/auth.js'
+import postsRoutes from './routes/posts.js'
+import { requireAuth, type AppBindings } from './lib/auth.js'
+import { requestLogger } from './lib/logger.js'
 
 export function createApp() {
   const app = new Hono<AppBindings>().basePath('/api')

@@ -1,8 +1,8 @@
 import { Hono, type Context } from 'hono'
-import { connectDB } from '../lib/db'
-import { getUser, signToken, type AppBindings } from '../lib/auth'
-import { getRequestMeta } from '../lib/logger'
-import User from '../models/User'
+import { connectDB } from '../lib/db.js'
+import { getUser, signToken, type AppBindings } from '../lib/auth.js'
+import { getRequestMeta } from '../lib/logger.js'
+import User from '../models/User.js'
 
 type FailEntry = {
   count: number

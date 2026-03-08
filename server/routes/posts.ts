@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
-import { connectDB } from '../lib/db'
-import { getUser, requireAuth, type AppBindings } from '../lib/auth'
-import { getRequestMeta } from '../lib/logger'
-import Post from '../models/Post'
+import { connectDB } from '../lib/db.js'
+import { getUser, requireAuth, type AppBindings } from '../lib/auth.js'
+import { getRequestMeta } from '../lib/logger.js'
+import Post from '../models/Post.js'
 
 type PostBody = {
   title?: string
