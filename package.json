@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "api:dev": "tsx api/server.ts",
+    "api:dev": "tsx server/dev.ts",
     "typecheck": "vue-tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview"
