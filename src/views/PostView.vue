@@ -35,6 +35,10 @@ import { RouterLink } from 'vue-router'
 import { generateHTML, type Extensions, type JSONContent } from '@tiptap/core'
 import StarterKit   from '@tiptap/starter-kit'
 import Image        from '@tiptap/extension-image'
+import { Table }    from '@tiptap/extension-table'
+import TableRow     from '@tiptap/extension-table-row'
+import TableHeader  from '@tiptap/extension-table-header'
+import TableCell    from '@tiptap/extension-table-cell'
 import Typography   from '@tiptap/extension-typography'
 import Underline    from '@tiptap/extension-underline'
 import Link         from '@tiptap/extension-link'
@@ -63,6 +67,10 @@ onMounted(async () => {
 const extensions: Extensions = [
   StarterKit,
   Image.configure({ allowBase64: true }),
+  Table.configure({ resizable: false }),
+  TableRow,
+  TableHeader,
+  TableCell,
   Typography,
   Underline,
   Link,
@@ -165,6 +173,26 @@ function formatDate(iso?: string): string {
 .prose hr  { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
 .prose ul, .prose ol { padding-left: 1.5rem; margin: 0 0 1.4em; }
 .prose li  { margin-bottom: 0.4em; line-height: 1.7; }
+.prose .tableWrapper {
+  margin: 2rem 0;
+  overflow-x: auto;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 0.75rem 0.8rem;
+  text-align: left;
+  vertical-align: top;
+}
+.prose th {
+  font-weight: 600;
+  background: color-mix(in srgb, var(--bg) 82%, var(--text-main) 3%);
+}
 .prose img {
   max-width: 100%;
   height: auto;

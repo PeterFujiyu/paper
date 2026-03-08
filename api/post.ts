@@ -4,6 +4,17 @@ import { requireAuth } from '../server/lib/vercel-auth.js'
 import { normalizeSlug, validatePostBody, type PostBody } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
 
+function isDuplicateSlugError(error: unknown): boolean {
+  return Boolean(
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    (error as { code?: number }).code === 11000 &&
+    'keyPattern' in error &&
+    (error as { keyPattern?: Record<string, unknown> }).keyPattern?.slug
+  )
+}
+
 async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
   const query: Record<string, unknown> = { slug }
   if (excludeId) query._id = { $ne: excludeId }
@@ -87,6 +98,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
     sendJson(res, 405, { error: 'Method not allowed' }, meta)
   } catch (error) {
+    if (isDuplicateSlugError(error)) {
+      sendJson(res, 409, { error: 'Slug is already in use.' }, meta)
+      return
+    }
     logError('[api/post]', meta, error)
     sendJson(res, 500, { error: error instanceof Error ? error.message : 'Unknown error' }, meta)
   } finally {

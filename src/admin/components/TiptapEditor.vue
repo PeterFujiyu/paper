@@ -40,6 +40,10 @@ import Underline    from '@tiptap/extension-underline'
 import Link         from '@tiptap/extension-link'
 import TextAlign    from '@tiptap/extension-text-align'
 import Image        from '@tiptap/extension-image'
+import { Table }    from '@tiptap/extension-table'
+import TableRow     from '@tiptap/extension-table-row'
+import TableHeader  from '@tiptap/extension-table-header'
+import TableCell    from '@tiptap/extension-table-cell'
 import type { JsonValue } from '../../types/content'
 
 const props = defineProps({
@@ -61,6 +65,10 @@ const editor = useEditor({
     Link.configure({ openOnClick: false }),
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
     Image.configure({ inline: false, allowBase64: true }),
+    Table.configure({ resizable: true }),
+    TableRow,
+    TableHeader,
+    TableCell,
   ],
   content: props.modelValue,
   onUpdate({ editor }) {
@@ -169,6 +177,36 @@ const toolbarButtons = computed(() => {
       isActive: () => e.isActive('orderedList'),
       action: () => e.chain().focus().toggleOrderedList().run(),
     },
+    {
+      label: 'Tbl',
+      isActive: () => e.isActive('table'),
+      action: () => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+    },
+    {
+      label: '+R',
+      isActive: () => false,
+      action: () => e.chain().focus().addRowAfter().run(),
+    },
+    {
+      label: '-R',
+      isActive: () => false,
+      action: () => e.chain().focus().deleteRow().run(),
+    },
+    {
+      label: '+C',
+      isActive: () => false,
+      action: () => e.chain().focus().addColumnAfter().run(),
+    },
+    {
+      label: '-C',
+      isActive: () => false,
+      action: () => e.chain().focus().deleteColumn().run(),
+    },
+    {
+      label: 'DelT',
+      isActive: () => false,
+      action: () => e.chain().focus().deleteTable().run(),
+    },
   ] as Array<{ label: string; isActive?: () => boolean; action: () => void }>
 })
 </script>
@@ -250,6 +288,59 @@ const toolbarButtons = computed(() => {
   margin: 0 0 1.2em 0;
 }
 .editor-content .ProseMirror li { margin-bottom: 0.3em; }
+
+.editor-content .ProseMirror .tableWrapper {
+  margin: 2rem 0;
+  overflow-x: auto;
+}
+
+.editor-content .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  overflow: hidden;
+}
+
+.editor-content .ProseMirror th,
+.editor-content .ProseMirror td {
+  border: 1px solid var(--border);
+  padding: 0.7rem 0.8rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+.editor-content .ProseMirror th {
+  font-weight: 600;
+  background: var(--bg-subtle, var(--bg));
+}
+
+.editor-content .ProseMirror .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: -1px;
+  width: 4px;
+  background: color-mix(in srgb, var(--text-main) 28%, transparent);
+  pointer-events: none;
+}
+
+.editor-content .ProseMirror.resize-cursor {
+  cursor: col-resize;
+}
+
+.editor-content .ProseMirror.resize-cursor th,
+.editor-content .ProseMirror.resize-cursor td {
+  background-image: linear-gradient(
+    to right,
+    transparent calc(100% - 1px),
+    color-mix(in srgb, var(--text-main) 16%, transparent) calc(100% - 1px)
+  );
+  background-repeat: no-repeat;
+}
+
+.editor-content .ProseMirror .selectedCell:after {
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+}
 
 /* ─── Image ─── */
 .editor-content .ProseMirror img {
