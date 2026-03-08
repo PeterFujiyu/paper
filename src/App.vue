@@ -160,7 +160,9 @@ onUnmounted(() => {
 
 /* ─── Wordmark ─── */
 .wordmark {
+  font-family: 'Montserrat', 'Google Sans', sans-serif;
   font-size: 1.05rem;
+  font-weight: 500;
   letter-spacing: 0.02em;
   text-decoration: none;
   color: var(--text-main);
