@@ -41,7 +41,7 @@ const loading = ref(true)
 
 onMounted(async () => {
   try {
-    posts.value = await apiFetch<PostSummary[]>('/posts/admin/all')
+    posts.value = await apiFetch<PostSummary[]>('/admin-posts')
   } finally {
     loading.value = false
   }

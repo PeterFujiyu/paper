@@ -1,50 +1,79 @@
-import type { MiddlewareHandler } from 'hono'
-import type { AppBindings } from './auth'
-
-function getRequestIp(headerValue: string | undefined, fallback: string | undefined): string {
-  return headerValue?.split(',')[0]?.trim() || fallback || 'unknown'
+export type ApiRequest = {
+  method?: string
+  url?: string
+  headers: Record<string, string | string[] | undefined>
+  query?: Record<string, string | string[] | undefined>
+  body?: unknown
 }
 
-function createRequestId(): string {
-  return crypto.randomUUID()
+export type ApiResponse = {
+  status(code: number): ApiResponse
+  json(body: unknown): void
+  setHeader(name: string, value: string): void
+  statusCode?: number
 }
 
-export function getRequestMeta(ctx: { get(key: 'requestId'): string; get(key: 'requestIp'): string }): { requestId: string; requestIp: string } {
+export type RequestMeta = {
+  requestId: string
+  requestIp: string
+  startedAt: number
+  userId: string | null
+}
+
+function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
+
+export function beginRequest(req: ApiRequest): RequestMeta {
   return {
-    requestId: ctx.get('requestId'),
-    requestIp: ctx.get('requestIp'),
+    requestId: crypto.randomUUID(),
+    requestIp:
+      firstHeaderValue(req.headers['x-forwarded-for'])?.split(',')[0]?.trim() ??
+      firstHeaderValue(req.headers['x-real-ip']) ??
+      'unknown',
+    startedAt: performance.now(),
+    userId: null,
   }
 }
 
-function getRequestUserId(ctx: { get(key: 'user'): { id?: string } }): string | null {
-  try {
-    return ctx.get('user')?.id ?? null
-  } catch {
-    return null
-  }
-}
-
-export const requestLogger: MiddlewareHandler<AppBindings> = async (ctx, next) => {
-  const startedAt = performance.now()
-  const requestId = createRequestId()
-  const requestIp = getRequestIp(
-    ctx.req.header('x-forwarded-for') ?? undefined,
-    ctx.req.header('x-real-ip') ?? undefined
-  )
-
-  ctx.set('requestId', requestId)
-  ctx.set('requestIp', requestIp)
-
-  await next()
-  const durationMs = Math.round((performance.now() - startedAt) * 10) / 10
-  const userId = getRequestUserId(ctx)
-
+export function finishRequest(req: ApiRequest, res: ApiResponse, meta: RequestMeta): void {
+  const durationMs = Math.round((performance.now() - meta.startedAt) * 10) / 10
   const isDev = process.env.NODE_ENV !== 'production'
-  const isError = ctx.res.status >= 400
+  const statusCode = getStatusCode(res)
+  const isError = statusCode >= 400
 
   if (isDev || isError) {
     console.log(
-      `[api] ${requestId} ${requestIp}${userId ? ` user=${userId}` : ''} ${ctx.req.method} ${ctx.req.path} ${ctx.res.status} ${durationMs}ms`
+      `[api] ${meta.requestId} ${meta.requestIp}${meta.userId ? ` user=${meta.userId}` : ''} ${req.method ?? 'GET'} ${req.url ?? ''} ${statusCode} ${durationMs}ms`
     )
   }
+}
+
+export function logError(label: string, meta: RequestMeta, error: unknown): void {
+  const message = error instanceof Error ? error.message : 'Unknown error'
+  console.error(`${label} ${meta.requestId}`, message)
+}
+
+export function sendJson(res: ApiResponse, status: number, body: unknown, meta?: RequestMeta): void {
+  if (meta) {
+    res.setHeader('x-request-id', meta.requestId)
+  }
+  res.status(status).json(body)
+}
+
+export function readBody<T>(req: ApiRequest): T {
+  if (typeof req.body === 'string') {
+    return JSON.parse(req.body) as T
+  }
+  return (req.body ?? {}) as T
+}
+
+export function getQueryParam(req: ApiRequest, key: string): string {
+  const value = req.query?.[key]
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
+}
+
+function getStatusCode(res: ApiResponse): number {
+  const maybe = res as ApiResponse & { statusCode?: number }
+  return maybe.statusCode ?? 200
 }

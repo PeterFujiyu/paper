@@ -77,7 +77,7 @@ async function submit() {
   loading.value = true
   error.value = ''
   try {
-    const endpoint = isRegister.value ? '/auth/register' : '/auth/login'
+    const endpoint = isRegister.value ? '/auth-register' : '/auth-login'
     const body = isRegister.value
       ? { name: form.name, email: form.email, password: form.password, inviteCode: form.inviteCode }
       : { email: form.email, password: form.password }

@@ -115,7 +115,7 @@ async function checkSlugAvailability(): Promise<void> {
     const query = new URLSearchParams({ slug })
     if (isEdit.value) query.set('excludeId', postId.value)
 
-    const result = await apiFetch<{ available: boolean }>(`/posts/admin/slug/check?${query.toString()}`)
+    const result = await apiFetch<{ available: boolean }>(`/slug-check?${query.toString()}`)
     setSlugState(result.available, result.available ? 'Slug is available.' : 'Slug is already in use.')
   } catch (err: unknown) {
     setSlugState(false, getErrorMessage(err))
@@ -126,7 +126,7 @@ async function checkSlugAvailability(): Promise<void> {
 
 onMounted(async () => {
   if (!isEdit.value) return
-  const post = await apiFetch<PostDocument>(`/posts/admin/${postId.value}`)
+  const post = await apiFetch<PostDocument>(`/admin-post?id=${encodeURIComponent(postId.value)}`)
   Object.assign(form, {
     title:     post.title,
     slug:      post.slug,
@@ -164,8 +164,8 @@ async function save() {
   saving.value = true
   error.value  = ''
   try {
-    if (isEdit.value) {
-      await apiFetch<PostDocument>(`/posts/${postId.value}`, {
+        if (isEdit.value) {
+      await apiFetch<PostDocument>(`/post?id=${encodeURIComponent(postId.value)}`, {
         method: 'PUT',
         body: JSON.stringify(form),
       })
@@ -185,7 +185,7 @@ async function save() {
 
 async function remove() {
   if (!confirm('Delete this post? This cannot be undone.')) return
-  await apiFetch<{ ok: boolean }>(`/posts/${postId.value}`, { method: 'DELETE' })
+  await apiFetch<{ ok: boolean }>(`/post?id=${encodeURIComponent(postId.value)}`, { method: 'DELETE' })
   router.push('/admin')
 }
 </script>

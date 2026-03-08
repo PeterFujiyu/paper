@@ -52,7 +52,7 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 onMounted(async () => {
   try {
-    const res = await fetch(`${API_BASE}/posts/${props.slug}`)
+    const res = await fetch(`${API_BASE}/post?slug=${encodeURIComponent(props.slug)}`)
     if (!res.ok) { post.value = null; return }
     post.value = await res.json() as PostDocument
   } finally {
