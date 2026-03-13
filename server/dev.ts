@@ -7,9 +7,11 @@ import adminPostsHandler from '../api/admin-posts.js'
 import adminPostHandler from '../api/admin-post.js'
 import slugCheckHandler from '../api/slug-check.js'
 import authLoginHandler from '../api/auth-login.js'
+import authLogoutHandler from '../api/auth-logout.js'
 import authRegisterHandler from '../api/auth-register.js'
 import authMeHandler from '../api/auth-me.js'
 import type { ApiRequest, ApiResponse } from './lib/logger.js'
+import { applySecurityHeaders } from './lib/security.js'
 
 const routes: Record<string, (req: ApiRequest, res: ApiResponse) => Promise<void>> = {
   '/api/posts': postsHandler,
@@ -18,6 +20,7 @@ const routes: Record<string, (req: ApiRequest, res: ApiResponse) => Promise<void
   '/api/admin-post': adminPostHandler,
   '/api/slug-check': slugCheckHandler,
   '/api/auth-login': authLoginHandler,
+  '/api/auth-logout': authLogoutHandler,
   '/api/auth-register': authRegisterHandler,
   '/api/auth-me': authMeHandler,
 }
@@ -28,6 +31,7 @@ createServer(async (req, res) => {
 
   if (!handler) {
     res.statusCode = 404
+    applySecurityHeaders(res)
     res.setHeader('Content-Type', 'application/json')
     res.end(JSON.stringify({ error: 'Not found' }))
     return

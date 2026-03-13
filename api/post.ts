@@ -1,7 +1,7 @@
 import { connectDB } from '../server/lib/db.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
-import { normalizeSlug, validatePostBody, type PostBody } from '../server/lib/validation.js'
+import { normalizeSlug, sanitizePostContent, validatePostBody, type PostBody } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
 
 function isDuplicateSlugError(error: unknown): boolean {
@@ -41,7 +41,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
-      sendJson(res, 200, post, meta)
+      const contentResult = sanitizePostContent(post.content)
+      if (!contentResult.ok) {
+        sendJson(res, 200, { ...post, content: null }, meta)
+        return
+      }
+
+      sendJson(res, 200, { ...post, content: contentResult.value }, meta)
       return
     }
 
@@ -62,6 +68,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
+      const contentResult = sanitizePostContent(body.content)
+      if (!contentResult.ok) {
+        sendJson(res, 400, { error: contentResult.error }, meta)
+        return
+      }
+
       const slug = normalizeSlug(body.slug ?? '')
       if (await slugExists(slug, id)) {
         sendJson(res, 409, { error: 'Slug is already in use.' }, meta)
@@ -76,6 +88,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
             title: body.title!.trim(),
             slug,
             excerpt: body.excerpt!.trim(),
+            content: contentResult.value,
           },
         },
         { new: true, runValidators: true }
@@ -103,7 +116,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       return
     }
     logError('[api/post]', meta, error)
-    sendJson(res, 500, { error: error instanceof Error ? error.message : 'Unknown error' }, meta)
+    sendJson(res, 500, { error: 'Request failed' }, meta)
   } finally {
     finishRequest(req, res, meta)
   }

@@ -1,6 +1,7 @@
 import { connectDB } from '../server/lib/db.js'
 import { beginRequest, finishRequest, getQueryParam, logError, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
+import { sanitizePostContent } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
@@ -28,10 +29,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       return
     }
 
-    sendJson(res, 200, post, meta)
+    const contentResult = sanitizePostContent(post.content)
+    if (!contentResult.ok) {
+      sendJson(res, 200, { ...post, content: null }, meta)
+      return
+    }
+
+    sendJson(res, 200, { ...post, content: contentResult.value }, meta)
   } catch (error) {
     logError('[api/admin-post]', meta, error)
-    sendJson(res, 500, { error: error instanceof Error ? error.message : 'Unknown error' }, meta)
+    sendJson(res, 500, { error: 'Request failed' }, meta)
   } finally {
     finishRequest(req, res, meta)
   }

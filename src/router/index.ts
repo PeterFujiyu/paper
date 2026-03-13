@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { loadSession } from '../admin/store'
 import HomeView from '../views/HomeView.vue'
 import PostView from '../views/PostView.vue'
 
@@ -6,10 +7,6 @@ const AdminLayout = () => import('../admin/AdminLayout.vue')
 const LoginView = () => import('../admin/views/LoginView.vue')
 const PostsListView = () => import('../admin/views/PostsListView.vue')
 const PostEditView = () => import('../admin/views/PostEditView.vue')
-
-function isLoggedIn(): boolean {
-  return !!localStorage.getItem('pf_admin_token')
-}
 
 const routes: RouteRecordRaw[] = [
   // ─── Public ───
@@ -38,10 +35,23 @@ const router = createRouter({
   },
 })
 
-router.beforeEach((to) => {
-  if (to.meta.requiresAuth && !isLoggedIn()) {
-    return { name: 'login' }
+router.beforeEach(async (to) => {
+  if (to.name === 'login') {
+    const loggedIn = await loadSession()
+    if (loggedIn) {
+      return { name: 'admin-posts' }
+    }
+    return true
   }
+
+  if (to.meta.requiresAuth) {
+    const loggedIn = await loadSession()
+    if (!loggedIn) {
+      return { name: 'login' }
+    }
+  }
+
+  return true
 })
 
 export default router

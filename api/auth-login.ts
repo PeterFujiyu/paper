@@ -1,5 +1,5 @@
 import { connectDB } from '../server/lib/db.js'
-import { signToken } from '../server/lib/auth.js'
+import { setAuthCookie, signToken } from '../server/lib/auth.js'
 import { beginRequest, finishRequest, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
 import { validateLoginBody, type AuthBody } from '../server/lib/validation.js'
 import User from '../server/models/User.js'
@@ -72,14 +72,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     clearFailures(meta.requestIp)
     meta.userId = String(user._id)
     const token = signToken({ id: String(user._id), email: user.email, name: user.name })
+    setAuthCookie(res, token)
 
     sendJson(res, 200, {
-      token,
       user: { id: String(user._id), email: user.email, name: user.name },
     }, meta)
   } catch (error) {
     logError('[api/auth-login]', meta, error)
-    sendJson(res, 500, { error: error instanceof Error ? error.message : 'Unknown error' }, meta)
+    sendJson(res, 500, { error: 'Request failed' }, meta)
   } finally {
     finishRequest(req, res, meta)
   }

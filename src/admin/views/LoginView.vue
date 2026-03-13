@@ -86,7 +86,7 @@ async function submit() {
       method: 'POST',
       body: JSON.stringify(body),
     })
-    setAuth(data.token, data.user)
+    setAuth(data.user)
     router.push('/admin')
   } catch (e: unknown) {
     error.value = getErrorMessage(e)

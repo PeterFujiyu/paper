@@ -1,3 +1,5 @@
+import { applySecurityHeaders } from './security.js'
+
 export type ApiRequest = {
   method?: string
   url?: string
@@ -55,6 +57,7 @@ export function logError(label: string, meta: RequestMeta, error: unknown): void
 }
 
 export function sendJson(res: ApiResponse, status: number, body: unknown, meta?: RequestMeta): void {
+  applySecurityHeaders(res)
   if (meta) {
     res.setHeader('x-request-id', meta.requestId)
   }

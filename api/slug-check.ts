@@ -31,7 +31,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     sendJson(res, 200, { available: !existing }, meta)
   } catch (error) {
     logError('[api/slug-check]', meta, error)
-    sendJson(res, 500, { error: error instanceof Error ? error.message : 'Unknown error' }, meta)
+    sendJson(res, 500, { error: 'Request failed' }, meta)
   } finally {
     finishRequest(req, res, meta)
   }

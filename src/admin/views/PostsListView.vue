@@ -4,7 +4,7 @@
       <h1 class="admin-title">Writing</h1>
       <div class="admin-header-actions">
         <RouterLink to="/admin/posts/new" class="btn-primary">New post</RouterLink>
-        <button class="btn-ghost" @click="logout">Sign out</button>
+        <button class="btn-ghost" @click="signOut">Sign out</button>
       </div>
     </header>
 
@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { apiFetch, clearAuth } from '../store'
+import { apiFetch, logout } from '../store'
 import type { PostSummary } from '../../types/content'
 
 const router = useRouter()
@@ -51,8 +51,8 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
-function logout() {
-  clearAuth()
+async function signOut() {
+  await logout()
   router.push('/admin/login')
 }
 </script>
