@@ -23,7 +23,74 @@
       @change="onFileSelected"
     />
 
-    <EditorContent :editor="editor" class="editor-content" />
+    <div class="editor-content-wrap">
+      <EditorContent :editor="editor" class="editor-content" />
+
+      <!-- Table context toolbar — appears at top-right of table when cursor is inside -->
+      <Teleport to="body">
+        <Transition name="tbl-fade">
+          <div
+            v-if="tableToolbarVisible && tableToolbarPos"
+            class="table-toolbar"
+            :style="{ top: tableToolbarPos.top + 'px', left: tableToolbarPos.left + 'px' }"
+            @mousedown.prevent
+          >
+            <!-- Add row below -->
+            <button class="tbl-btn" title="Add row below" @click="editorCmd('addRowAfter')">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
+                <rect x="1" y="8" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.5"/>
+                <line x1="7" y1="9.5" x2="7" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                <line x1="6" y1="10.5" x2="8" y2="10.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+              </svg>
+            </button>
+
+            <!-- Delete row -->
+            <button class="tbl-btn" title="Delete row" @click="editorCmd('deleteRow')">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
+                <rect x="1" y="8" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.35"/>
+                <line x1="5.5" y1="9.5" x2="8.5" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                <line x1="8.5" y1="9.5" x2="5.5" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+              </svg>
+            </button>
+
+            <div class="tbl-sep"></div>
+
+            <!-- Add column right -->
+            <button class="tbl-btn" title="Add column right" @click="editorCmd('addColumnAfter')">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
+                <rect x="8" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.5"/>
+                <line x1="9.5" y1="7" x2="11.5" y2="7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                <line x1="10.5" y1="6" x2="10.5" y2="8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+              </svg>
+            </button>
+
+            <!-- Delete column -->
+            <button class="tbl-btn" title="Delete column" @click="editorCmd('deleteColumn')">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
+                <rect x="8" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.35"/>
+                <line x1="9.5" y1="5.5" x2="11.5" y2="7.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                <line x1="11.5" y1="5.5" x2="9.5" y2="7.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+              </svg>
+            </button>
+
+            <div class="tbl-sep"></div>
+
+            <!-- Delete table -->
+            <button class="tbl-btn tbl-btn--danger" title="Delete table" @click="editorCmd('deleteTable')">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="12" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.4"/>
+                <line x1="4" y1="4" x2="10" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                <line x1="10" y1="4" x2="4" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </Transition>
+      </Teleport>
+    </div>
 
     <!-- Upload progress indicator -->
     <div v-if="uploading" class="upload-indicator">Reading image…</div>
@@ -55,6 +122,48 @@ const emit = defineEmits(['update:modelValue'])
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
 
+// ─── Table toolbar state ──────────────────────────────────
+const tableToolbarVisible = ref(false)
+const tableToolbarPos = ref<{ top: number; left: number } | null>(null)
+
+function updateTableToolbar() {
+  const e = editor.value
+  if (!e) { tableToolbarVisible.value = false; return }
+
+  const inTable = e.isActive('table')
+  tableToolbarVisible.value = inTable
+
+  if (!inTable) return
+
+  // Find the tableWrapper DOM node for the currently selected table
+  const { state, view } = e
+  const { $from } = state.selection
+
+  // Walk up the ProseMirror node tree to find the table node
+  let tablePos: number | null = null
+  for (let d = $from.depth; d >= 0; d--) {
+    if ($from.node(d).type.name === 'table') {
+      tablePos = $from.before(d)
+      break
+    }
+  }
+
+  if (tablePos === null) return
+
+  const tableDOM = view.nodeDOM(tablePos) as HTMLElement | null
+  if (!tableDOM) return
+
+  // tableWrapper is the parent of the <table> element injected by Tiptap
+  const wrapper = tableDOM.closest('.tableWrapper') ?? tableDOM
+  const rect = wrapper.getBoundingClientRect()
+
+  // Position the toolbar at the top-right corner of the table wrapper
+  tableToolbarPos.value = {
+    top: rect.top + window.scrollY - 2,
+    left: rect.right + window.scrollX + 6,
+  }
+}
+
 // ─── Editor ──────────────────────────────────────────────
 const editor = useEditor({
   extensions: [
@@ -71,8 +180,23 @@ const editor = useEditor({
     TableCell,
   ],
   content: props.modelValue,
-  onUpdate({ editor }) {
-    emit('update:modelValue', editor.getJSON())
+  onUpdate({ editor: e }) {
+    emit('update:modelValue', e.getJSON())
+    updateTableToolbar()
+  },
+  onSelectionUpdate() {
+    updateTableToolbar()
+  },
+  onFocus() {
+    updateTableToolbar()
+  },
+  onBlur() {
+    // Small delay so clicks on the table toolbar are not lost
+    setTimeout(() => {
+      if (editor.value && !editor.value.isFocused) {
+        tableToolbarVisible.value = false
+      }
+    }, 150)
   },
 })
 
@@ -87,6 +211,16 @@ watch(() => props.modelValue, (val) => {
 })
 
 onBeforeUnmount(() => editor.value?.destroy())
+
+// ─── Table command helper ─────────────────────────────────
+type TableCmd = 'addRowAfter' | 'deleteRow' | 'addColumnAfter' | 'deleteColumn' | 'deleteTable'
+
+function editorCmd(cmd: TableCmd) {
+  const e = editor.value
+  if (!e) return
+  ;(e.chain().focus() as any)[cmd]().run()
+  updateTableToolbar()
+}
 
 // ─── Image upload ─────────────────────────────────────────
 const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
@@ -179,33 +313,8 @@ const toolbarButtons = computed(() => {
     },
     {
       label: 'Tbl',
-      isActive: () => e.isActive('table'),
+      isActive: () => false,
       action: () => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
-    },
-    {
-      label: '+R',
-      isActive: () => false,
-      action: () => e.chain().focus().addRowAfter().run(),
-    },
-    {
-      label: '-R',
-      isActive: () => false,
-      action: () => e.chain().focus().deleteRow().run(),
-    },
-    {
-      label: '+C',
-      isActive: () => false,
-      action: () => e.chain().focus().addColumnAfter().run(),
-    },
-    {
-      label: '-C',
-      isActive: () => false,
-      action: () => e.chain().focus().deleteColumn().run(),
-    },
-    {
-      label: 'DelT',
-      isActive: () => false,
-      action: () => e.chain().focus().deleteTable().run(),
     },
   ] as Array<{ label: string; isActive?: () => boolean; action: () => void }>
 })
@@ -240,6 +349,10 @@ const toolbarButtons = computed(() => {
 .tb-btn:hover  { color: var(--text-main); }
 .tb-btn--active { color: var(--text-main); font-weight: 600; }
 
+.editor-content-wrap {
+  position: relative;
+}
+
 .upload-indicator {
   position: absolute;
   bottom: 0.8rem;
@@ -248,6 +361,65 @@ const toolbarButtons = computed(() => {
   color: var(--text-muted);
   font-style: italic;
   pointer-events: none;
+}
+</style>
+
+<!-- Table context toolbar — global so Teleport target (body) works -->
+<style>
+.table-toolbar {
+  position: absolute;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  background: var(--bg, #fff);
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: 5px;
+  box-shadow: 0 2px 8px color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.tbl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-muted, #888);
+  transition: color 0.12s, background 0.12s;
+  padding: 0;
+}
+.tbl-btn:hover {
+  color: var(--text-main, #111);
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+.tbl-btn--danger:hover {
+  color: #c0392b;
+  background: color-mix(in srgb, #c0392b 8%, transparent);
+}
+
+.tbl-sep {
+  width: 14px;
+  height: 1px;
+  background: var(--border, #e5e5e5);
+  margin: 1px 0;
+  flex-shrink: 0;
+}
+
+/* Transition */
+.tbl-fade-enter-active,
+.tbl-fade-leave-active {
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.tbl-fade-enter-from,
+.tbl-fade-leave-to {
+  opacity: 0;
+  transform: translateX(3px);
 }
 </style>
 
