@@ -413,6 +413,29 @@ describe('sanitizePostContent', () => {
     }
   })
 
+  it('accepts a paragraph node with no content field (empty paragraph from TipTap)', () => {
+    const result = sanitizePostContent({
+      type: 'doc',
+      content: [{ type: 'paragraph' }],
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      const para = result.value.content?.[0]
+      expect(para?.content).toEqual([])
+    }
+  })
+
+  it('rejects a paragraph node with a non-array content field', () => {
+    const result = sanitizePostContent({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: 'bad' }],
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toMatch(/paragraph nodes must include a content array/)
+    }
+  })
+
   it('strips unknown fields from nodes', () => {
     const result = sanitizePostContent({
       type: 'doc',
