@@ -38,7 +38,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     }
 
     if (req.method === 'POST') {
-      const user = requireAuth(req, res, meta)
+      const user = await requireAuth(req, res, meta)
       if (!user) return
 
       const body = readBody<PostBody>(req)

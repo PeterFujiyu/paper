@@ -1,4 +1,4 @@
-import jwt, { type JwtPayload } from 'jsonwebtoken'
+import jwt, { type JwtPayload, type SignOptions, type VerifyOptions } from 'jsonwebtoken'
 
 type HeaderMap = Record<string, string | string[] | undefined>
 
@@ -10,11 +10,19 @@ export interface UserPayload extends JwtPayload {
   id: string
   email: string
   name: string
+  // Token version — must match the value stored in the User document.
+  // Increment the User.tokenVersion field to revoke all active sessions.
+  tkv: number
 }
 
 const AUTH_COOKIE_NAME = 'pf_admin_session'
 const TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 const SECRET = readJwtSecret()
+// Optional audience claim that scopes tokens to a specific deployment
+// environment (e.g. "production" vs "preview").  Set JWT_AUDIENCE to
+// different values in each Vercel environment so that tokens signed in a
+// preview deployment cannot authenticate against production.
+const AUDIENCE = process.env.JWT_AUDIENCE?.trim() || undefined
 
 function readJwtSecret(): string {
   const secret = process.env.JWT_SECRET?.trim()
@@ -30,12 +38,16 @@ function readJwtSecret(): string {
   return secret
 }
 
-export function signToken(payload: Pick<UserPayload, 'id' | 'email' | 'name'>): string {
-  return jwt.sign(payload, SECRET, { expiresIn: TOKEN_TTL_SECONDS })
+export function signToken(payload: Pick<UserPayload, 'id' | 'email' | 'name' | 'tkv'>): string {
+  const options: SignOptions = { expiresIn: TOKEN_TTL_SECONDS }
+  if (AUDIENCE) options.audience = AUDIENCE
+  return jwt.sign(payload, SECRET, options)
 }
 
 export function verifyToken(token: string): UserPayload {
-  const decoded = jwt.verify(token, SECRET)
+  const options: VerifyOptions = {}
+  if (AUDIENCE) options.audience = AUDIENCE
+  const decoded = jwt.verify(token, SECRET, options)
   if (typeof decoded === 'string') {
     throw new Error('Invalid token payload')
   }

@@ -5,6 +5,7 @@ export interface User {
   email: string
   password: string
   name: string
+  tokenVersion: number
   createdAt?: Date
   updatedAt?: Date
 }
@@ -21,6 +22,8 @@ const userSchema = new Schema<User, UserModel, UserMethods>(
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true, select: false },
     name: { type: String, required: true },
+    // Increment on logout to invalidate all outstanding JWTs for this user.
+    tokenVersion: { type: Number, required: true, default: 0 },
   },
   { timestamps: true }
 )

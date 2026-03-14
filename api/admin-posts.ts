@@ -12,7 +12,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       return
     }
 
-    const user = requireAuth(req, res, meta)
+    const user = await requireAuth(req, res, meta)
     if (!user) return
 
     await connectDB()

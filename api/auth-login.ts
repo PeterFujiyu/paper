@@ -71,7 +71,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
     clearFailures(meta.requestIp)
     meta.userId = String(user._id)
-    const token = signToken({ id: String(user._id), email: user.email, name: user.name })
+    const token = signToken({
+      id: String(user._id),
+      email: user.email,
+      name: user.name,
+      tkv: user.tokenVersion,
+    })
     setAuthCookie(res, token)
 
     sendJson(res, 200, {

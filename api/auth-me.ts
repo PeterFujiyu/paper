@@ -10,7 +10,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       return
     }
 
-    const user = requireAuth(req, res, meta)
+    const user = await requireAuth(req, res, meta)
     if (!user) return
     sendJson(res, 200, { id: user.id, email: user.email, name: user.name }, meta)
   } catch (error) {

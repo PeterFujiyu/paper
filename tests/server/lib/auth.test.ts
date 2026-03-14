@@ -6,7 +6,7 @@ import { signToken, verifyToken, getBearerToken, getCookie, getAuthToken, setAut
 // signToken / verifyToken
 // ---------------------------------------------------------------------------
 describe('signToken / verifyToken', () => {
-  const payload = { id: 'user-1', email: 'user@example.com', name: 'Alice' }
+  const payload = { id: 'user-1', email: 'user@example.com', name: 'Alice', tkv: 0 }
 
   it('returns a non-empty string', () => {
     const token = signToken(payload)
@@ -20,6 +20,7 @@ describe('signToken / verifyToken', () => {
     expect(decoded.id).toBe(payload.id)
     expect(decoded.email).toBe(payload.email)
     expect(decoded.name).toBe(payload.name)
+    expect(decoded.tkv).toBe(payload.tkv)
   })
 
   it('throws for a tampered token', () => {
