@@ -210,12 +210,12 @@ function sanitizeContentNode(
   }
 
   if (containerNodeTypes.has(type)) {
-    if (!Array.isArray(record.content)) {
+    if ('content' in record && !Array.isArray(record.content)) {
       return { ok: false, error: `${type} nodes must include a content array.` }
     }
 
     next.content = []
-    for (const child of record.content) {
+    for (const child of Array.isArray(record.content) ? record.content : []) {
       const sanitizedChild = sanitizeContentNode(child, depth + 1, state)
       if (!sanitizedChild.ok) {
         return sanitizedChild
