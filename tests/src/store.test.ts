@@ -14,7 +14,6 @@ vi.stubGlobal('fetch', fetchMock)
 
 // We stub window.location.href assignment (happy-dom supports this but we
 // want to capture it as a spy rather than actually navigate).
-const locationAssignSpy = vi.fn()
 Object.defineProperty(globalThis, 'location', {
   value: { href: '' },
   writable: true,
