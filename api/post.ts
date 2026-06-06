@@ -42,6 +42,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       }
 
       const contentResult = sanitizePostContent(post.content)
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300')
       if (!contentResult.ok) {
         sendJson(res, 200, { ...post, content: null }, meta)
         return
