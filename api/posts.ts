@@ -33,6 +33,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         .sort({ createdAt: -1 })
         .select('slug title excerpt createdAt')
         .lean()
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300')
       sendJson(res, 200, posts, meta)
       return
     }
