@@ -178,6 +178,7 @@ describe('validatePostBody', () => {
   })
 
   it('accepts omitted published (undefined)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { published: _published, ...rest } = valid
     expect(validatePostBody(rest)).toBeNull()
   })

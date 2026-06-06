@@ -218,7 +218,14 @@ type TableCmd = 'addRowAfter' | 'deleteRow' | 'addColumnAfter' | 'deleteColumn' 
 function editorCmd(cmd: TableCmd) {
   const e = editor.value
   if (!e) return
-  ;(e.chain().focus() as any)[cmd]().run()
+
+  const chain = e.chain().focus()
+  if (cmd === 'addRowAfter') chain.addRowAfter().run()
+  else if (cmd === 'deleteRow') chain.deleteRow().run()
+  else if (cmd === 'addColumnAfter') chain.addColumnAfter().run()
+  else if (cmd === 'deleteColumn') chain.deleteColumn().run()
+  else if (cmd === 'deleteTable') chain.deleteTable().run()
+
   updateTableToolbar()
 }
 
