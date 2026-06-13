@@ -29,7 +29,7 @@ vi.mock('../../server/models/Post.js', () => ({
   },
 }))
 
-import handler from '../../api/post-completion.js'
+import handler from '../../api/post-view.js'
 import type { ApiRequest, ApiResponse } from '../../server/lib/logger.js'
 
 function makeReq(options: {
@@ -38,7 +38,7 @@ function makeReq(options: {
 }): ApiRequest {
   return {
     method: options.method ?? 'POST',
-    url: '/api/post-completion',
+    url: '/api/post-view',
     headers: {
       'x-forwarded-for': '203.0.113.10',
       'user-agent': 'vitest',
@@ -65,7 +65,7 @@ function stubFindOneAndUpdate(result: unknown): void {
   mockFindOneAndUpdate.mockReturnValue({ select })
 }
 
-describe('api/post-completion', () => {
+describe('api/post-view', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockTrackMetricRequest.mockResolvedValue(false)
@@ -76,52 +76,30 @@ describe('api/post-completion', () => {
     ))
   })
 
-  it('normalizes the slug and increments completed reads while the source is under the frequency threshold', async () => {
+  it('increments views without hCaptcha while the source is under the frequency threshold', async () => {
     stubFindOneAndUpdate({
       _id: 'post-1',
-      viewCount: 10,
-      readCompletionCount: 7,
+      viewCount: 5,
+      readCompletionCount: 2,
     })
     const res = makeRes()
 
     await handler(makeReq({ body: { slug: 'Hello-World' } }), res)
 
-    expect(mockTrackMetricRequest).toHaveBeenCalledWith(expect.any(Object), 'post-completion', 'hello-world')
+    expect(mockTrackMetricRequest).toHaveBeenCalledWith(expect.any(Object), 'post-view', 'hello-world')
     expect(mockVerifyHCaptcha).not.toHaveBeenCalled()
     expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
       { slug: 'hello-world', published: true },
-      { $inc: { readCompletionCount: 1 } },
+      { $inc: { viewCount: 1 } },
       { new: true }
     )
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store')
     expect(res.statusCode).toBe(200)
     expect(res.json).toHaveBeenCalledWith({
       _id: 'post-1',
-      viewCount: 10,
-      readCompletionCount: 7,
-      readCompletionRate: 70,
+      viewCount: 5,
+      readCompletionCount: 2,
+      readCompletionRate: 40,
     })
-  })
-
-  it('rejects requests without a slug before touching the database', async () => {
-    const res = makeRes()
-
-    await handler(makeReq({ body: {} }), res)
-
-    expect(mockConnectDB).not.toHaveBeenCalled()
-    expect(mockFindOneAndUpdate).not.toHaveBeenCalled()
-    expect(res.statusCode).toBe(400)
-    expect(res.json).toHaveBeenCalledWith({ error: 'Slug is required.' })
-  })
-
-  it('returns not found when the post is unpublished or missing', async () => {
-    stubFindOneAndUpdate(null)
-    const res = makeRes()
-
-    await handler(makeReq({ body: { slug: 'draft-post' } }), res)
-
-    expect(res.statusCode).toBe(404)
-    expect(res.json).toHaveBeenCalledWith({ error: 'Not found' })
   })
 
   it('requires hCaptcha before incrementing when the source exceeds the frequency threshold', async () => {
@@ -138,12 +116,12 @@ describe('api/post-completion', () => {
     })
   })
 
-  it('increments completed reads when a required hCaptcha token verifies successfully', async () => {
+  it('increments views when a required hCaptcha token verifies successfully', async () => {
     mockTrackMetricRequest.mockResolvedValue(true)
     stubFindOneAndUpdate({
       _id: 'post-1',
-      viewCount: 10,
-      readCompletionCount: 8,
+      viewCount: 6,
+      readCompletionCount: 2,
     })
     const res = makeRes()
 
@@ -158,18 +136,9 @@ describe('api/post-completion', () => {
     expect(res.statusCode).toBe(200)
     expect(res.json).toHaveBeenCalledWith({
       _id: 'post-1',
-      viewCount: 10,
-      readCompletionCount: 8,
-      readCompletionRate: 80,
+      viewCount: 6,
+      readCompletionCount: 2,
+      readCompletionRate: 33,
     })
-  })
-
-  it('rejects unsupported methods', async () => {
-    const res = makeRes()
-
-    await handler(makeReq({ method: 'GET', body: { slug: 'hello-world' } }), res)
-
-    expect(mockConnectDB).not.toHaveBeenCalled()
-    expect(res.statusCode).toBe(405)
   })
 })

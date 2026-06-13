@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockConnectDB = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 const mockRequireAuth = vi.hoisted(() => vi.fn())
 const mockFindOne = vi.hoisted(() => vi.fn())
-const mockFindOneAndUpdate = vi.hoisted(() => vi.fn())
 const mockFindByIdAndUpdate = vi.hoisted(() => vi.fn())
 
 vi.mock('../../server/lib/db.js', () => ({
@@ -17,7 +16,6 @@ vi.mock('../../server/lib/vercel-auth.js', () => ({
 vi.mock('../../server/models/Post.js', () => ({
   default: {
     findOne: mockFindOne,
-    findOneAndUpdate: mockFindOneAndUpdate,
     findByIdAndUpdate: mockFindByIdAndUpdate,
   },
 }))
@@ -58,11 +56,6 @@ function stubFindOne(result: unknown): void {
   mockFindOne.mockReturnValue({ select, lean })
 }
 
-function stubFindOneAndUpdate(result: unknown): void {
-  const lean = vi.fn().mockResolvedValue(result)
-  mockFindOneAndUpdate.mockReturnValue({ lean })
-}
-
 function stubFindByIdAndUpdate(result: unknown): void {
   const lean = vi.fn().mockResolvedValue(result)
   mockFindByIdAndUpdate.mockReturnValue({ lean })
@@ -85,16 +78,12 @@ describe('api/post', () => {
       readCompletionCount: 4,
       content: { type: 'doc', content: [] },
     }
-    stubFindOneAndUpdate(post)
+    stubFindOne(post)
     const res = makeRes()
 
     await handler(makeReq({ method: 'GET', query: { slug: 'Hello-World' } }), res)
 
-    expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
-      { slug: 'hello-world', published: true },
-      { $inc: { viewCount: 1 } },
-      { new: true }
-    )
+    expect(mockFindOne).toHaveBeenCalledWith({ slug: 'hello-world', published: true })
     expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store')
     expect(res.statusCode).toBe(200)
     expect(res.json).toHaveBeenCalledWith({

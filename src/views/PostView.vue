@@ -47,6 +47,7 @@ import Typography   from '@tiptap/extension-typography'
 import Underline    from '@tiptap/extension-underline'
 import Link         from '@tiptap/extension-link'
 import TextAlign    from '@tiptap/extension-text-align'
+import { getHCaptchaToken } from '../shared/hcaptcha'
 import type { PostDocument, PostMetrics } from '../types/content'
 
 const props = defineProps({
@@ -61,6 +62,10 @@ const completionInFlight = ref(false)
 let completionFrame: number | null = null
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
+
+type MetricError = {
+  requiresHCaptcha?: boolean
+}
 
 onMounted(() => {
   void loadPost()
@@ -91,6 +96,7 @@ async function loadPost(): Promise<void> {
 
   if (post.value) {
     await nextTick()
+    void reportPostView(post.value.slug)
     startCompletionTracking()
   }
 }
@@ -169,25 +175,66 @@ function checkCompletion(): void {
   }
 }
 
+async function readMetricError(res: Response): Promise<MetricError> {
+  try {
+    return await res.json() as MetricError
+  } catch {
+    return {}
+  }
+}
+
+async function sendMetricRequest(
+  endpoint: 'post-view' | 'post-completion',
+  slug: string,
+  hcaptchaToken = ''
+): Promise<Response> {
+  return fetch(`${API_BASE}/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      slug,
+      ...(hcaptchaToken ? { hcaptchaToken } : {}),
+    }),
+  })
+}
+
+async function recordMetric(endpoint: 'post-view' | 'post-completion', slug: string): Promise<PostMetrics | null> {
+  const res = await sendMetricRequest(endpoint, slug)
+  if (res.ok) {
+    return await res.json() as PostMetrics
+  }
+
+  const error = await readMetricError(res)
+  if (!error.requiresHCaptcha) return null
+
+  const token = await getHCaptchaToken()
+  if (!token) return null
+
+  const retry = await sendMetricRequest(endpoint, slug, token)
+  if (!retry.ok) return null
+
+  return await retry.json() as PostMetrics
+}
+
+async function reportPostView(slug: string): Promise<void> {
+  const metrics = await recordMetric('post-view', slug)
+  if (metrics && post.value?.slug === slug) {
+    Object.assign(post.value, metrics)
+  }
+}
+
 async function reportReadCompletion(): Promise<void> {
   if (completionSent.value || completionInFlight.value || !post.value) return
 
+  const slug = post.value.slug
   completionInFlight.value = true
   try {
-    const res = await fetch(`${API_BASE}/post-completion`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug: post.value.slug }),
-    })
-
-    if (!res.ok) return
-
-    const metrics = await res.json() as PostMetrics
-    if (post.value) {
+    const metrics = await recordMetric('post-completion', slug)
+    if (metrics && post.value?.slug === slug) {
       Object.assign(post.value, metrics)
+      completionSent.value = true
+      stopCompletionTracking()
     }
-    completionSent.value = true
-    stopCompletionTracking()
   } finally {
     completionInFlight.value = false
   }

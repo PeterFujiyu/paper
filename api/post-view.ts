@@ -6,7 +6,7 @@ import { withPostMetrics } from '../server/lib/post-metrics.js'
 import { normalizeSlug } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
 
-type CompletionBody = {
+type PostViewBody = {
   slug?: unknown
   hcaptchaToken?: unknown
   hCaptchaToken?: unknown
@@ -22,7 +22,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       return
     }
 
-    const body = readBody<CompletionBody>(req)
+    const body = readBody<PostViewBody>(req)
     const slug = typeof body.slug === 'string' ? normalizeSlug(body.slug) : ''
     if (!slug) {
       sendJson(res, 400, { error: 'Slug is required.' }, meta)
@@ -32,7 +32,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     await connectDB()
 
     const token = getHCaptchaToken(body)
-    const shouldRequireCaptcha = await trackMetricRequest(req, 'post-completion', slug)
+    const shouldRequireCaptcha = await trackMetricRequest(req, 'post-view', slug)
     if (shouldRequireCaptcha || token) {
       const captcha = await verifyHCaptcha(req, token)
       if (!captcha.ok) {
@@ -46,7 +46,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
     const post = await Post.findOneAndUpdate(
       { slug, published: true },
-      { $inc: { readCompletionCount: 1 } },
+      { $inc: { viewCount: 1 } },
       { new: true }
     )
       .select('viewCount readCompletionCount')
@@ -60,7 +60,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     res.setHeader('Cache-Control', 'no-store')
     sendJson(res, 200, withPostMetrics(post), meta)
   } catch (error) {
-    logError('[api/post-completion]', meta, error)
+    logError('[api/post-view]', meta, error)
     sendJson(res, 500, { error: 'Request failed' }, meta)
   } finally {
     finishRequest(req, res, meta)
