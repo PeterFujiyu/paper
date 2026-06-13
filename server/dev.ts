@@ -3,6 +3,7 @@ import { createServer } from 'node:http'
 import { parse as parseUrl } from 'node:url'
 import postsHandler from '../api/posts.js'
 import postHandler from '../api/post.js'
+import postViewHandler from '../api/post-view.js'
 import postCompletionHandler from '../api/post-completion.js'
 import adminPostsHandler from '../api/admin-posts.js'
 import adminPostHandler from '../api/admin-post.js'
@@ -17,6 +18,7 @@ import { applySecurityHeaders } from './lib/security.js'
 const routes: Record<string, (req: ApiRequest, res: ApiResponse) => Promise<void>> = {
   '/api/posts': postsHandler,
   '/api/post': postHandler,
+  '/api/post-view': postViewHandler,
   '/api/post-completion': postCompletionHandler,
   '/api/admin-posts': adminPostsHandler,
   '/api/admin-post': adminPostHandler,

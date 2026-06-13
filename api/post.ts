@@ -36,11 +36,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
-      const post = await Post.findOneAndUpdate(
-        { slug, published: true },
-        { $inc: { viewCount: 1 } },
-        { new: true }
-      ).lean()
+      const post = await Post.findOne({ slug, published: true }).lean()
       if (!post) {
         sendJson(res, 404, { error: 'Not found' }, meta)
         return
