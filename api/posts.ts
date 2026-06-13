@@ -34,7 +34,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         .sort({ createdAt: -1 })
         .select('slug title excerpt createdAt viewCount readCompletionCount')
         .lean()
-      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300')
+      res.setHeader('Cache-Control', 'no-store')
       sendJson(res, 200, posts.map(withPostMetrics), meta)
       return
     }

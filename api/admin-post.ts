@@ -32,6 +32,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
     const contentResult = sanitizePostContent(post.content)
     const postWithMetrics = withPostMetrics(post)
+    res.setHeader('Cache-Control', 'no-store')
     if (!contentResult.ok) {
       sendJson(res, 200, { ...postWithMetrics, content: null }, meta)
       return

@@ -22,6 +22,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       .select('slug title published createdAt viewCount readCompletionCount')
       .lean()
 
+    res.setHeader('Cache-Control', 'no-store')
     sendJson(res, 200, posts.map(withPostMetrics), meta)
   } catch (error) {
     logError('[api/admin-posts]', meta, error)
