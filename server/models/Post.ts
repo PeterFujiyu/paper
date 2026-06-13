@@ -1,5 +1,7 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose'
 
+import { slugify } from '../../src/shared/slug.js'
+
 const postSchema = new Schema(
   {
     slug: { type: String, required: true, unique: true, trim: true },
@@ -7,6 +9,8 @@ const postSchema = new Schema(
     excerpt: { type: String, default: '' },
     content: { type: Schema.Types.Mixed, default: null },
     published: { type: Boolean, default: false },
+    viewCount: { type: Number, default: 0, min: 0 },
+    readCompletionCount: { type: Number, default: 0, min: 0 },
     author: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   {
@@ -23,10 +27,7 @@ type PostModel = Model<Post>
 
 postSchema.pre('validate', function (this: Post) {
   if (!this.slug && this.title) {
-    this.slug = this.title
-      .toLowerCase()
-      .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
-      .replace(/^-|-$/g, '')
+    this.slug = slugify(this.title)
   }
 })
 

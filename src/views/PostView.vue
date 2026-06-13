@@ -11,10 +11,14 @@
     </div>
 
     <!-- Article -->
-    <article v-else class="post">
+    <article v-else ref="articleRef" class="post">
       <header class="post-header">
         <RouterLink to="/" class="back-link">← Writing</RouterLink>
-        <div class="post-meta">{{ formatDate(post.createdAt) }}</div>
+        <div class="post-meta">
+          <span>{{ formatDate(post.createdAt) }}</span>
+          <span>{{ formatViews(post.viewCount) }}</span>
+          <span>{{ formatCompletionRate(post.readCompletionRate) }}</span>
+        </div>
         <h1 class="post-title">{{ post.title }}</h1>
       </header>
 
@@ -30,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { generateHTML, type Extensions, type JSONContent } from '@tiptap/core'
 import StarterKit   from '@tiptap/starter-kit'
@@ -43,7 +47,7 @@ import Typography   from '@tiptap/extension-typography'
 import Underline    from '@tiptap/extension-underline'
 import Link         from '@tiptap/extension-link'
 import TextAlign    from '@tiptap/extension-text-align'
-import type { PostDocument } from '../types/content'
+import type { PostDocument, PostMetrics } from '../types/content'
 
 const props = defineProps({
   slug: { type: String, required: true },
@@ -51,18 +55,45 @@ const props = defineProps({
 
 const post = ref<PostDocument | null>(null)
 const loading = ref(true)
+const articleRef = ref<HTMLElement | null>(null)
+const completionSent = ref(false)
+const completionInFlight = ref(false)
+let completionFrame: number | null = null
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
-onMounted(async () => {
+onMounted(() => {
+  void loadPost()
+})
+
+onBeforeUnmount(() => {
+  stopCompletionTracking()
+})
+
+watch(() => props.slug, () => {
+  void loadPost()
+})
+
+async function loadPost(): Promise<void> {
+  loading.value = true
+  post.value = null
+  completionSent.value = false
+  stopCompletionTracking()
+
   try {
     const res = await fetch(`${API_BASE}/post?slug=${encodeURIComponent(props.slug)}`)
-    if (!res.ok) { post.value = null; return }
-    post.value = await res.json() as PostDocument
+    if (res.ok) {
+      post.value = await res.json() as PostDocument
+    }
   } finally {
     loading.value = false
   }
-})
+
+  if (post.value) {
+    await nextTick()
+    startCompletionTracking()
+  }
+}
 
 const extensions: Extensions = [
   StarterKit,
@@ -90,6 +121,77 @@ function formatDate(iso?: string): string {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
+
+function formatViews(count: number): string {
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'view' : 'views'}`
+}
+
+function formatCompletionRate(rate: number): string {
+  return `${Math.round(rate)}% read completion`
+}
+
+function startCompletionTracking(): void {
+  if (!post.value) return
+  window.addEventListener('scroll', scheduleCompletionCheck, { passive: true })
+  window.addEventListener('resize', scheduleCompletionCheck)
+  scheduleCompletionCheck()
+}
+
+function stopCompletionTracking(): void {
+  window.removeEventListener('scroll', scheduleCompletionCheck)
+  window.removeEventListener('resize', scheduleCompletionCheck)
+  if (completionFrame !== null) {
+    window.cancelAnimationFrame(completionFrame)
+    completionFrame = null
+  }
+}
+
+function scheduleCompletionCheck(): void {
+  if (completionFrame !== null) return
+  completionFrame = window.requestAnimationFrame(() => {
+    completionFrame = null
+    checkCompletion()
+  })
+}
+
+function checkCompletion(): void {
+  if (completionSent.value || completionInFlight.value || !post.value || !articleRef.value) return
+
+  const articleTop = articleRef.value.offsetTop
+  const articleHeight = articleRef.value.offsetHeight
+  const viewportBottom = window.scrollY + window.innerHeight
+  const progress = articleHeight <= window.innerHeight
+    ? 1
+    : (viewportBottom - articleTop) / articleHeight
+
+  if (progress >= 0.9) {
+    void reportReadCompletion()
+  }
+}
+
+async function reportReadCompletion(): Promise<void> {
+  if (completionSent.value || completionInFlight.value || !post.value) return
+
+  completionInFlight.value = true
+  try {
+    const res = await fetch(`${API_BASE}/post-completion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: post.value.slug }),
+    })
+
+    if (!res.ok) return
+
+    const metrics = await res.json() as PostMetrics
+    if (post.value) {
+      Object.assign(post.value, metrics)
+    }
+    completionSent.value = true
+    stopCompletionTracking()
+  } finally {
+    completionInFlight.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -115,6 +217,9 @@ function formatDate(iso?: string): string {
   color: var(--text-muted);
   font-style: italic;
   margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
 }
 
 .post-title {

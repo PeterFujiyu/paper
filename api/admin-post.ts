@@ -1,5 +1,6 @@
 import { connectDB } from '../server/lib/db.js'
 import { beginRequest, finishRequest, getQueryParam, logError, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
+import { withPostMetrics } from '../server/lib/post-metrics.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
 import { sanitizePostContent } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
@@ -30,12 +31,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     }
 
     const contentResult = sanitizePostContent(post.content)
+    const postWithMetrics = withPostMetrics(post)
     if (!contentResult.ok) {
-      sendJson(res, 200, { ...post, content: null }, meta)
+      sendJson(res, 200, { ...postWithMetrics, content: null }, meta)
       return
     }
 
-    sendJson(res, 200, { ...post, content: contentResult.value }, meta)
+    sendJson(res, 200, { ...postWithMetrics, content: contentResult.value }, meta)
   } catch (error) {
     logError('[api/admin-post]', meta, error)
     sendJson(res, 500, { error: 'Request failed' }, meta)

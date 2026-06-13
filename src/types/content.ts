@@ -12,7 +12,13 @@ export interface AuthResponse {
   user: UserInfo
 }
 
-export interface PostSummary {
+export interface PostMetrics {
+  viewCount: number
+  readCompletionCount: number
+  readCompletionRate: number
+}
+
+export interface PostSummary extends PostMetrics {
   _id: string
   slug: string
   title: string
