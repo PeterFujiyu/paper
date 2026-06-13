@@ -1,5 +1,6 @@
 import { connectDB } from '../server/lib/db.js'
 import { beginRequest, finishRequest, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
+import { withPostMetrics } from '../server/lib/post-metrics.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
 import { validatePostBody, type PostBody, normalizeSlug, sanitizePostContent } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
@@ -31,10 +32,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     if (req.method === 'GET') {
       const posts = await Post.find({ published: true })
         .sort({ createdAt: -1 })
-        .select('slug title excerpt createdAt')
+        .select('slug title excerpt createdAt viewCount readCompletionCount')
         .lean()
       res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300')
-      sendJson(res, 200, posts, meta)
+      sendJson(res, 200, posts.map(withPostMetrics), meta)
       return
     }
 
@@ -63,14 +64,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
       const post = await Post.create({
         ...body,
-          title: body.title!.trim(),
-          slug,
-          excerpt: body.excerpt!.trim(),
-          content: contentResult.value,
-          author: user.id,
-        })
+        title: body.title!.trim(),
+        slug,
+        excerpt: body.excerpt!.trim(),
+        content: contentResult.value,
+        author: user.id,
+      })
 
-      sendJson(res, 201, post, meta)
+      sendJson(res, 201, withPostMetrics(post.toObject()), meta)
       return
     }
 

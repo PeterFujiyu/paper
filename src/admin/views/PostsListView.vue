@@ -20,7 +20,12 @@
             <span class="post-status" :class="post.published ? 'status--live' : 'status--draft'">
               {{ post.published ? 'Live' : 'Draft' }}
             </span>
-            <span class="post-title">{{ post.title }}</span>
+            <span>
+              <span class="post-title">{{ post.title }}</span>
+              <span class="post-metrics">
+                {{ formatViews(post.viewCount) }} / {{ formatCompletionRate(post.readCompletionRate) }}
+              </span>
+            </span>
           </div>
           <span class="post-date">{{ formatDate(post.createdAt) }}</span>
         </RouterLink>
@@ -49,6 +54,14 @@ onMounted(async () => {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+function formatViews(count: number): string {
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'view' : 'views'}`
+}
+
+function formatCompletionRate(rate: number): string {
+  return `${Math.round(rate)}% completion`
 }
 
 async function signOut() {
@@ -164,6 +177,14 @@ async function signOut() {
 .post-row:hover .post-title {
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+
+.post-metrics {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .post-date {

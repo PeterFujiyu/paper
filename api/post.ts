@@ -1,5 +1,6 @@
 import { connectDB } from '../server/lib/db.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
+import { withPostMetrics } from '../server/lib/post-metrics.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
 import { normalizeSlug, sanitizePostContent, validatePostBody, type PostBody } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
@@ -35,20 +36,25 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
-      const post = await Post.findOne({ slug, published: true }).lean()
+      const post = await Post.findOneAndUpdate(
+        { slug, published: true },
+        { $inc: { viewCount: 1 } },
+        { new: true }
+      ).lean()
       if (!post) {
         sendJson(res, 404, { error: 'Not found' }, meta)
         return
       }
 
       const contentResult = sanitizePostContent(post.content)
-      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300')
+      res.setHeader('Cache-Control', 'no-store')
+      const postWithMetrics = withPostMetrics(post)
       if (!contentResult.ok) {
-        sendJson(res, 200, { ...post, content: null }, meta)
+        sendJson(res, 200, { ...postWithMetrics, content: null }, meta)
         return
       }
 
-      sendJson(res, 200, { ...post, content: contentResult.value }, meta)
+      sendJson(res, 200, { ...postWithMetrics, content: contentResult.value }, meta)
       return
     }
 
@@ -93,14 +99,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
           },
         },
         { new: true, runValidators: true }
-      )
+      ).lean()
 
       if (!post) {
         sendJson(res, 404, { error: 'Not found' }, meta)
         return
       }
 
-      sendJson(res, 200, post, meta)
+      sendJson(res, 200, withPostMetrics(post), meta)
       return
     }
 

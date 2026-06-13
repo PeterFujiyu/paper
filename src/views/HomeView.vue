@@ -27,7 +27,11 @@
       <ol v-else class="article-list">
         <li v-for="post in posts" :key="post._id" class="article-item">
           <RouterLink :to="{ name: 'post', params: { slug: post.slug } }" class="article-link">
-            <div class="article-meta">{{ formatDate(post.createdAt) }}</div>
+            <div class="article-meta">
+              <span>{{ formatDate(post.createdAt) }}</span>
+              <span>{{ formatViews(post.viewCount) }}</span>
+              <span>{{ formatCompletionRate(post.readCompletionRate) }}</span>
+            </div>
             <h3 class="article-title">{{ post.title }}</h3>
             <p class="article-excerpt">{{ post.excerpt }}</p>
           </RouterLink>
@@ -84,6 +88,14 @@ onMounted(async () => {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+function formatViews(count: number): string {
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'view' : 'views'}`
+}
+
+function formatCompletionRate(rate: number): string {
+  return `${Math.round(rate)}% completion`
 }
 </script>
 
@@ -177,6 +189,9 @@ function formatDate(iso: string): string {
   color: var(--text-muted);
   margin-bottom: 0.4rem;
   font-style: italic;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
 }
 
 .article-title {

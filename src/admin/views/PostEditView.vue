@@ -18,6 +18,21 @@
 
     <p v-if="error || validationMessage" class="edit-error">{{ error || validationMessage }}</p>
 
+    <section v-if="isEdit" class="metrics-strip" aria-label="Post metrics">
+      <div>
+        <span class="metric-label">Views</span>
+        <strong>{{ metrics.viewCount.toLocaleString('en-US') }}</strong>
+      </div>
+      <div>
+        <span class="metric-label">Read completion</span>
+        <strong>{{ metrics.readCompletionRate }}%</strong>
+      </div>
+      <div>
+        <span class="metric-label">Completed reads</span>
+        <strong>{{ metrics.readCompletionCount.toLocaleString('en-US') }}</strong>
+      </div>
+    </section>
+
     <!-- Title + meta fields -->
     <div class="meta-fields">
       <input
@@ -50,9 +65,15 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
-import { apiFetch } from '../store'
 import TiptapEditor from '../components/TiptapEditor.vue'
-import type { PostDocument, PostForm } from '../../types/content'
+import { apiFetch } from '../store'
+import {
+  isValidSlug,
+  normalizeSlug,
+  slugify,
+  SLUG_VALIDATION_MESSAGE,
+} from '../../shared/slug'
+import type { PostDocument, PostForm, PostMetrics } from '../../types/content'
 
 const route  = useRoute()
 const router = useRouter()
@@ -68,19 +89,24 @@ const form = reactive<PostForm>({
   published: false,
 })
 
+const metrics = reactive<PostMetrics>({
+  viewCount: 0,
+  readCompletionCount: 0,
+  readCompletionRate: 0,
+})
+
 const saving = ref(false)
 const error  = ref('')
 const slugAvailable = ref(true)
 const slugMessage = ref('')
-const checkingSlug = ref(false)
-
-const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 const validationMessage = computed(() => {
+  const slug = normalizeSlug(form.slug)
+
   if (!form.title.trim()) return 'Title is required.'
   if (form.title.trim().length < 3) return 'Title must be at least 3 characters.'
-  if (!form.slug.trim()) return 'Slug is required.'
-  if (!slugPattern.test(form.slug.trim())) return 'Slug must use lowercase letters, numbers, and hyphens only.'
+  if (!slug) return 'Slug is required.'
+  if (!isValidSlug(slug)) return SLUG_VALIDATION_MESSAGE
   if (!slugAvailable.value) return 'Slug is already in use.'
   if (!form.excerpt.trim()) return 'Excerpt is required.'
   if (form.excerpt.trim().length < 12) return 'Excerpt should be at least 12 characters.'
@@ -97,20 +123,31 @@ function setSlugState(available: boolean, message = ''): void {
   slugMessage.value = message
 }
 
+function setMetrics(post: Partial<PostMetrics>): void {
+  Object.assign(metrics, {
+    viewCount: post.viewCount ?? 0,
+    readCompletionCount: post.readCompletionCount ?? 0,
+    readCompletionRate: post.readCompletionRate ?? 0,
+  })
+}
+
 async function checkSlugAvailability(): Promise<void> {
-  const slug = form.slug.trim().toLowerCase()
+  const slug = normalizeSlug(form.slug)
+
+  if (slug !== form.slug) {
+    form.slug = slug
+  }
 
   if (!slug) {
     setSlugState(true, '')
     return
   }
 
-  if (!slugPattern.test(slug)) {
-    setSlugState(false, 'Slug must use lowercase letters, numbers, and hyphens only.')
+  if (!isValidSlug(slug)) {
+    setSlugState(false, SLUG_VALIDATION_MESSAGE)
     return
   }
 
-  checkingSlug.value = true
   try {
     const query = new URLSearchParams({ slug })
     if (isEdit.value) query.set('excludeId', postId.value)
@@ -119,8 +156,6 @@ async function checkSlugAvailability(): Promise<void> {
     setSlugState(result.available, result.available ? 'Slug is available.' : 'Slug is already in use.')
   } catch (err: unknown) {
     setSlugState(false, getErrorMessage(err))
-  } finally {
-    checkingSlug.value = false
   }
 }
 
@@ -134,6 +169,7 @@ onMounted(async () => {
     content:   post.content ?? null,
     published: post.published,
   })
+  setMetrics(post)
   setSlugState(true, '')
 })
 
@@ -143,10 +179,7 @@ watch(() => form.slug, () => {
 
 function autoSlug() {
   if (!form.slug && form.title) {
-    form.slug = form.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
+    form.slug = slugify(form.title)
   }
   void checkSlugAvailability()
 }
@@ -164,11 +197,12 @@ async function save() {
   saving.value = true
   error.value  = ''
   try {
-        if (isEdit.value) {
-      await apiFetch<PostDocument>(`/post?id=${encodeURIComponent(postId.value)}`, {
+    if (isEdit.value) {
+      const post = await apiFetch<PostDocument>(`/post?id=${encodeURIComponent(postId.value)}`, {
         method: 'PUT',
         body: JSON.stringify(form),
       })
+      setMetrics(post)
     } else {
       const post = await apiFetch<PostDocument>('/posts', {
         method: 'POST',
@@ -269,6 +303,35 @@ async function remove() {
   margin: 0 0 1rem 0;
 }
 
+.metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 0;
+  margin: -1rem 0 2rem;
+}
+
+.metrics-strip div {
+  min-width: 0;
+}
+
+.metric-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.metrics-strip strong {
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--text-main);
+}
+
 /* Meta fields */
 .meta-fields {
   display: flex;
@@ -354,4 +417,11 @@ async function remove() {
   transition: border-color 0.2s;
 }
 .field-textarea:focus { border-color: var(--text-main); }
+
+@media (max-width: 640px) {
+  .metrics-strip {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+}
 </style>
