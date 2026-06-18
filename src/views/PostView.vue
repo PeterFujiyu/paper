@@ -25,6 +25,20 @@
       <!-- Render Tiptap JSON as HTML via generateHTML -->
       <div class="post-body prose" v-html="renderedHTML" />
 
+      <!-- Related — peak-end close, keeps the reading loop open (Zeigarnik) -->
+      <section v-if="relatedPosts.length" class="related" aria-label="Continue reading">
+        <h2 class="related-heading">Continue reading</h2>
+        <ul class="related-grid">
+          <li v-for="rel in relatedPosts" :key="rel._id" class="related-item">
+            <RouterLink :to="{ name: 'post', params: { slug: rel.slug } }" class="related-card">
+              <span class="related-date">{{ formatDate(rel.createdAt) }}</span>
+              <h3 class="related-title">{{ rel.title }}</h3>
+              <p class="related-excerpt">{{ rel.excerpt }}</p>
+            </RouterLink>
+          </li>
+        </ul>
+      </section>
+
       <footer class="post-footer">
         <RouterLink to="/" class="back-link">← Back to writing</RouterLink>
       </footer>
@@ -48,13 +62,14 @@ import Underline    from '@tiptap/extension-underline'
 import Link         from '@tiptap/extension-link'
 import TextAlign    from '@tiptap/extension-text-align'
 import { getHCaptchaToken } from '../shared/hcaptcha'
-import type { PostDocument, PostMetrics } from '../types/content'
+import type { PostDocument, PostMetrics, PostSummary } from '../types/content'
 
 const props = defineProps({
   slug: { type: String, required: true },
 })
 
 const post = ref<PostDocument | null>(null)
+const relatedPosts = ref<PostSummary[]>([])
 const loading = ref(true)
 const articleRef = ref<HTMLElement | null>(null)
 const completionSent = ref(false)
@@ -82,6 +97,7 @@ watch(() => props.slug, () => {
 async function loadPost(): Promise<void> {
   loading.value = true
   post.value = null
+  relatedPosts.value = []
   completionSent.value = false
   stopCompletionTracking()
 
@@ -98,6 +114,20 @@ async function loadPost(): Promise<void> {
     await nextTick()
     void reportPostView(post.value.slug)
     startCompletionTracking()
+    void loadRelated(post.value.slug)
+  }
+}
+
+async function loadRelated(currentSlug: string): Promise<void> {
+  try {
+    const res = await fetch(`${API_BASE}/posts`)
+    if (!res.ok) return
+    const all = await res.json() as PostSummary[]
+    relatedPosts.value = all
+      .filter(summary => summary.slug !== currentSlug)
+      .slice(0, 3)
+  } catch {
+    relatedPosts.value = []
   }
 }
 
@@ -304,6 +334,74 @@ async function reportReadCompletion(): Promise<void> {
   color: var(--text-muted);
   font-style: italic;
   margin: 0 0 2rem 0;
+}
+
+/* ─── Related / Continue reading ─── */
+.related {
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+
+.related-heading {
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 2rem 0;
+}
+
+.related-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+.related-card {
+  display: block;
+  height: 100%;
+  text-decoration: none;
+  color: inherit;
+}
+
+.related-date {
+  display: block;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.related-title {
+  font-size: 1.1rem;
+  font-weight: 400;
+  line-height: 1.3;
+  margin: 0 0 0.5rem 0;
+  color: var(--text-main);
+}
+
+.related-excerpt {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.related-card:hover .related-title {
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
 }
 </style>
 
