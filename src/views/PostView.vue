@@ -255,7 +255,7 @@ async function reportReadCompletion(): Promise<void> {
   display: inline-block;
   margin-bottom: 2rem;
 }
-.back-link:hover { color: var(--text-main); }
+.back-link:hover { color: var(--accent-ink); }
 
 .post-header { margin-bottom: 3rem; }
 
@@ -351,7 +351,7 @@ async function reportReadCompletion(): Promise<void> {
   display: block;
   margin: 2rem auto;
 }
-.prose a   { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.prose a   { color: var(--accent-ink); text-decoration-color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 4px; }
 .prose a:hover { text-decoration-thickness: 2px; }
 .prose strong { font-weight: 600; }
 </style>

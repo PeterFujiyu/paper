@@ -179,7 +179,9 @@ function formatCompletionRate(rate: number): string {
 }
 
 .article-link:hover .article-title {
+  color: var(--accent-ink);
   text-decoration: underline;
+  text-decoration-color: var(--accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 4px;
 }
@@ -257,6 +259,8 @@ function formatCompletionRate(rate: number): string {
 }
 
 .contact-link:hover .contact-handle {
+  color: var(--accent-ink);
+  text-decoration-color: var(--accent);
   text-decoration-thickness: 2px;
 }
 </style>
