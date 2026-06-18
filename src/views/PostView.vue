@@ -335,6 +335,7 @@ async function reportReadCompletion(): Promise<void> {
 }
 
 .post-title {
+  font-family: var(--font-sans);
   font-size: clamp(1.8rem, 4vw, 2.8rem);
   font-weight: 400;
   line-height: 1.2;
@@ -357,6 +358,7 @@ async function reportReadCompletion(): Promise<void> {
 .not-found { padding: 4rem 0; }
 
 .not-found-code {
+  font-family: var(--font-sans);
   font-size: 4rem;
   font-weight: 400;
   color: var(--text-muted);
@@ -379,6 +381,7 @@ async function reportReadCompletion(): Promise<void> {
 }
 
 .related-heading {
+  font-family: var(--font-sans);
   font-size: 0.75rem;
   font-weight: 400;
   letter-spacing: 0.1em;
@@ -412,6 +415,7 @@ async function reportReadCompletion(): Promise<void> {
 }
 
 .related-title {
+  font-family: var(--font-sans);
   font-size: 1.1rem;
   font-weight: 400;
   line-height: 1.3;
@@ -444,6 +448,7 @@ async function reportReadCompletion(): Promise<void> {
 <style>
 .prose { font-family: "Georgia", "Times New Roman", serif; }
 .prose p  { font-size: 1rem; line-height: 1.8; margin: 0 0 1.6em; color: var(--text-main); }
+.prose h1, .prose h2, .prose h3 { font-family: var(--font-sans); }
 .prose h1 { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 400; letter-spacing: -0.025em; margin: 2em 0 0.6em; }
 .prose h2 { font-size: 1.4rem; font-weight: 400; margin: 1.8em 0 0.5em; }
 .prose h3 { font-size: 1.1rem; font-weight: 400; margin: 1.5em 0 0.4em; }

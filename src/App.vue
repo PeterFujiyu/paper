@@ -160,7 +160,7 @@ onUnmounted(() => {
 
 /* ─── Wordmark ─── */
 .wordmark {
-  font-family: 'Montserrat', 'Google Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 1.05rem;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -205,6 +205,7 @@ onUnmounted(() => {
 }
 
 .site-nav a {
+  font-family: var(--font-sans);
   font-size: 0.875rem;
   color: var(--text-muted);
   text-decoration: none;

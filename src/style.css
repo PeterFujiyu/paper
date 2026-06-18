@@ -19,8 +19,13 @@
   /* Layout — golden reading measure (~50-75 chars; see design.html) */
   --measure: 68ch;
 
+  /* Type voices — sans for titles/labels/UI, serif for reading (the
+     "two-voice" academic-journal contrast). Montserrat is already loaded. */
+  --font-serif: "Georgia", "Times New Roman", "Songti SC", "SimSun", serif;
+  --font-sans:  "Montserrat", "Google Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
   /* Typography */
-  font-family: "Georgia", "Times New Roman", "Songti SC", "SimSun", serif;
+  font-family: var(--font-serif);
   font-size: 18px;
   line-height: 1.7;
   font-weight: 400;

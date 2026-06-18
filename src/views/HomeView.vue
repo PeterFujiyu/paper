@@ -106,6 +106,7 @@ function formatCompletionRate(rate: number): string {
 }
 
 .hero-label {
+  font-family: var(--font-sans);
   font-size: 0.875rem;
   color: var(--text-muted);
   letter-spacing: 0.08em;
@@ -114,6 +115,7 @@ function formatCompletionRate(rate: number): string {
 }
 
 .hero-title {
+  font-family: var(--font-sans);
   font-size: clamp(2.2rem, 5vw, 3.4rem);
   font-weight: 400;
   line-height: 1.15;
@@ -148,6 +150,7 @@ function formatCompletionRate(rate: number): string {
 }
 
 .section-heading {
+  font-family: var(--font-sans);
   font-size: 0.75rem;
   font-weight: 400;
   letter-spacing: 0.1em;
@@ -197,6 +200,7 @@ function formatCompletionRate(rate: number): string {
 }
 
 .article-title {
+  font-family: var(--font-sans);
   font-size: 1.15rem;
   font-weight: 400;
   line-height: 1.3;
@@ -243,6 +247,7 @@ function formatCompletionRate(rate: number): string {
 }
 
 .contact-label {
+  font-family: var(--font-sans);
   font-size: 0.8rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
