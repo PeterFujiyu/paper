@@ -10,6 +10,9 @@
   --border:       #E5E4DF;
   --selection-bg: #E0DFD8;
 
+  /* Layout — golden reading measure (~50-75 chars; see design.html) */
+  --measure: 68ch;
+
   /* Typography */
   font-family: "Georgia", "Times New Roman", "Songti SC", "SimSun", serif;
   font-size: 18px;

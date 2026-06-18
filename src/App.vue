@@ -132,7 +132,7 @@ onUnmounted(() => {
 <style scoped>
 /* ─── Layout ─── */
 .page-wrap {
-  max-width: 81.25ch;
+  max-width: var(--measure);
   margin: 0 auto;
   padding: clamp(5rem, 10vh, 7rem) 1.5rem clamp(2rem, 5vh, 4rem);
 }
@@ -149,7 +149,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: min(81.25ch, 100%);
+  width: min(var(--measure), 100%);
   margin-left: auto;
   margin-right: auto;
   padding: clamp(1.2rem, 3vh, 1.8rem) 1.5rem;
