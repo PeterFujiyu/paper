@@ -211,7 +211,10 @@ onUnmounted(() => {
   transition: color 0.2s ease;
 }
 
-.site-nav a:hover,
+.site-nav a:hover {
+  color: var(--accent-ink);
+}
+
 .site-nav a.router-link-active {
   color: var(--text-main);
 }
