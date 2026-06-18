@@ -230,6 +230,10 @@ describe('validatePostBody', () => {
       'Use at most 6 tags.'
     )
   })
+
+  it('counts unique tags, so duplicates do not exhaust the limit', () => {
+    expect(validatePostBody({ ...valid, tags: ['a', 'a', 'b', 'c', 'd', 'e', 'f'] })).toBeNull()
+  })
 })
 
 // ---------------------------------------------------------------------------

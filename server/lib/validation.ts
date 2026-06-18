@@ -139,16 +139,17 @@ function validateTags(value: unknown): string | null {
   if (value == null) return null
   if (!Array.isArray(value)) return 'Tags must be an array.'
 
-  let count = 0
+  // Count unique (case-insensitive) tags so the limit matches normalizeTags.
+  const seen = new Set<string>()
   for (const tag of value) {
     if (typeof tag !== 'string') return 'Each tag must be a string.'
     const trimmed = tag.trim()
     if (!trimmed) continue
     if (trimmed.length > maxTagLength) return `Tags must be ${maxTagLength} characters or fewer.`
-    count += 1
+    seen.add(trimmed.toLowerCase())
   }
 
-  if (count > maxTags) return `Use at most ${maxTags} tags.`
+  if (seen.size > maxTags) return `Use at most ${maxTags} tags.`
   return null
 }
 

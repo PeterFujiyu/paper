@@ -487,7 +487,7 @@ async function reportReadCompletion(): Promise<void> {
 
 <!-- prose: render Tiptap HTML in Editorial style -->
 <style>
-.prose { font-family: "Georgia", "Times New Roman", serif; }
+.prose { font-family: var(--font-serif); }
 .prose p  { font-size: 1rem; line-height: 1.8; margin: 0 0 1.6em; color: var(--text-main); }
 .prose h1, .prose h2, .prose h3 { font-family: var(--font-sans); }
 .prose h1 { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 400; letter-spacing: -0.025em; margin: 2em 0 0.6em; }
