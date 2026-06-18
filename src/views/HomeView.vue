@@ -34,6 +34,9 @@
             </div>
             <h3 class="article-title">{{ post.title }}</h3>
             <p class="article-excerpt">{{ post.excerpt }}</p>
+            <ul v-if="post.tags?.length" class="article-tags">
+              <li v-for="tag in post.tags" :key="tag" class="article-tag">{{ tag }}</li>
+            </ul>
           </RouterLink>
         </li>
       </ol>
@@ -213,6 +216,27 @@ function formatCompletionRate(rate: number): string {
   color: var(--text-muted);
   line-height: 1.65;
   margin: 0;
+}
+
+.article-tags {
+  list-style: none;
+  margin: 0.7rem 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.article-tag {
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
 }
 
 /* ─── Contact ─── */

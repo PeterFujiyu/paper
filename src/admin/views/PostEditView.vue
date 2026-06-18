@@ -54,6 +54,15 @@
         <label>Excerpt</label>
         <textarea v-model="form.excerpt" class="field-textarea" rows="2" placeholder="One or two sentences for the listing page." />
       </div>
+      <div class="field-group">
+        <label>Cover image URL</label>
+        <input v-model="form.coverImage" class="field-input" placeholder="https://… or /path.jpg" />
+        <img v-if="form.coverImage" :src="form.coverImage" class="cover-preview" alt="Cover preview" />
+      </div>
+      <div class="field-group">
+        <label>Tags</label>
+        <input v-model="tagsInput" class="field-input" placeholder="design, typography (comma separated, up to 6)" />
+      </div>
     </div>
 
     <!-- Body editor -->
@@ -82,11 +91,23 @@ const isEdit = computed(() => !!route.params.id && route.params.id !== 'new')
 const postId = computed(() => String(route.params.id ?? ''))
 
 const form = reactive<PostForm>({
-  title:     '',
-  slug:      '',
-  excerpt:   '',
-  content:   null,
-  published: false,
+  title:      '',
+  slug:       '',
+  excerpt:    '',
+  content:    null,
+  published:  false,
+  coverImage: '',
+  tags:       [],
+})
+
+const tagsInput = computed({
+  get: () => form.tags.join(', '),
+  set: (value: string) => {
+    form.tags = value
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(Boolean)
+  },
 })
 
 const metrics = reactive<PostMetrics>({
@@ -163,11 +184,13 @@ onMounted(async () => {
   if (!isEdit.value) return
   const post = await apiFetch<PostDocument>(`/admin-post?id=${encodeURIComponent(postId.value)}`)
   Object.assign(form, {
-    title:     post.title,
-    slug:      post.slug,
-    excerpt:   post.excerpt ?? '',
-    content:   post.content ?? null,
-    published: post.published,
+    title:      post.title,
+    slug:       post.slug,
+    excerpt:    post.excerpt ?? '',
+    content:    post.content ?? null,
+    published:  post.published,
+    coverImage: post.coverImage ?? '',
+    tags:       post.tags ?? [],
   })
   setMetrics(post)
   setSlugState(true, '')
@@ -417,6 +440,15 @@ async function remove() {
   transition: border-color 0.2s;
 }
 .field-textarea:focus { border-color: var(--text-main); }
+
+.cover-preview {
+  margin-top: 0.8rem;
+  max-width: 100%;
+  max-height: 12rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  object-fit: cover;
+}
 
 @media (max-width: 640px) {
   .metrics-strip {

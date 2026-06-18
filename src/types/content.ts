@@ -41,4 +41,6 @@ export interface PostForm {
   excerpt: string
   content: JsonValue | null
   published: boolean
+  coverImage: string
+  tags: string[]
 }

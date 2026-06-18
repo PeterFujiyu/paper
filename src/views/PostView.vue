@@ -26,16 +26,23 @@
     <article v-else ref="articleRef" class="post">
       <header class="post-header">
         <RouterLink to="/" class="back-link">← Writing</RouterLink>
+        <ul v-if="post.tags?.length" class="post-tags">
+          <li v-for="tag in post.tags" :key="tag" class="post-tag">{{ tag }}</li>
+        </ul>
+        <h1 class="post-title">{{ post.title }}</h1>
         <div class="post-meta">
           <span>{{ formatDate(post.createdAt) }}</span>
           <span>{{ formatViews(post.viewCount) }}</span>
           <span>{{ formatCompletionRate(post.readCompletionRate) }}</span>
         </div>
-        <h1 class="post-title">{{ post.title }}</h1>
       </header>
 
+      <figure v-if="post.coverImage" class="post-cover">
+        <img :src="post.coverImage" :alt="post.title" loading="lazy" />
+      </figure>
+
       <!-- Render Tiptap JSON as HTML via generateHTML -->
-      <div class="post-body prose" v-html="renderedHTML" />
+      <div class="post-body prose" :class="{ 'post-body--has-cover': post.coverImage }" v-html="renderedHTML" />
 
       <!-- Related — peak-end close, keeps the reading loop open (Zeigarnik) -->
       <section v-if="relatedPosts.length" class="related" aria-label="Continue reading">
@@ -328,10 +335,31 @@ async function reportReadCompletion(): Promise<void> {
   font-size: 0.875rem;
   color: var(--text-muted);
   font-style: italic;
-  margin-bottom: 1rem;
+  margin: 1rem 0 0 0;
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem 0.9rem;
+}
+
+.post-tags {
+  list-style: none;
+  margin: 0 0 1rem 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.post-tag {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 999px;
+  padding: 0.22rem 0.66rem;
 }
 
 .post-title {
@@ -344,9 +372,27 @@ async function reportReadCompletion(): Promise<void> {
   color: var(--text-main);
 }
 
+.post-cover {
+  margin: 0 0 2.5rem 0;
+}
+
+.post-cover img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
 .post-body {
   border-top: 1px solid var(--border);
   padding-top: 2.5rem;
+}
+
+/* When a cover image leads the article, it is the visual break — drop the rule */
+.post-body--has-cover {
+  border-top: none;
+  padding-top: 0;
 }
 
 .post-footer {
