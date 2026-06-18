@@ -30,7 +30,6 @@
             <div class="article-meta">
               <span>{{ formatDate(post.createdAt) }}</span>
               <span>{{ formatViews(post.viewCount) }}</span>
-              <span>{{ formatCompletionRate(post.readCompletionRate) }}</span>
             </div>
             <h3 class="article-title">{{ post.title }}</h3>
             <p class="article-excerpt">{{ post.excerpt }}</p>
@@ -95,10 +94,6 @@ function formatDate(iso: string): string {
 
 function formatViews(count: number): string {
   return `${count.toLocaleString('en-US')} ${count === 1 ? 'view' : 'views'}`
-}
-
-function formatCompletionRate(rate: number): string {
-  return `${Math.round(rate)}% completion`
 }
 </script>
 

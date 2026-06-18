@@ -33,7 +33,6 @@
         <div class="post-meta">
           <span>{{ formatDate(post.createdAt) }}</span>
           <span>{{ formatViews(post.viewCount) }}</span>
-          <span>{{ formatCompletionRate(post.readCompletionRate) }}</span>
         </div>
       </header>
 
@@ -183,10 +182,6 @@ function formatDate(iso?: string): string {
 
 function formatViews(count: number): string {
   return `${count.toLocaleString('en-US')} ${count === 1 ? 'view' : 'views'}`
-}
-
-function formatCompletionRate(rate: number): string {
-  return `${Math.round(rate)}% read completion`
 }
 
 function startScrollTracking(): void {
