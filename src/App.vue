@@ -18,7 +18,24 @@
           <RouterLink to="/#contact">Contact</RouterLink>
         </nav>
         <button class="theme-toggle" @click="toggleDark" :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
-          <span class="toggle-icon material-symbols-outlined">{{ isDark ? 'brightness_5' : 'brightness_4' }}</span>
+          <!-- sun: shown in dark mode (click → light) -->
+          <svg v-if="isDark" class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2" />
+            <path d="M12 20v2" />
+            <path d="m4.93 4.93 1.41 1.41" />
+            <path d="m17.66 17.66 1.41 1.41" />
+            <path d="M2 12h2" />
+            <path d="M20 12h2" />
+            <path d="m6.34 17.66-1.41 1.41" />
+            <path d="m19.07 4.93-1.41 1.41" />
+          </svg>
+          <!-- moon + star: shown in light mode (click → dark) -->
+          <svg v-else class="toggle-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 5h4" />
+            <path d="M20 3v4" />
+            <path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" />
+          </svg>
         </button>
       </div>
     </header>
@@ -236,12 +253,9 @@ onUnmounted(() => {
 }
 
 .toggle-icon {
-  font-size: 1rem;
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 300,
-    'GRAD' 0,
-    'opsz' 24;
+  display: block;
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 /* ─── Footer ─── */
