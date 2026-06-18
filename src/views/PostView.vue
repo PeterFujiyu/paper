@@ -1,6 +1,18 @@
 <template>
   <main>
 
+    <!-- Reading progress — goal-gradient feedback toward the finish -->
+    <div
+      v-if="post"
+      class="read-progress"
+      :style="{ transform: `scaleX(${readProgress})` }"
+      role="progressbar"
+      aria-label="Reading progress"
+      :aria-valuenow="readPercent"
+      aria-valuemin="0"
+      aria-valuemax="100"
+    />
+
     <div v-if="loading" class="state-msg">Loading…</div>
 
     <!-- 404 -->
@@ -74,7 +86,8 @@ const loading = ref(true)
 const articleRef = ref<HTMLElement | null>(null)
 const completionSent = ref(false)
 const completionInFlight = ref(false)
-let completionFrame: number | null = null
+const readProgress = ref(0)
+let scrollFrame: number | null = null
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
@@ -87,7 +100,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  stopCompletionTracking()
+  stopScrollTracking()
 })
 
 watch(() => props.slug, () => {
@@ -99,7 +112,8 @@ async function loadPost(): Promise<void> {
   post.value = null
   relatedPosts.value = []
   completionSent.value = false
-  stopCompletionTracking()
+  readProgress.value = 0
+  stopScrollTracking()
 
   try {
     const res = await fetch(`${API_BASE}/post?slug=${encodeURIComponent(props.slug)}`)
@@ -113,7 +127,7 @@ async function loadPost(): Promise<void> {
   if (post.value) {
     await nextTick()
     void reportPostView(post.value.slug)
-    startCompletionTracking()
+    startScrollTracking()
     void loadRelated(post.value.slug)
   }
 }
@@ -153,6 +167,8 @@ const renderedHTML = computed(() => {
   }
 })
 
+const readPercent = computed(() => Math.round(readProgress.value * 100))
+
 function formatDate(iso?: string): string {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -166,32 +182,35 @@ function formatCompletionRate(rate: number): string {
   return `${Math.round(rate)}% read completion`
 }
 
-function startCompletionTracking(): void {
+function startScrollTracking(): void {
   if (!post.value) return
-  window.addEventListener('scroll', scheduleCompletionCheck, { passive: true })
-  window.addEventListener('resize', scheduleCompletionCheck)
-  scheduleCompletionCheck()
+  window.addEventListener('scroll', scheduleScrollUpdate, { passive: true })
+  window.addEventListener('resize', scheduleScrollUpdate)
+  scheduleScrollUpdate()
 }
 
-function stopCompletionTracking(): void {
-  window.removeEventListener('scroll', scheduleCompletionCheck)
-  window.removeEventListener('resize', scheduleCompletionCheck)
-  if (completionFrame !== null) {
-    window.cancelAnimationFrame(completionFrame)
-    completionFrame = null
+function stopScrollTracking(): void {
+  window.removeEventListener('scroll', scheduleScrollUpdate)
+  window.removeEventListener('resize', scheduleScrollUpdate)
+  if (scrollFrame !== null) {
+    window.cancelAnimationFrame(scrollFrame)
+    scrollFrame = null
   }
 }
 
-function scheduleCompletionCheck(): void {
-  if (completionFrame !== null) return
-  completionFrame = window.requestAnimationFrame(() => {
-    completionFrame = null
-    checkCompletion()
+function scheduleScrollUpdate(): void {
+  if (scrollFrame !== null) return
+  scrollFrame = window.requestAnimationFrame(() => {
+    scrollFrame = null
+    updateScroll()
   })
 }
 
-function checkCompletion(): void {
-  if (completionSent.value || completionInFlight.value || !post.value || !articleRef.value) return
+// One scroll pass drives both the reading-progress bar (goal-gradient
+// feedback) and the 90%-completion metric. Keeps running after the metric
+// is sent so the bar still tracks to the end.
+function updateScroll(): void {
+  if (!post.value || !articleRef.value) return
 
   const articleTop = articleRef.value.offsetTop
   const articleHeight = articleRef.value.offsetHeight
@@ -199,8 +218,11 @@ function checkCompletion(): void {
   const progress = articleHeight <= window.innerHeight
     ? 1
     : (viewportBottom - articleTop) / articleHeight
+  const clamped = Math.min(Math.max(progress, 0), 1)
 
-  if (progress >= 0.9) {
+  readProgress.value = clamped
+
+  if (!completionSent.value && !completionInFlight.value && clamped >= 0.9) {
     void reportReadCompletion()
   }
 }
@@ -263,7 +285,6 @@ async function reportReadCompletion(): Promise<void> {
     if (metrics && post.value?.slug === slug) {
       Object.assign(post.value, metrics)
       completionSent.value = true
-      stopCompletionTracking()
     }
   } finally {
     completionInFlight.value = false
@@ -272,6 +293,20 @@ async function reportReadCompletion(): Promise<void> {
 </script>
 
 <style scoped>
+.read-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  z-index: 200;
+  pointer-events: none;
+  will-change: transform;
+}
+
 .state-msg {
   color: var(--text-muted);
   font-style: italic;
