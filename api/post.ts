@@ -2,7 +2,7 @@ import { connectDB } from '../server/lib/db.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
 import { withPostMetrics } from '../server/lib/post-metrics.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
-import { normalizeSlug, sanitizePostContent, validatePostBody, type PostBody } from '../server/lib/validation.js'
+import { normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent, validatePostBody, type PostBody } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
 
 function isDuplicateSlugError(error: unknown): boolean {
@@ -91,6 +91,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
             title: body.title!.trim(),
             slug,
             excerpt: body.excerpt!.trim(),
+            coverImage: normalizeCoverImage(body.coverImage),
+            tags: normalizeTags(body.tags),
             content: contentResult.value,
           },
         },

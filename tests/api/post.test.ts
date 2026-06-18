@@ -125,6 +125,8 @@ describe('api/post', () => {
           title: 'My Post Title',
           slug: 'my-post-title',
           excerpt: 'A brief excerpt for the post.',
+          coverImage: '',
+          tags: [],
           content: { type: 'doc', content: [] },
           published: true,
         },

@@ -25,6 +25,8 @@ export interface PostSummary extends PostMetrics {
   excerpt: string
   createdAt: string
   published?: boolean
+  coverImage?: string
+  tags?: string[]
 }
 
 export interface PostDocument extends PostSummary {

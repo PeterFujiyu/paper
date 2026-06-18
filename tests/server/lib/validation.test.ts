@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   normalizeSlug,
+  normalizeCoverImage,
+  normalizeTags,
   validateLoginBody,
   validateRegisterBody,
   validatePostBody,
@@ -181,6 +183,93 @@ describe('validatePostBody', () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { published: _published, ...rest } = valid
     expect(validatePostBody(rest)).toBeNull()
+  })
+
+  it('accepts an https cover image', () => {
+    expect(validatePostBody({ ...valid, coverImage: 'https://cdn.example.com/cover.jpg' })).toBeNull()
+  })
+
+  it('accepts a base64 data cover image', () => {
+    expect(validatePostBody({ ...valid, coverImage: 'data:image/png;base64,abc123==' })).toBeNull()
+  })
+
+  it('accepts an empty cover image', () => {
+    expect(validatePostBody({ ...valid, coverImage: '' })).toBeNull()
+  })
+
+  it('rejects an http cover image', () => {
+    expect(validatePostBody({ ...valid, coverImage: 'http://insecure.example.com/cover.jpg' })).toBe(
+      'Cover image must use a safe source.'
+    )
+  })
+
+  it('accepts a valid tag list', () => {
+    expect(validatePostBody({ ...valid, tags: ['Design', 'Typography'] })).toBeNull()
+  })
+
+  it('rejects a non-array tags value', () => {
+    expect(validatePostBody({ ...valid, tags: 'design' as unknown as string[] })).toBe(
+      'Tags must be an array.'
+    )
+  })
+
+  it('rejects a non-string tag', () => {
+    expect(validatePostBody({ ...valid, tags: [123 as unknown as string] })).toBe(
+      'Each tag must be a string.'
+    )
+  })
+
+  it('rejects an over-long tag', () => {
+    expect(validatePostBody({ ...valid, tags: ['x'.repeat(25)] })).toBe(
+      'Tags must be 24 characters or fewer.'
+    )
+  })
+
+  it('rejects too many tags', () => {
+    expect(validatePostBody({ ...valid, tags: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] })).toBe(
+      'Use at most 6 tags.'
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// normalizeCoverImage
+// ---------------------------------------------------------------------------
+describe('normalizeCoverImage', () => {
+  it('trims whitespace', () => {
+    expect(normalizeCoverImage('  https://x.test/a.png  ')).toBe('https://x.test/a.png')
+  })
+
+  it('returns an empty string for non-string input', () => {
+    expect(normalizeCoverImage(undefined)).toBe('')
+    expect(normalizeCoverImage(null)).toBe('')
+    expect(normalizeCoverImage(42)).toBe('')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// normalizeTags
+// ---------------------------------------------------------------------------
+describe('normalizeTags', () => {
+  it('trims and drops empty tags', () => {
+    expect(normalizeTags(['  Design  ', '', '   '])).toEqual(['Design'])
+  })
+
+  it('dedupes case-insensitively, keeping first form', () => {
+    expect(normalizeTags(['Design', 'design', 'DESIGN'])).toEqual(['Design'])
+  })
+
+  it('skips non-string entries', () => {
+    expect(normalizeTags(['ok', 5 as unknown as string, null as unknown as string])).toEqual(['ok'])
+  })
+
+  it('caps the list at 6 tags', () => {
+    expect(normalizeTags(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'])).toHaveLength(6)
+  })
+
+  it('returns an empty array for non-array input', () => {
+    expect(normalizeTags('design')).toEqual([])
+    expect(normalizeTags(undefined)).toEqual([])
   })
 })
 

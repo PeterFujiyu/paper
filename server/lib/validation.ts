@@ -13,6 +13,8 @@ export type PostBody = {
   excerpt?: string
   content?: unknown
   published?: boolean
+  coverImage?: string
+  tags?: string[]
 }
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -58,6 +60,9 @@ const allowedMarkKeys = new Set(['attrs', 'type'])
 const maxContentDepth = 16
 const maxNodeCount = 1500
 const maxTextLength = 20000
+const maxTags = 6
+const maxTagLength = 24
+const maxCoverImageLength = 2048
 
 type ValidationResult<T> =
   | { ok: true; value: T }
@@ -109,7 +114,68 @@ export function validatePostBody(body: PostBody): string | null {
   if (typeof body.published !== 'undefined' && typeof body.published !== 'boolean') {
     return 'Published must be a boolean.'
   }
+
+  const coverError = validateCoverImage(body.coverImage)
+  if (coverError) return coverError
+
+  const tagsError = validateTags(body.tags)
+  if (tagsError) return tagsError
+
   return null
+}
+
+function validateCoverImage(value: unknown): string | null {
+  if (value == null || value === '') return null
+  if (typeof value !== 'string') return 'Cover image must be a string.'
+
+  const cover = value.trim()
+  if (!cover) return null
+  if (cover.length > maxCoverImageLength) return 'Cover image URL is too long.'
+  if (!isSafeImageSrc(cover)) return 'Cover image must use a safe source.'
+  return null
+}
+
+function validateTags(value: unknown): string | null {
+  if (value == null) return null
+  if (!Array.isArray(value)) return 'Tags must be an array.'
+
+  let count = 0
+  for (const tag of value) {
+    if (typeof tag !== 'string') return 'Each tag must be a string.'
+    const trimmed = tag.trim()
+    if (!trimmed) continue
+    if (trimmed.length > maxTagLength) return `Tags must be ${maxTagLength} characters or fewer.`
+    count += 1
+  }
+
+  if (count > maxTags) return `Use at most ${maxTags} tags.`
+  return null
+}
+
+export function normalizeCoverImage(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+export function normalizeTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+
+  const seen = new Set<string>()
+  const tags: string[] = []
+
+  for (const item of value) {
+    if (typeof item !== 'string') continue
+    const tag = item.trim()
+    if (!tag) continue
+
+    const key = tag.toLowerCase()
+    if (seen.has(key)) continue
+
+    seen.add(key)
+    tags.push(tag)
+    if (tags.length >= maxTags) break
+  }
+
+  return tags
 }
 
 export function sanitizePostContent(content: unknown): ValidationResult<JSONContent> {

@@ -2,7 +2,7 @@ import { connectDB } from '../server/lib/db.js'
 import { beginRequest, finishRequest, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
 import { withPostMetrics } from '../server/lib/post-metrics.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
-import { validatePostBody, type PostBody, normalizeSlug, sanitizePostContent } from '../server/lib/validation.js'
+import { validatePostBody, type PostBody, normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
 
 function isDuplicateSlugError(error: unknown): boolean {
@@ -32,7 +32,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     if (req.method === 'GET') {
       const posts = await Post.find({ published: true })
         .sort({ createdAt: -1 })
-        .select('slug title excerpt createdAt viewCount readCompletionCount')
+        .select('slug title excerpt coverImage tags createdAt viewCount readCompletionCount')
         .lean()
       res.setHeader('Cache-Control', 'no-store')
       sendJson(res, 200, posts.map(withPostMetrics), meta)
@@ -67,6 +67,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         title: body.title!.trim(),
         slug,
         excerpt: body.excerpt!.trim(),
+        coverImage: normalizeCoverImage(body.coverImage),
+        tags: normalizeTags(body.tags),
         content: contentResult.value,
         author: user.id,
       })

@@ -7,6 +7,8 @@ const postSchema = new Schema(
     slug: { type: String, required: true, unique: true, trim: true },
     title: { type: String, required: true, trim: true },
     excerpt: { type: String, default: '' },
+    coverImage: { type: String, default: '', trim: true },
+    tags: { type: [String], default: [] },
     content: { type: Schema.Types.Mixed, default: null },
     published: { type: Boolean, default: false },
     viewCount: { type: Number, default: 0, min: 0 },
