@@ -1,9 +1,15 @@
 import { connectDB } from '../server/lib/db.js'
-import { beginRequest, finishRequest, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
+import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
+import { extractPlainText } from '../server/lib/content-text.js'
 import { withPostMetrics } from '../server/lib/post-metrics.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
 import { validatePostBody, type PostBody, normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
+
+// Escape a user query so it matches as a literal string, not a regex pattern.
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 function isDuplicateSlugError(error: unknown): boolean {
   return Boolean(
@@ -30,9 +36,33 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     await connectDB()
 
     if (req.method === 'GET') {
+      const fields = 'slug title excerpt coverImage tags createdAt viewCount readCompletionCount'
+      const q = getQueryParam(req, 'q').trim()
+
+      if (q) {
+        // Case-insensitive substring search across title, excerpt, tags and the
+        // full essay body (contentText). The query is escaped to a literal so
+        // special characters can't break the pattern or trigger ReDoS. Uses
+        // regex (not $text) because MongoDB text indexes/queries are rejected
+        // under this connection's Stable API `apiStrict`. The heavy contentText
+        // field stays server-side (`select: false`); only summary fields ship.
+        const rx = new RegExp(escapeRegExp(q), 'i')
+        const results = await Post.find({
+          published: true,
+          $or: [{ title: rx }, { excerpt: rx }, { tags: rx }, { contentText: rx }],
+        })
+          .sort({ createdAt: -1 })
+          .select(fields)
+          .limit(20)
+          .lean()
+        res.setHeader('Cache-Control', 'no-store')
+        sendJson(res, 200, results.map(withPostMetrics), meta)
+        return
+      }
+
       const posts = await Post.find({ published: true })
         .sort({ createdAt: -1 })
-        .select('slug title excerpt coverImage tags createdAt viewCount readCompletionCount')
+        .select(fields)
         .lean()
       res.setHeader('Cache-Control', 'no-store')
       sendJson(res, 200, posts.map(withPostMetrics), meta)
@@ -70,6 +100,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         coverImage: normalizeCoverImage(body.coverImage),
         tags: normalizeTags(body.tags),
         content: contentResult.value,
+        contentText: extractPlainText(contentResult.value),
         author: user.id,
       })
 

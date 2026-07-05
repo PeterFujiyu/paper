@@ -52,6 +52,15 @@ function stubFind(result: unknown[]): void {
   mockFind.mockReturnValue({ sort })
 }
 
+function stubSearchFind(result: unknown[]): { sort: ReturnType<typeof vi.fn> } {
+  const lean = vi.fn().mockResolvedValue(result)
+  const limit = vi.fn().mockReturnValue({ lean })
+  const select = vi.fn().mockReturnValue({ limit })
+  const sort = vi.fn().mockReturnValue({ select })
+  mockFind.mockReturnValue({ sort })
+  return { sort }
+}
+
 describe('api/posts', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -86,6 +95,44 @@ describe('api/posts', () => {
         viewCount: 4,
         readCompletionCount: 3,
         readCompletionRate: 75,
+      },
+    ])
+  })
+
+  it('runs a case-insensitive substring search across fields when q is provided', async () => {
+    const { sort } = stubSearchFind([
+      {
+        _id: 'post-2',
+        slug: 'on-craft',
+        title: 'On Craft',
+        excerpt: 'An essay about the overlooked details.',
+        createdAt: '2026-06-01T00:00:00.000Z',
+        viewCount: 10,
+        readCompletionCount: 5,
+      },
+    ])
+    const req: ApiRequest = { method: 'GET', url: '/api/posts?q=craft', headers: {}, query: { q: 'craft' } }
+    const res = makeRes()
+
+    await handler(req, res)
+
+    const rx = /craft/i
+    expect(mockFind).toHaveBeenCalledWith({
+      published: true,
+      $or: [{ title: rx }, { excerpt: rx }, { tags: rx }, { contentText: rx }],
+    })
+    expect(sort).toHaveBeenCalledWith({ createdAt: -1 })
+    expect(res.statusCode).toBe(200)
+    expect(res.json).toHaveBeenCalledWith([
+      {
+        _id: 'post-2',
+        slug: 'on-craft',
+        title: 'On Craft',
+        excerpt: 'An essay about the overlooked details.',
+        createdAt: '2026-06-01T00:00:00.000Z',
+        viewCount: 10,
+        readCompletionCount: 5,
+        readCompletionRate: 50,
       },
     ])
   })

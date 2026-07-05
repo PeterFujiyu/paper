@@ -20,13 +20,24 @@
 
     <!-- ─── Writing ─── -->
     <section id="writing" class="section">
-      <h2 class="section-heading">Writing</h2>
+      <div class="writing-head">
+        <h2 class="section-heading">Writing</h2>
+        <div class="search">
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input v-model="query" type="search" class="search-input" placeholder="Search essays…" aria-label="Search essays" />
+        </div>
+      </div>
 
       <div v-if="loading" class="state-msg">Loading…</div>
       <p v-else-if="!posts.length" class="state-msg">No posts yet.</p>
+      <p v-else-if="searching" class="state-msg">Searching…</p>
+      <p v-else-if="isSearching && !displayPosts.length" class="state-msg">Nothing matches “{{ trimmedQuery }}”.</p>
 
       <ol v-else class="article-list">
-        <li v-for="post in posts" :key="post._id" class="article-item">
+        <li v-for="post in displayPosts" :key="post._id" class="article-item">
           <RouterLink :to="{ name: 'post', params: { slug: post.slug } }" class="article-link">
             <div class="article-meta">
               <span>{{ formatDate(post.createdAt) }}</span>
@@ -74,14 +85,61 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { PostSummary } from '../types/content'
 
-const posts = ref<PostSummary[]>([])
-const loading = ref(true)
+const MIN_QUERY = 2
+const DEBOUNCE_MS = 200
+
+const posts = ref<PostSummary[]>([])   // full list, shown when not searching
+const results = ref<PostSummary[]>([]) // server-side full-text search hits
+const loading = ref(true)              // initial list fetch
+const searching = ref(false)           // a query is pending or in flight
+const query = ref('')
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
+
+const trimmedQuery = computed(() => query.value.trim())
+const isSearching = computed(() => trimmedQuery.value.length >= MIN_QUERY)
+const displayPosts = computed(() => (isSearching.value ? results.value : posts.value))
+
+let debounceTimer: ReturnType<typeof setTimeout> | undefined
+let activeController: AbortController | undefined
+
+watch(trimmedQuery, (q) => {
+  clearTimeout(debounceTimer)
+  activeController?.abort()
+  activeController = undefined
+
+  if (q.length < MIN_QUERY) {
+    searching.value = false
+    results.value = []
+    return
+  }
+
+  searching.value = true
+  debounceTimer = setTimeout(() => void runSearch(q), DEBOUNCE_MS)
+})
+
+async function runSearch(q: string): Promise<void> {
+  const controller = new AbortController()
+  activeController = controller
+  try {
+    const res = await fetch(`${API_BASE}/posts?q=${encodeURIComponent(q)}`, {
+      signal: controller.signal,
+    })
+    if (res.ok) results.value = await res.json() as PostSummary[]
+  } catch (err) {
+    if ((err as Error).name !== 'AbortError') results.value = []
+  } finally {
+    // Only the latest request may clear the pending flag; stale ones are ignored.
+    if (activeController === controller) {
+      searching.value = false
+      activeController = undefined
+    }
+  }
+}
 
 onMounted(async () => {
   try {
@@ -90,6 +148,11 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onBeforeUnmount(() => {
+  clearTimeout(debounceTimer)
+  activeController?.abort()
 })
 
 function formatDate(iso: string): string {
@@ -175,6 +238,55 @@ function formatViews(count: number): string {
   text-transform: uppercase;
   color: var(--text-muted);
   margin: 0 0 2.5rem 0;
+}
+
+/* ─── Search (in-place filter) ─── */
+.writing-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2.5rem;
+}
+
+.writing-head .section-heading {
+  margin: 0;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.35rem;
+  transition: border-color 0.2s ease;
+}
+
+.search:focus-within {
+  border-color: var(--accent);
+}
+
+.search-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.search-input {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  color: var(--text-main);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  width: 12rem;
+  max-width: 45vw;
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
 }
 
 /* ─── Article list ─── */

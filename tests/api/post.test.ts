@@ -128,6 +128,7 @@ describe('api/post', () => {
           coverImage: '',
           tags: [],
           content: { type: 'doc', content: [] },
+          contentText: '',
           published: true,
         },
       },

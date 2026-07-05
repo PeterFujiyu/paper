@@ -1,5 +1,6 @@
 import { connectDB } from '../server/lib/db.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
+import { extractPlainText } from '../server/lib/content-text.js'
 import { withPostMetrics } from '../server/lib/post-metrics.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
 import { normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent, validatePostBody, type PostBody } from '../server/lib/validation.js'
@@ -94,6 +95,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
             coverImage: normalizeCoverImage(body.coverImage),
             tags: normalizeTags(body.tags),
             content: contentResult.value,
+            contentText: extractPlainText(contentResult.value),
           },
         },
         { new: true, runValidators: true }

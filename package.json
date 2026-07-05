@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "api:dev": "tsx server/dev.ts",
+    "backfill:search": "tsx server/scripts/backfill-search.ts",
     "typecheck": "vue-tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview",

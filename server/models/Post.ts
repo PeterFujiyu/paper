@@ -10,6 +10,10 @@ const postSchema = new Schema(
     coverImage: { type: String, default: '', trim: true },
     tags: { type: [String], default: [] },
     content: { type: Schema.Types.Mixed, default: null },
+    // Plain-text projection of `content`, kept in sync on every write. Searched
+    // (case-insensitive regex) for full-essay lookups; excluded from normal
+    // reads (`select: false`) so it never ships to the client or bloats lists.
+    contentText: { type: String, default: '', select: false },
     published: { type: Boolean, default: false },
     viewCount: { type: Number, default: 0, min: 0 },
     readCompletionCount: { type: Number, default: 0, min: 0 },
