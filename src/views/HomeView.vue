@@ -5,7 +5,8 @@
     <section class="hero">
       <p class="hero-label">Designer &amp; Creative</p>
       <h1 class="hero-title">
-        Thinking through design,<br>
+        <span class="hero-highlight">Thinking</span> through
+        <span class="hero-highlight">design</span>,<br>
         one page at a time.
       </h1>
       <p class="hero-bio">
@@ -123,6 +124,22 @@ function formatViews(count: number): string {
   letter-spacing: -0.03em;
   margin: 0 0 1.5rem 0;
   color: var(--text-main);
+}
+
+.hero-highlight {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.05em;
+}
+
+.hero-highlight::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
 }
 
 .hero-bio {
