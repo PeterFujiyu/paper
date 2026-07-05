@@ -36,6 +36,9 @@
             <ul v-if="post.tags?.length" class="article-tags">
               <li v-for="tag in post.tags" :key="tag" class="article-tag">{{ tag }}</li>
             </ul>
+            <span class="article-arrow" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="20" height="20" fill="currentColor"><path d="m256-240-56-56 384-384H240v-80h480v480h-80v-344L256-240Z"/></svg>
+            </span>
           </RouterLink>
         </li>
       </ol>
@@ -174,6 +177,7 @@ function formatViews(count: number): string {
 
 .article-link {
   display: block;
+  position: relative;
   padding: 1.6rem 0;
   text-decoration: none;
   color: inherit;
@@ -185,6 +189,32 @@ function formatViews(count: number): string {
   text-decoration-color: var(--accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 4px;
+}
+
+.article-arrow {
+  position: absolute;
+  top: 1.6rem;
+  right: 0.25rem;
+  display: inline-flex;
+  line-height: 0;
+  color: var(--accent-ink);
+  opacity: 0;
+  transform: translate(-0.4rem, 0.4rem);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.article-link:hover .article-arrow,
+.article-link:focus-visible .article-arrow {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .article-arrow {
+    transition: opacity 0.2s ease;
+    transform: translate(0, 0);
+  }
 }
 
 .article-meta {

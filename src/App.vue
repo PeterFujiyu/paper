@@ -14,8 +14,14 @@
       </RouterLink>
       <div class="header-right">
         <nav class="site-nav">
-          <RouterLink to="/#writing">Writing</RouterLink>
-          <RouterLink to="/#contact">Contact</RouterLink>
+          <RouterLink to="/#writing">
+            <span>Writing</span>
+            <svg class="nav-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z"/></svg>
+          </RouterLink>
+          <RouterLink to="/#contact">
+            <span>Contact</span>
+            <svg class="nav-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z"/></svg>
+          </RouterLink>
         </nav>
         <button class="theme-toggle" @click="toggleDark" :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
           <!-- sun: shown in dark mode (click → light) -->
@@ -229,6 +235,9 @@ onUnmounted(() => {
 }
 
 .site-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   font-family: var(--font-sans);
   font-size: 0.875rem;
   color: var(--text-muted);
@@ -238,6 +247,21 @@ onUnmounted(() => {
 
 .site-nav a:hover {
   color: var(--accent-ink);
+}
+
+.nav-chevron {
+  transition: transform 0.2s ease;
+}
+
+.site-nav a:hover .nav-chevron,
+.site-nav a:focus-visible .nav-chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-chevron {
+    transition: none;
+  }
 }
 
 .site-nav a.router-link-active {
