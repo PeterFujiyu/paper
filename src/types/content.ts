@@ -35,6 +35,16 @@ export interface PostDocument extends PostSummary {
   updatedAt?: string
 }
 
+export interface NoteSummary {
+  _id: string
+  content: JsonValue | null
+  createdAt: string
+}
+
+export interface NoteDocument extends NoteSummary {
+  updatedAt?: string
+}
+
 export interface PostForm {
   title: string
   slug: string

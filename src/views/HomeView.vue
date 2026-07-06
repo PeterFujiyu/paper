@@ -5,7 +5,7 @@
     <section class="hero">
       <p class="hero-label">Designer &amp; Creative</p>
       <h1 class="hero-title">
-        <span class="hero-highlight">Thinking</span> through
+        <span class="hero-highlight">Thinking</span> through<br>
         <span class="hero-highlight">design</span>,<br>
         one page at a time.
       </h1>
@@ -58,6 +58,35 @@
 
     <hr class="divider" />
 
+    <!-- ─── Notes ─── -->
+    <section id="notes" class="section">
+      <div class="writing-head">
+        <h2 class="section-heading">Notes</h2>
+        <div class="search">
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input v-model="noteQuery" type="search" class="search-input" placeholder="Search notes…" aria-label="Search notes" />
+        </div>
+      </div>
+
+      <!-- List -->
+      <div v-if="notesLoading" class="state-msg">Loading…</div>
+      <p v-else-if="noteSearching" class="state-msg">Searching…</p>
+      <p v-else-if="isSearchingNotes && !displayNotes.length" class="state-msg">Nothing matches “{{ trimmedNoteQuery }}”.</p>
+      <p v-else-if="!displayNotes.length" class="state-msg">No notes yet.</p>
+
+      <ol v-else class="note-list">
+        <li v-for="note in displayNotes" :key="note._id" class="note-item">
+          <div class="note-meta">{{ formatDate(note.createdAt) }}</div>
+          <div class="note-body prose" v-html="renderContentHTML(note.content)"></div>
+        </li>
+      </ol>
+    </section>
+
+    <hr class="divider" />
+
     <!-- ─── Contact ─── -->
     <section id="contact" class="section">
       <h2 class="section-heading">Contact</h2>
@@ -87,7 +116,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { RouterLink } from 'vue-router'
-import type { PostSummary } from '../types/content'
+import { renderContentHTML } from '../shared/tiptap-extensions'
+import type { PostSummary, NoteSummary } from '../types/content'
 
 const MIN_QUERY = 2
 const DEBOUNCE_MS = 200
@@ -142,6 +172,7 @@ async function runSearch(q: string): Promise<void> {
 }
 
 onMounted(async () => {
+  void loadNotes()
   try {
     const res = await fetch(`${API_BASE}/posts`)
     if (res.ok) posts.value = await res.json() as PostSummary[]
@@ -153,6 +184,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   clearTimeout(debounceTimer)
   activeController?.abort()
+  clearTimeout(noteDebounceTimer)
+  noteController?.abort()
 })
 
 function formatDate(iso: string): string {
@@ -161,6 +194,63 @@ function formatDate(iso: string): string {
 
 function formatViews(count: number): string {
   return `${count.toLocaleString('en-US')} ${count === 1 ? 'view' : 'views'}`
+}
+
+// ─── Notes ─── (public read-only list + search; authored in the admin area)
+const notes = ref<NoteSummary[]>([])          // full list, shown when not searching
+const noteResults = ref<NoteSummary[]>([])    // server-side full-text search hits
+const notesLoading = ref(true)                // initial list fetch
+const noteSearching = ref(false)              // a query is pending or in flight
+const noteQuery = ref('')
+
+const trimmedNoteQuery = computed(() => noteQuery.value.trim())
+const isSearchingNotes = computed(() => trimmedNoteQuery.value.length >= MIN_QUERY)
+const displayNotes = computed(() => (isSearchingNotes.value ? noteResults.value : notes.value))
+
+let noteDebounceTimer: ReturnType<typeof setTimeout> | undefined
+let noteController: AbortController | undefined
+
+watch(trimmedNoteQuery, (q) => {
+  clearTimeout(noteDebounceTimer)
+  noteController?.abort()
+  noteController = undefined
+
+  if (q.length < MIN_QUERY) {
+    noteSearching.value = false
+    noteResults.value = []
+    return
+  }
+
+  noteSearching.value = true
+  noteDebounceTimer = setTimeout(() => void runNoteSearch(q), DEBOUNCE_MS)
+})
+
+async function runNoteSearch(q: string): Promise<void> {
+  const controller = new AbortController()
+  noteController = controller
+  try {
+    const res = await fetch(`${API_BASE}/notes?q=${encodeURIComponent(q)}`, {
+      signal: controller.signal,
+    })
+    if (res.ok) noteResults.value = await res.json() as NoteSummary[]
+  } catch (err) {
+    if ((err as Error).name !== 'AbortError') noteResults.value = []
+  } finally {
+    // Only the latest request may clear the pending flag; stale ones are ignored.
+    if (noteController === controller) {
+      noteSearching.value = false
+      noteController = undefined
+    }
+  }
+}
+
+async function loadNotes(): Promise<void> {
+  try {
+    const res = await fetch(`${API_BASE}/notes`)
+    if (res.ok) notes.value = await res.json() as NoteSummary[]
+  } finally {
+    notesLoading.value = false
+  }
 }
 </script>
 
@@ -187,6 +277,9 @@ function formatViews(count: number): string {
   letter-spacing: -0.03em;
   margin: 0 0 1.5rem 0;
   color: var(--text-main);
+  /* Shrink the block to its longest line so a multi-line selection
+     hugs the text instead of filling the empty 68ch reading column. */
+  width: fit-content;
 }
 
 .hero-highlight {
@@ -391,6 +484,40 @@ function formatViews(count: number): string {
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   border-radius: 999px;
   padding: 0.18rem 0.55rem;
+}
+
+/* ─── Notes ─── */
+.note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.note-item {
+  border-bottom: 1px solid var(--border);
+  padding: 1.6rem 0;
+}
+
+.note-item:first-child {
+  border-top: 1px solid var(--border);
+}
+
+.note-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+  font-style: italic;
+}
+
+/* Trim the leading/trailing margins the global .prose rules add so notes sit
+   snugly inside their list rows. :deep() is required to reach the v-html content,
+   which doesn't carry this component's scope attribute. */
+.note-body :deep(:first-child) {
+  margin-top: 0;
+}
+
+.note-body :deep(:last-child) {
+  margin-bottom: 0;
 }
 
 /* ─── Contact ─── */

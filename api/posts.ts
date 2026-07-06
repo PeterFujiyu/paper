@@ -3,13 +3,9 @@ import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJso
 import { extractPlainText } from '../server/lib/content-text.js'
 import { withPostMetrics } from '../server/lib/post-metrics.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
+import { escapeRegExp } from '../server/lib/regex.js'
 import { validatePostBody, type PostBody, normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent } from '../server/lib/validation.js'
 import Post from '../server/models/Post.js'
-
-// Escape a user query so it matches as a literal string, not a regex pattern.
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
 
 function isDuplicateSlugError(error: unknown): boolean {
   return Boolean(

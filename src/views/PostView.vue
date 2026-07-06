@@ -68,17 +68,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { generateHTML, type Extensions, type JSONContent } from '@tiptap/core'
-import StarterKit   from '@tiptap/starter-kit'
-import Image        from '@tiptap/extension-image'
-import { Table }    from '@tiptap/extension-table'
-import TableRow     from '@tiptap/extension-table-row'
-import TableHeader  from '@tiptap/extension-table-header'
-import TableCell    from '@tiptap/extension-table-cell'
-import Typography   from '@tiptap/extension-typography'
-import Underline    from '@tiptap/extension-underline'
-import Link         from '@tiptap/extension-link'
-import TextAlign    from '@tiptap/extension-text-align'
+import { renderContentHTML } from '../shared/tiptap-extensions'
 import { getHCaptchaToken } from '../shared/hcaptcha'
 import type { PostDocument, PostMetrics, PostSummary } from '../types/content'
 
@@ -151,27 +141,7 @@ async function loadRelated(currentSlug: string): Promise<void> {
   }
 }
 
-const extensions: Extensions = [
-  StarterKit,
-  Image.configure({ allowBase64: true }),
-  Table.configure({ resizable: false }),
-  TableRow,
-  TableHeader,
-  TableCell,
-  Typography,
-  Underline,
-  Link,
-  TextAlign.configure({ types: ['heading', 'paragraph'] }),
-]
-
-const renderedHTML = computed(() => {
-  if (!post.value?.content) return ''
-  try {
-    return generateHTML(post.value.content as JSONContent, extensions)
-  } catch {
-    return '<p>Content unavailable.</p>'
-  }
-})
+const renderedHTML = computed(() => renderContentHTML(post.value?.content))
 
 const readPercent = computed(() => Math.round(readProgress.value * 100))
 

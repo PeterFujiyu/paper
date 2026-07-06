@@ -1,34 +1,24 @@
 <template>
   <div class="admin-wrap">
     <header class="admin-header">
-      <h1 class="admin-title">Writing</h1>
+      <h1 class="admin-title">Notes</h1>
       <div class="admin-header-actions">
-        <RouterLink to="/admin/notes" class="btn-ghost">Notes</RouterLink>
-        <RouterLink to="/admin/posts/new" class="btn-primary">New post</RouterLink>
+        <RouterLink to="/admin" class="btn-ghost">Writing</RouterLink>
+        <RouterLink to="/admin/notes/new" class="btn-primary">New note</RouterLink>
         <button class="btn-ghost" @click="signOut">Sign out</button>
       </div>
     </header>
 
     <div v-if="loading" class="state-msg">Loading…</div>
-    <div v-else-if="!posts.length" class="state-msg state-msg--empty">
-      No posts yet. <RouterLink to="/admin/posts/new">Write one.</RouterLink>
+    <div v-else-if="!notes.length" class="state-msg state-msg--empty">
+      No notes yet. <RouterLink to="/admin/notes/new">Write one.</RouterLink>
     </div>
 
-    <ol v-else class="post-list">
-      <li v-for="post in posts" :key="post._id" class="post-item">
-        <RouterLink :to="`/admin/posts/${post._id}`" class="post-row">
-          <div class="post-info">
-            <span class="post-status" :class="post.published ? 'status--live' : 'status--draft'">
-              {{ post.published ? 'Live' : 'Draft' }}
-            </span>
-            <span>
-              <span class="post-title">{{ post.title }}</span>
-              <span class="post-metrics">
-                {{ formatViews(post.viewCount) }} / {{ formatCompletionRate(post.readCompletionRate) }}
-              </span>
-            </span>
-          </div>
-          <span class="post-date">{{ formatDate(post.createdAt) }}</span>
+    <ol v-else class="note-list">
+      <li v-for="note in notes" :key="note._id" class="note-item">
+        <RouterLink :to="`/admin/notes/${note._id}`" class="note-row">
+          <span class="note-preview">{{ preview(note.content) }}</span>
+          <span class="note-date">{{ formatDate(note.createdAt) }}</span>
         </RouterLink>
       </li>
     </ol>
@@ -39,30 +29,31 @@
 import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { apiFetch, logout } from '../store'
-import type { PostSummary } from '../../types/content'
+import { renderContentHTML } from '../../shared/tiptap-extensions'
+import type { NoteSummary, JsonValue } from '../../types/content'
 
 const router = useRouter()
-const posts = ref<PostSummary[]>([])
+const notes = ref<NoteSummary[]>([])
 const loading = ref(true)
 
 onMounted(async () => {
   try {
-    posts.value = await apiFetch<PostSummary[]>('/admin-posts')
+    notes.value = await apiFetch<NoteSummary[]>('/admin-notes')
   } finally {
     loading.value = false
   }
 })
 
+// A short plain-text preview of the note body for the list row.
+function preview(content: JsonValue | null): string {
+  const html = renderContentHTML(content)
+  const text = (new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '').trim()
+  if (!text) return 'Untitled note'
+  return text.length > 120 ? `${text.slice(0, 120)}…` : text
+}
+
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-}
-
-function formatViews(count: number): string {
-  return `${count.toLocaleString('en-US')} ${count === 1 ? 'view' : 'views'}`
-}
-
-function formatCompletionRate(rate: number): string {
-  return `${Math.round(rate)}% completion`
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 async function signOut() {
@@ -132,64 +123,43 @@ async function signOut() {
   color: var(--text-main);
 }
 
-.post-list {
+.note-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.post-item {
+.note-item {
   border-bottom: 1px solid var(--border);
 }
-.post-item:first-child {
+.note-item:first-child {
   border-top: 1px solid var(--border);
 }
 
-.post-row {
+.note-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   padding: 1.1rem 0;
   text-decoration: none;
   color: inherit;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
-.post-info {
-  display: flex;
-  align-items: baseline;
-  gap: 0.8rem;
-}
-
-.post-status {
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.15rem 0.5rem;
-  border: 1px solid currentColor;
-}
-.status--live  { color: #3a7a3a; }
-.status--draft { color: var(--text-muted); }
-
-.post-title {
+.note-preview {
   font-size: 1rem;
   color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition: text-decoration 0.15s;
 }
-.post-row:hover .post-title {
+.note-row:hover .note-preview {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
-.post-metrics {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-.post-date {
+.note-date {
   font-size: 0.8rem;
   color: var(--text-muted);
   font-style: italic;
