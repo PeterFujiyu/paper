@@ -1,17 +1,20 @@
 <template>
   <div class="editor-shell">
-    <div class="toolbar">
+    <div class="toolbar" role="group" aria-label="Formatting">
       <button
         v-for="btn in toolbarButtons"
         :key="btn.label"
+        type="button"
         class="tb-btn"
         :class="{ 'tb-btn--active': btn.isActive?.() }"
         @click="btn.action"
-        :title="btn.label"
+        :title="btn.name"
+        :aria-label="btn.name"
+        :aria-pressed="btn.isActive ? btn.isActive() : undefined"
       >{{ btn.label }}</button>
 
       <!-- Image upload — separate from the v-for loop to use a ref -->
-      <button class="tb-btn" title="Image" @click="fileInputRef?.click()">Img</button>
+      <button type="button" class="tb-btn" title="Insert image" aria-label="Insert image" @click="fileInputRef?.click()">Img</button>
     </div>
 
     <!-- Hidden file input -->
@@ -29,15 +32,19 @@
       <!-- Table context toolbar — appears at top-right of table when cursor is inside -->
       <Teleport to="body">
         <Transition name="tbl-fade">
+          <!-- Selection-triggered floating toolbar. Full keyboard reachability
+               of this control set is out of scope for this accessibility pass. -->
           <div
             v-if="tableToolbarVisible && tableToolbarPos"
             class="table-toolbar"
+            role="group"
+            aria-label="Table tools"
             :style="{ top: tableToolbarPos.top + 'px', left: tableToolbarPos.left + 'px' }"
             @mousedown.prevent
           >
             <!-- Add row below -->
-            <button class="tbl-btn" title="Add row below" @click="editorCmd('addRowAfter')">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <button type="button" class="tbl-btn" title="Add row below" aria-label="Add row below" @click="editorCmd('addRowAfter')">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                 <rect x="1" y="1" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
                 <rect x="1" y="8" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.5"/>
                 <line x1="7" y1="9.5" x2="7" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
@@ -46,8 +53,8 @@
             </button>
 
             <!-- Delete row -->
-            <button class="tbl-btn" title="Delete row" @click="editorCmd('deleteRow')">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <button type="button" class="tbl-btn" title="Delete row" aria-label="Delete row" @click="editorCmd('deleteRow')">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                 <rect x="1" y="1" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
                 <rect x="1" y="8" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.35"/>
                 <line x1="5.5" y1="9.5" x2="8.5" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
@@ -58,8 +65,8 @@
             <div class="tbl-sep"></div>
 
             <!-- Add column right -->
-            <button class="tbl-btn" title="Add column right" @click="editorCmd('addColumnAfter')">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <button type="button" class="tbl-btn" title="Add column right" aria-label="Add column right" @click="editorCmd('addColumnAfter')">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                 <rect x="1" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
                 <rect x="8" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.5"/>
                 <line x1="9.5" y1="7" x2="11.5" y2="7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
@@ -68,8 +75,8 @@
             </button>
 
             <!-- Delete column -->
-            <button class="tbl-btn" title="Delete column" @click="editorCmd('deleteColumn')">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <button type="button" class="tbl-btn" title="Delete column" aria-label="Delete column" @click="editorCmd('deleteColumn')">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                 <rect x="1" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
                 <rect x="8" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.35"/>
                 <line x1="9.5" y1="5.5" x2="11.5" y2="7.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
@@ -80,8 +87,8 @@
             <div class="tbl-sep"></div>
 
             <!-- Delete table -->
-            <button class="tbl-btn tbl-btn--danger" title="Delete table" @click="editorCmd('deleteTable')">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <button type="button" class="tbl-btn tbl-btn--danger" title="Delete table" aria-label="Delete table" @click="editorCmd('deleteTable')">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
                 <rect x="1" y="1" width="12" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.4"/>
                 <line x1="4" y1="4" x2="10" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
                 <line x1="10" y1="4" x2="4" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
@@ -92,8 +99,8 @@
       </Teleport>
     </div>
 
-    <!-- Upload progress indicator -->
-    <div v-if="uploading" class="upload-indicator">Reading image…</div>
+    <!-- Upload progress — persistent live region so the toggle is announced -->
+    <div class="upload-indicator" role="status">{{ uploading ? 'Reading image…' : '' }}</div>
   </div>
 </template>
 
@@ -181,6 +188,10 @@ const editor = useEditor({
     TableCell,
   ],
   content: props.modelValue,
+  editorProps: {
+    // Give the contenteditable region an accessible name.
+    attributes: { 'aria-label': 'Body' },
+  },
   onUpdate({ editor: e }) {
     emit('update:modelValue', e.getJSON())
     updateTableToolbar()
@@ -274,63 +285,74 @@ function onFileSelected(event: Event): void {
 const toolbarButtons = computed(() => {
   const e = editor.value
   if (!e) return []
+  // `name` is the accessible label; `label` is the visible glyph. Only true
+  // toggles carry isActive, so aria-pressed is emitted for those alone.
   return [
     {
       label: 'B',
+      name: 'Bold',
       isActive: () => e.isActive('bold'),
       action: () => e.chain().focus().toggleBold().run(),
     },
     {
       label: 'I',
+      name: 'Italic',
       isActive: () => e.isActive('italic'),
       action: () => e.chain().focus().toggleItalic().run(),
     },
     {
       label: 'U',
+      name: 'Underline',
       isActive: () => e.isActive('underline'),
       action: () => e.chain().focus().toggleUnderline().run(),
     },
     {
       label: 'H1',
+      name: 'Heading 1',
       isActive: () => e.isActive('heading', { level: 1 }),
       action: () => e.chain().focus().toggleHeading({ level: 1 }).run(),
     },
     {
       label: 'H2',
+      name: 'Heading 2',
       isActive: () => e.isActive('heading', { level: 2 }),
       action: () => e.chain().focus().toggleHeading({ level: 2 }).run(),
     },
     {
       label: 'H3',
+      name: 'Heading 3',
       isActive: () => e.isActive('heading', { level: 3 }),
       action: () => e.chain().focus().toggleHeading({ level: 3 }).run(),
     },
     {
       label: '❝',
+      name: 'Blockquote',
       isActive: () => e.isActive('blockquote'),
       action: () => e.chain().focus().toggleBlockquote().run(),
     },
     {
       label: '—',
-      isActive: () => false,
+      name: 'Horizontal rule',
       action: () => e.chain().focus().setHorizontalRule().run(),
     },
     {
       label: 'UL',
+      name: 'Bulleted list',
       isActive: () => e.isActive('bulletList'),
       action: () => e.chain().focus().toggleBulletList().run(),
     },
     {
       label: 'OL',
+      name: 'Numbered list',
       isActive: () => e.isActive('orderedList'),
       action: () => e.chain().focus().toggleOrderedList().run(),
     },
     {
       label: 'Tbl',
-      isActive: () => false,
+      name: 'Insert table',
       action: () => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
     },
-  ] as Array<{ label: string; isActive?: () => boolean; action: () => void }>
+  ] as Array<{ label: string; name: string; isActive?: () => boolean; action: () => void }>
 })
 </script>
 
@@ -338,6 +360,12 @@ const toolbarButtons = computed(() => {
 .editor-shell {
   border: 1px solid var(--border);
   position: relative;
+}
+
+/* The contenteditable keeps outline:none; mirror the HomeView search pattern by
+   accenting the shell border when focus lands anywhere inside. */
+.editor-shell:focus-within {
+  border-color: var(--accent);
 }
 
 .toolbar {

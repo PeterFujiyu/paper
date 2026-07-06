@@ -1,28 +1,46 @@
 <template>
-  <div class="auth-wrap">
+  <main id="main" tabindex="-1" class="auth-wrap">
     <div class="auth-card">
       <h1 class="auth-title">{{ isRegister ? 'Create account' : 'Sign in' }}</h1>
       <p class="auth-sub">{{ isRegister ? 'Set up your admin account.' : 'Continue to the editor.' }}</p>
 
       <form @submit.prevent="submit" class="auth-form">
         <div v-if="isRegister" class="field">
-          <label>Name</label>
-          <input v-model="form.name" type="text" placeholder="Peter Fujiyu" required autocomplete="name" />
+          <label for="login-name">Name</label>
+          <input id="login-name" v-model="form.name" type="text" placeholder="Peter Fujiyu" required autocomplete="name" />
         </div>
         <div v-if="isRegister" class="field">
-          <label>Invite code</label>
-          <input v-model="form.inviteCode" type="password" placeholder="••••••••" required autocomplete="off" />
+          <label for="login-invite">Invite code</label>
+          <input id="login-invite" v-model="form.inviteCode" type="password" placeholder="••••••••" required autocomplete="off" />
         </div>
         <div class="field">
-          <label>Email</label>
-          <input v-model="form.email" type="email" placeholder="you@example.com" required autocomplete="email" />
+          <label for="login-email">Email</label>
+          <input
+            id="login-email"
+            v-model="form.email"
+            type="email"
+            placeholder="you@example.com"
+            required
+            autocomplete="email"
+            :aria-describedby="showError ? 'auth-error' : undefined"
+            :aria-invalid="showError || undefined"
+          />
         </div>
         <div class="field">
-          <label>Password</label>
-          <input v-model="form.password" type="password" placeholder="••••••••" required autocomplete="current-password" />
+          <label for="login-password">Password</label>
+          <input
+            id="login-password"
+            v-model="form.password"
+            type="password"
+            placeholder="••••••••"
+            required
+            autocomplete="current-password"
+            :aria-describedby="showError ? 'auth-error' : undefined"
+            :aria-invalid="showError || undefined"
+          />
         </div>
 
-        <p v-if="error || validationMessage" class="auth-error">{{ error || validationMessage }}</p>
+        <p v-if="showError" id="auth-error" class="auth-error" role="alert">{{ error || validationMessage }}</p>
 
         <button type="submit" class="auth-btn" :disabled="loading || !!validationMessage">
           {{ loading ? 'Please wait…' : (isRegister ? 'Create account' : 'Sign in') }}
@@ -36,7 +54,7 @@
         </button>
       </p>
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup lang="ts">
@@ -63,6 +81,9 @@ const validationMessage = computed(() => {
   if (form.password.length < 8) return 'Password must be at least 8 characters.'
   return ''
 })
+
+// Drives the error paragraph plus the fields' aria-describedby / aria-invalid.
+const showError = computed(() => Boolean(error.value || validationMessage.value))
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Request failed'
@@ -153,7 +174,6 @@ async function submit() {
   font-family: inherit;
   font-size: 1rem;
   color: var(--text-main);
-  outline: none;
   transition: border-color 0.2s ease;
 }
 

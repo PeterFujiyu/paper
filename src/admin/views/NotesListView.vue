@@ -9,12 +9,14 @@
       </div>
     </header>
 
-    <div v-if="loading" class="state-msg">Loading…</div>
-    <div v-else-if="!notes.length" class="state-msg state-msg--empty">
+    <div role="status">
+      <p v-if="loading" class="state-msg">Loading…</p>
+    </div>
+    <div v-if="!loading && !notes.length" class="state-msg state-msg--empty">
       No notes yet. <RouterLink to="/admin/notes/new">Write one.</RouterLink>
     </div>
 
-    <ol v-else class="note-list">
+    <ol v-if="!loading && notes.length" class="note-list">
       <li v-for="note in notes" :key="note._id" class="note-item">
         <RouterLink :to="`/admin/notes/${note._id}`" class="note-row">
           <span class="note-preview">{{ preview(note.content) }}</span>

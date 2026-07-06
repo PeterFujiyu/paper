@@ -1,10 +1,13 @@
 <template>
-  <!-- Admin area has its own minimal layout, no blog header -->
-  <div
+  <!-- Admin area has its own minimal layout, no blog header. This <main> is the
+       skip-link target for every admin child route (only one renders at a time). -->
+  <main
+    id="main"
+    tabindex="-1"
     style="min-height: 100vh; background-color: var(--bg); color: var(--text-main);"
   >
     <RouterView />
-  </div>
+  </main>
 </template>
 
 <script setup lang="ts">

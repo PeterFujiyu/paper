@@ -13,7 +13,6 @@
           aria-modal="true"
           :aria-labelledby="dialog.title ? titleId : undefined"
           :aria-describedby="messageId"
-          @keydown="onKeydown"
         >
           <h2 v-if="dialog.title" :id="titleId" class="dialog-title">{{ dialog.title }}</h2>
           <p :id="messageId" class="dialog-message">{{ dialog.message }}</p>
@@ -44,12 +43,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onUnmounted, useId } from 'vue'
 import { dialogState, settleDialog } from './dialog'
 
 const dialog = computed(() => dialogState.active)
 
-const uid = Math.random().toString(36).slice(2)
+const uid = useId()
 const titleId = `dialog-title-${uid}`
 const messageId = `dialog-message-${uid}`
 
@@ -80,9 +79,12 @@ function onKeydown(event: KeyboardEvent): void {
 function trapFocus(event: KeyboardEvent): void {
   const root = panel.value
   if (!root) return
-  const focusable = root.querySelectorAll<HTMLElement>(
-    'button, [href], input, [tabindex]:not([tabindex="-1"])',
-  )
+  const focusable = Array.from(
+    root.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ),
+  // getClientRects (not offsetParent) so position:fixed overlays aren't dropped.
+  ).filter((el) => el.getClientRects().length > 0)
   if (focusable.length === 0) return
   const first = focusable[0]
   const last = focusable[focusable.length - 1]
@@ -100,13 +102,21 @@ watch(dialog, async (val, prev) => {
   if (val && !prev) {
     lastFocused = document.activeElement as HTMLElement | null
     document.body.style.overflow = 'hidden'
+    // Document-level so Escape/Tab are caught even if focus lands on <body>.
+    document.addEventListener('keydown', onKeydown)
     await nextTick()
     confirmBtn.value?.focus()
   } else if (!val && prev) {
     document.body.style.overflow = ''
+    document.removeEventListener('keydown', onKeydown)
     lastFocused?.focus?.()
     lastFocused = null
   }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeydown)
+  document.body.style.overflow = ''
 })
 </script>
 
@@ -208,14 +218,5 @@ watch(dialog, async (val, prev) => {
 .dialog-enter-from .dialog,
 .dialog-leave-to .dialog {
   transform: translateY(8px) scale(0.98);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dialog-enter-active,
-  .dialog-leave-active,
-  .dialog-enter-active .dialog,
-  .dialog-leave-active .dialog {
-    transition: none;
-  }
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <main>
+  <main id="main" tabindex="-1">
 
     <!-- Reading progress — goal-gradient feedback toward the finish -->
     <div
@@ -13,17 +13,22 @@
       aria-valuemax="100"
     />
 
-    <div v-if="loading" class="state-msg">Loading…</div>
+    <!-- Persistent live region: announces load state + the 404 to screen
+         readers. The visible 404 block below keeps its link outside the region. -->
+    <div role="status">
+      <p v-if="loading" class="state-msg">Loading…</p>
+      <span v-else-if="!post" class="sr-only">This essay doesn't exist.</span>
+    </div>
 
     <!-- 404 -->
-    <div v-else-if="!post" class="not-found">
+    <div v-if="!loading && !post" class="not-found">
       <p class="not-found-code">404</p>
       <p class="not-found-msg">This essay doesn't exist.</p>
       <RouterLink to="/" class="back-link">← Back to writing</RouterLink>
     </div>
 
     <!-- Article -->
-    <article v-else ref="articleRef" class="post">
+    <article v-else-if="post" ref="articleRef" class="post">
       <header class="post-header">
         <RouterLink to="/" class="back-link">← Writing</RouterLink>
         <ul v-if="post.tags?.length" class="post-tags">
@@ -37,7 +42,7 @@
       </header>
 
       <figure v-if="post.coverImage" class="post-cover">
-        <img :src="post.coverImage" :alt="post.title" loading="lazy" />
+        <img :src="post.coverImage" alt="" loading="lazy" />
       </figure>
 
       <!-- Render Tiptap JSON as HTML via generateHTML -->

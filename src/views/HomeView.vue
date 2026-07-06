@@ -1,5 +1,5 @@
 <template>
-  <main>
+  <main id="main" tabindex="-1">
 
     <!-- ─── Hero ─── -->
     <section class="hero">
@@ -31,12 +31,15 @@
         </div>
       </div>
 
-      <div v-if="loading" class="state-msg">Loading…</div>
-      <p v-else-if="!posts.length" class="state-msg">No posts yet.</p>
-      <p v-else-if="searching" class="state-msg">Searching…</p>
-      <p v-else-if="isSearching && !displayPosts.length" class="state-msg">Nothing matches “{{ trimmedQuery }}”.</p>
+      <!-- Persistent live region: state changes here are announced -->
+      <div role="status">
+        <p v-if="loading" class="state-msg">Loading…</p>
+        <p v-else-if="!posts.length" class="state-msg">No posts yet.</p>
+        <p v-else-if="searching" class="state-msg">Searching…</p>
+        <p v-else-if="isSearching && !displayPosts.length" class="state-msg">Nothing matches “{{ trimmedQuery }}”.</p>
+      </div>
 
-      <ol v-else class="article-list">
+      <ol v-if="!loading && !searching && displayPosts.length" class="article-list">
         <li v-for="post in displayPosts" :key="post._id" class="article-item">
           <RouterLink :to="{ name: 'post', params: { slug: post.slug } }" class="article-link">
             <div class="article-meta">
@@ -72,12 +75,14 @@
       </div>
 
       <!-- List -->
-      <div v-if="notesLoading" class="state-msg">Loading…</div>
-      <p v-else-if="noteSearching" class="state-msg">Searching…</p>
-      <p v-else-if="isSearchingNotes && !displayNotes.length" class="state-msg">Nothing matches “{{ trimmedNoteQuery }}”.</p>
-      <p v-else-if="!displayNotes.length" class="state-msg">No notes yet.</p>
+      <div role="status">
+        <p v-if="notesLoading" class="state-msg">Loading…</p>
+        <p v-else-if="noteSearching" class="state-msg">Searching…</p>
+        <p v-else-if="isSearchingNotes && !displayNotes.length" class="state-msg">Nothing matches “{{ trimmedNoteQuery }}”.</p>
+        <p v-else-if="!displayNotes.length" class="state-msg">No notes yet.</p>
+      </div>
 
-      <ol v-else class="note-list">
+      <ol v-if="!notesLoading && !noteSearching && displayNotes.length" class="note-list">
         <li v-for="note in displayNotes" :key="note._id" class="note-item">
           <div class="note-meta">{{ formatDate(note.createdAt) }}</div>
           <div class="note-body prose" v-html="renderContentHTML(note.content)"></div>
@@ -430,13 +435,6 @@ async function loadNotes(): Promise<void> {
 .article-link:focus-visible .article-arrow {
   opacity: 1;
   transform: translate(0, 0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .article-arrow {
-    transition: opacity 0.2s ease;
-    transform: translate(0, 0);
-  }
 }
 
 .article-meta {

@@ -16,7 +16,7 @@
       </div>
     </header>
 
-    <p v-if="error || validationMessage" class="edit-error">{{ error || validationMessage }}</p>
+    <p v-if="error || validationMessage" class="edit-error" role="alert">{{ error || validationMessage }}</p>
 
     <section v-if="isEdit" class="metrics-strip" aria-label="Post metrics">
       <div>
@@ -35,33 +35,38 @@
 
     <!-- Title + meta fields -->
     <div class="meta-fields">
+      <!-- A visible label here would alter the editorial title treatment; the
+           aria-label carries the name for assistive tech instead. -->
       <input
         v-model="form.title"
         class="field-title"
         placeholder="Post title"
+        aria-label="Post title"
         @blur="autoSlug"
       />
       <div class="field-row">
         <div class="field-group">
-          <label>Slug</label>
-          <input v-model="form.slug" class="field-input" placeholder="url-slug" @blur="checkSlugAvailability" />
-          <p v-if="slugMessage" class="field-help" :class="slugAvailable ? 'field-help--ok' : 'field-help--error'">
+          <label for="post-slug">Slug</label>
+          <input id="post-slug" v-model="form.slug" class="field-input" placeholder="url-slug" aria-describedby="post-slug-help" @blur="checkSlugAvailability" />
+          <!-- Persistent status region: empty until a message lands, so its
+               availability updates are announced. Collapsed via :empty, never hidden. -->
+          <p id="post-slug-help" class="field-help" :class="slugAvailable ? 'field-help--ok' : 'field-help--error'" role="status">
             {{ slugMessage }}
           </p>
         </div>
       </div>
       <div class="field-group">
-        <label>Excerpt</label>
-        <textarea v-model="form.excerpt" class="field-textarea" rows="2" placeholder="One or two sentences for the listing page." />
+        <label for="post-excerpt">Excerpt</label>
+        <textarea id="post-excerpt" v-model="form.excerpt" class="field-textarea" rows="2" placeholder="One or two sentences for the listing page." />
       </div>
       <div class="field-group">
-        <label>Cover image URL</label>
-        <input v-model="form.coverImage" class="field-input" placeholder="https://… or /path.jpg" />
+        <label for="post-cover">Cover image URL</label>
+        <input id="post-cover" v-model="form.coverImage" class="field-input" placeholder="https://… or /path.jpg" />
         <img v-if="form.coverImage" :src="form.coverImage" class="cover-preview" alt="Cover preview" />
       </div>
       <div class="field-group">
-        <label>Tags</label>
-        <input v-model="tagsInput" class="field-input" placeholder="design, typography (comma separated, up to 6)" />
+        <label for="post-tags">Tags</label>
+        <input id="post-tags" v-model="tagsInput" class="field-input" placeholder="design, typography (comma separated, up to 6)" />
       </div>
     </div>
 
@@ -381,7 +386,6 @@ async function remove() {
   letter-spacing: -0.02em;
   color: var(--text-main);
   padding: 0.3rem 0 0.6rem;
-  outline: none;
 }
 .field-title::placeholder { color: var(--border); }
 .field-title:focus { border-bottom-color: var(--text-main); }
@@ -413,7 +417,6 @@ async function remove() {
   font-size: 0.95rem;
   color: var(--text-main);
   padding: 0.35rem 0;
-  outline: none;
   width: 100%;
   transition: border-color 0.2s;
 }
@@ -423,6 +426,12 @@ async function remove() {
   margin: 0.45rem 0 0;
   font-size: 0.8rem;
   font-style: italic;
+}
+
+/* Persistent live region: collapse the reserved space while empty without
+   display:none, which would stop screen readers announcing later updates. */
+.field-help:empty {
+  margin: 0;
 }
 
 .field-help--ok {
@@ -440,7 +449,6 @@ async function remove() {
   font-size: 0.9rem;
   color: var(--text-muted);
   padding: 0.6rem 0.8rem;
-  outline: none;
   resize: vertical;
   width: 100%;
   line-height: 1.6;

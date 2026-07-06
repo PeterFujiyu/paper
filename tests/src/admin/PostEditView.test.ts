@@ -115,3 +115,53 @@ describe('PostEditView slug interactions', () => {
     expect(wrapper.text()).toContain('Slug is already in use.')
   })
 })
+
+describe('PostEditView accessibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    routeState.params = { id: 'new' }
+  })
+
+  it('associates each field label with a control and names the title', async () => {
+    const wrapper = await mountView()
+
+    const labels = wrapper.findAll('label')
+    expect(labels.length).toBeGreaterThan(0)
+    for (const label of labels) {
+      const forId = label.attributes('for')
+      if (forId) {
+        expect(wrapper.find(`#${forId}`).exists()).toBe(true)
+      } else {
+        // Implicit association: the publish toggle wraps its own checkbox.
+        expect(label.find('input, textarea, select').exists()).toBe(true)
+      }
+    }
+
+    // The editorial title field carries its name via aria-label, not a <label>.
+    expect(wrapper.find('input.field-title').attributes('aria-label')).toBe('Post title')
+  })
+
+  it('keeps a persistent slug status region that fills after a check', async () => {
+    apiFetchMock.mockResolvedValue({ available: true })
+    const wrapper = await mountView()
+
+    const help = wrapper.find('#post-slug-help')
+    expect(help.exists()).toBe(true)
+    expect(help.attributes('role')).toBe('status')
+    expect(help.text()).toBe('')
+
+    await wrapper.find('input.field-title').setValue('Hello World')
+    await wrapper.find('input.field-title').trigger('blur')
+    await flushPromises()
+
+    expect(wrapper.find('#post-slug-help').text()).toContain('Slug is available.')
+    expect(wrapper.find('input.field-input').attributes('aria-describedby')).toBe('post-slug-help')
+  })
+
+  it('marks the validation error as an alert', async () => {
+    const wrapper = await mountView()
+    const err = wrapper.find('.edit-error')
+    expect(err.exists()).toBe(true)
+    expect(err.attributes('role')).toBe('alert')
+  })
+})

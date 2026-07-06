@@ -1,6 +1,9 @@
 <template>
   <div :class="{ dark: isDark }" style="min-height: 100vh; background-color: var(--bg); color: var(--text-main); transition: background-color 0.3s ease, color 0.3s ease;">
 
+    <!-- Keyboard skip target — the only element hidden until :focus-visible -->
+    <a class="skip-link" href="#main" @click.prevent="skipToMain">Skip to content</a>
+
     <!-- ─── Header (fixed) ─── -->
     <header class="site-header">
       <RouterLink to="/" class="wordmark" aria-label="PeterFujiyu">
@@ -13,7 +16,7 @@
         >{{ char }}</span>
       </RouterLink>
       <div class="header-right">
-        <nav class="site-nav">
+        <nav class="site-nav" aria-label="Primary">
           <RouterLink to="/#writing">
             <span>Writing</span>
             <svg class="nav-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z"/></svg>
@@ -87,6 +90,8 @@
             {{ copiedEth ? 'Copied' : ethAddress }}
           </button>
         </transition>
+        <!-- Persistent live region — the fading button above can't announce reliably -->
+        <span class="sr-only" role="status">{{ copiedEth ? 'Ethereum address copied' : '' }}</span>
       </footer>
     </div>
 
@@ -118,6 +123,14 @@ function toggleDark() {
 
 // ─── Current year ───
 const year = computed(() => new Date().getFullYear())
+
+// Skip link: focus the current view's <main> directly. A raw #main hash click
+// behaves oddly with createWebHistory + the router's scrollBehavior, so we
+// keep the href for semantics/no-JS but drive focus imperatively.
+function skipToMain(): void {
+  document.getElementById('main')?.focus()
+}
+
 const showEth = ref(false)
 const copiedEth = ref(false)
 const ethAddress = '0x590aef1cb9d2c66f2543cbeaa64f603e07fd1679'
@@ -168,6 +181,28 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* ─── Skip link ─── (hidden until keyboard focus; tokens only) */
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 110;
+  padding: 0.6rem 1rem;
+  background-color: var(--bg);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 1rem));
+  transition: transform 0.2s ease;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
 /* ─── Layout ─── */
 .page-wrap {
   max-width: var(--measure);
@@ -264,12 +299,6 @@ onUnmounted(() => {
 .site-nav a:hover .nav-chevron,
 .site-nav a:focus-visible .nav-chevron {
   transform: rotate(180deg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nav-chevron {
-    transition: none;
-  }
 }
 
 .site-nav a.router-link-active {

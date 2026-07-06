@@ -9,12 +9,14 @@
       </div>
     </header>
 
-    <div v-if="loading" class="state-msg">Loading…</div>
-    <div v-else-if="!posts.length" class="state-msg state-msg--empty">
+    <div role="status">
+      <p v-if="loading" class="state-msg">Loading…</p>
+    </div>
+    <div v-if="!loading && !posts.length" class="state-msg state-msg--empty">
       No posts yet. <RouterLink to="/admin/posts/new">Write one.</RouterLink>
     </div>
 
-    <ol v-else class="post-list">
+    <ol v-if="!loading && posts.length" class="post-list">
       <li v-for="post in posts" :key="post._id" class="post-item">
         <RouterLink :to="`/admin/posts/${post._id}`" class="post-row">
           <div class="post-info">

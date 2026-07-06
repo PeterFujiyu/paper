@@ -57,10 +57,32 @@
 
 /* Keyboard affordance — single accent focus ring sitewide */
 a:focus-visible,
-button:focus-visible {
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 1px;
+}
+
+/* Skip-link target: focused programmatically, so suppress the ring on it. */
+main:focus {
+  outline: none;
+}
+
+/* Screen-reader-only utility — removed from the visual flow, still announced. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 * {
@@ -78,4 +100,19 @@ body {
   background-color: var(--bg);
   color: var(--text-main);
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Respect the OS "reduce motion" setting sitewide. Near-zero (not 0/none) so
+   Vue's <Transition> still receives a transitionend and resolves cleanly. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }

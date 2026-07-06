@@ -11,10 +11,12 @@
       </div>
     </header>
 
-    <p v-if="error || validationMessage" class="edit-error">{{ error || validationMessage }}</p>
+    <p v-if="error || validationMessage" class="edit-error" role="alert">{{ error || validationMessage }}</p>
 
-    <div v-if="loading" class="state-msg">Loading…</div>
-    <TiptapEditor v-else v-model="form.content" />
+    <div role="status">
+      <p v-if="loading" class="state-msg">Loading…</p>
+    </div>
+    <TiptapEditor v-if="!loading" v-model="form.content" />
 
   </div>
 </template>
