@@ -90,12 +90,16 @@
       </footer>
     </div>
 
+    <!-- App-wide web-native dialog host (replaces window.confirm / window.alert) -->
+    <AppDialog />
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
+import AppDialog from './shared/AppDialog.vue'
 
 // ─── Dark mode ───
 const isDark = ref(false)

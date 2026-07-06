@@ -76,6 +76,7 @@ import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 import TiptapEditor from '../components/TiptapEditor.vue'
 import { apiFetch } from '../store'
+import { confirmDialog } from '../../shared/dialog'
 import {
   isValidSlug,
   normalizeSlug,
@@ -241,7 +242,13 @@ async function save() {
 }
 
 async function remove() {
-  if (!confirm('Delete this post? This cannot be undone.')) return
+  const confirmed = await confirmDialog({
+    title: 'Delete post',
+    message: 'Delete this post? This cannot be undone.',
+    confirmText: 'Delete',
+    tone: 'danger',
+  })
+  if (!confirmed) return
   await apiFetch<{ ok: boolean }>(`/post?id=${encodeURIComponent(postId.value)}`, { method: 'DELETE' })
   router.push('/admin')
 }

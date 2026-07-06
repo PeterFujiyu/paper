@@ -111,6 +111,7 @@ import { Table }    from '@tiptap/extension-table'
 import TableRow     from '@tiptap/extension-table-row'
 import TableHeader  from '@tiptap/extension-table-header'
 import TableCell    from '@tiptap/extension-table-cell'
+import { alertDialog } from '../../shared/dialog'
 import type { JsonValue } from '../../types/content'
 
 const props = defineProps({
@@ -238,7 +239,10 @@ function onFileSelected(event: Event): void {
   if (!file) return
 
   if (file.size > MAX_SIZE) {
-    alert(`Image is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 5 MB.`)
+    void alertDialog({
+      title: 'Image too large',
+      message: `Image is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 5 MB.`,
+    })
     target.value = ''
     return
   }
@@ -255,7 +259,10 @@ function onFileSelected(event: Event): void {
   }
 
   reader.onerror = () => {
-    alert('Failed to read image file.')
+    void alertDialog({
+      title: 'Upload failed',
+      message: 'Failed to read image file.',
+    })
     uploading.value = false
     target.value = ''
   }

@@ -24,6 +24,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 import TiptapEditor from '../components/TiptapEditor.vue'
 import { apiFetch } from '../store'
+import { confirmDialog } from '../../shared/dialog'
 import type { NoteDocument, JsonValue } from '../../types/content'
 
 const route  = useRoute()
@@ -91,7 +92,13 @@ async function save() {
 }
 
 async function remove() {
-  if (!confirm('Delete this note? This cannot be undone.')) return
+  const confirmed = await confirmDialog({
+    title: 'Delete note',
+    message: 'Delete this note? This cannot be undone.',
+    confirmText: 'Delete',
+    tone: 'danger',
+  })
+  if (!confirmed) return
   await apiFetch<{ ok: boolean }>(`/note?id=${encodeURIComponent(noteId.value)}`, { method: 'DELETE' })
   router.push('/admin/notes')
 }
