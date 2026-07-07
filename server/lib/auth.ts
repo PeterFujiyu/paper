@@ -39,13 +39,16 @@ function readJwtSecret(): string {
 }
 
 export function signToken(payload: Pick<UserPayload, 'id' | 'email' | 'name' | 'tkv'>): string {
-  const options: SignOptions = { expiresIn: TOKEN_TTL_SECONDS }
+  const options: SignOptions = { expiresIn: TOKEN_TTL_SECONDS, algorithm: 'HS256' }
   if (AUDIENCE) options.audience = AUDIENCE
   return jwt.sign(payload, SECRET, options)
 }
 
 export function verifyToken(token: string): UserPayload {
-  const options: VerifyOptions = {}
+  // Pin the accepted algorithm. Without this, jsonwebtoken accepts any algorithm
+  // the token's own header declares; pinning HS256 forecloses algorithm-confusion
+  // (including `alg: none`) regardless of how the key is later provisioned.
+  const options: VerifyOptions = { algorithms: ['HS256'] }
   if (AUDIENCE) options.audience = AUDIENCE
   const decoded = jwt.verify(token, SECRET, options)
   if (typeof decoded === 'string') {

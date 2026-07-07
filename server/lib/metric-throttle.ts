@@ -33,6 +33,8 @@ function getClientFingerprint(req: ApiRequest): string {
   const forwardedFor = firstHeaderValue(req.headers['x-forwarded-for'])
   const realIp = firstHeaderValue(req.headers['x-real-ip'])
   const userAgent = firstHeaderValue(req.headers['user-agent'])
+  // Leftmost X-Forwarded-For entry — the Vercel edge sets this to the true client
+  // IP, so it is not client-spoofable here (see the note in logger.ts).
   const ip = forwardedFor.split(',')[0]?.trim() || realIp || 'unknown'
 
   return createHash('sha256')

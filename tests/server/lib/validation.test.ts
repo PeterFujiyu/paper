@@ -203,6 +203,12 @@ describe('validatePostBody', () => {
     )
   })
 
+  it('rejects a protocol-relative cover image', () => {
+    expect(validatePostBody({ ...valid, coverImage: '//evil.example.com/cover.jpg' })).toBe(
+      'Cover image must use a safe source.'
+    )
+  })
+
   it('accepts a valid tag list', () => {
     expect(validatePostBody({ ...valid, tags: ['Design', 'Typography'] })).toBeNull()
   })
@@ -410,6 +416,28 @@ describe('sanitizePostContent', () => {
               type: 'text',
               text: 'Click',
               marks: [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toMatch(/safe protocol/)
+    }
+  })
+
+  it('rejects protocol-relative links', () => {
+    const result = sanitizePostContent({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Click',
+              marks: [{ type: 'link', attrs: { href: '//evil.example.com' } }],
             },
           ],
         },

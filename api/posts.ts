@@ -88,8 +88,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
+      // Assign only known, validated fields — never spread the raw body, which
+      // would let a client set schema fields that aren't meant to be
+      // client-controlled (e.g. viewCount, readCompletionCount, author, createdAt).
       const post = await Post.create({
-        ...body,
         title: body.title!.trim(),
         slug,
         excerpt: body.excerpt!.trim(),
@@ -97,6 +99,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         tags: normalizeTags(body.tags),
         content: contentResult.value,
         contentText: extractPlainText(contentResult.value),
+        ...(typeof body.published === 'boolean' ? { published: body.published } : {}),
         author: user.id,
       })
 

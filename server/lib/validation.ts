@@ -19,7 +19,10 @@ export type PostBody = {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const safeRelativeUrlPattern = /^(?:\/|\.\/?|#)/
+// Root-relative ("/path"), document-relative ("./path", "."), or fragment ("#..")
+// URLs. The `(?!\/)` guard rejects protocol-relative URLs ("//evil.com"), which
+// would otherwise resolve off-site.
+const safeRelativeUrlPattern = /^(?:\/(?!\/)|\.\/?|#)/
 const safeDataImagePattern = /^data:image\/(?:avif|gif|jpe?g|png|webp);base64,[a-z0-9+/=]+$/i
 const allowedNodeTypes = new Set([
   'blockquote',
@@ -443,7 +446,8 @@ function isSafeHref(value: string): boolean {
 
 function isSafeImageSrc(value: string): boolean {
   if (safeDataImagePattern.test(value)) return true
-  if (value.startsWith('/')) return true
+  // Root-relative only. Reject protocol-relative ("//host/…"), which points off-site.
+  if (value.startsWith('/') && !value.startsWith('//')) return true
 
   try {
     const url = new URL(value)

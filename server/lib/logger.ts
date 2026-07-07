@@ -29,6 +29,11 @@ function firstHeaderValue(value: string | string[] | undefined): string | undefi
 export function beginRequest(req: ApiRequest): RequestMeta {
   return {
     requestId: crypto.randomUUID(),
+    // The leftmost X-Forwarded-For entry is trusted as the client IP because the
+    // Vercel edge overwrites it with the true client address (any client-supplied
+    // value is appended after it and thus ignored). This IP feeds rate limiting,
+    // so behind a different proxy that does NOT normalize X-Forwarded-For it would
+    // be spoofable — use the platform's trusted client-IP header there instead.
     requestIp:
       firstHeaderValue(req.headers['x-forwarded-for'])?.split(',')[0]?.trim() ??
       firstHeaderValue(req.headers['x-real-ip']) ??

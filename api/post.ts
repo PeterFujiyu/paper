@@ -84,11 +84,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
+      // Update only known, validated fields — never spread the raw body, which
+      // would let a client overwrite schema fields that aren't meant to be
+      // client-controlled (e.g. viewCount, readCompletionCount, author, createdAt).
       const post = await Post.findByIdAndUpdate(
         id,
         {
           $set: {
-            ...body,
             title: body.title!.trim(),
             slug,
             excerpt: body.excerpt!.trim(),
@@ -96,6 +98,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
             tags: normalizeTags(body.tags),
             content: contentResult.value,
             contentText: extractPlainText(contentResult.value),
+            ...(typeof body.published === 'boolean' ? { published: body.published } : {}),
           },
         },
         { new: true, runValidators: true }
