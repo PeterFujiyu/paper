@@ -107,17 +107,8 @@
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
-import StarterKit   from '@tiptap/starter-kit'
 import Placeholder  from '@tiptap/extension-placeholder'
-import Typography   from '@tiptap/extension-typography'
-import Underline    from '@tiptap/extension-underline'
-import Link         from '@tiptap/extension-link'
-import TextAlign    from '@tiptap/extension-text-align'
-import Image        from '@tiptap/extension-image'
-import { Table }    from '@tiptap/extension-table'
-import TableRow     from '@tiptap/extension-table-row'
-import TableHeader  from '@tiptap/extension-table-header'
-import TableCell    from '@tiptap/extension-table-cell'
+import { buildContentExtensions } from '../../shared/tiptap-extensions'
 import { alertDialog } from '../../shared/dialog'
 import type { JsonValue } from '../../types/content'
 
@@ -174,18 +165,11 @@ function updateTableToolbar() {
 
 // ─── Editor ──────────────────────────────────────────────
 const editor = useEditor({
+  // Same schema-contributing set the renderer and sanitizer agree on, plus the
+  // editor-only Placeholder. Tables are resizable while editing.
   extensions: [
-    StarterKit,
+    ...buildContentExtensions({ resizableTables: true }),
     Placeholder.configure({ placeholder: 'Start writing…' }),
-    Typography,
-    Underline,
-    Link.configure({ openOnClick: false }),
-    TextAlign.configure({ types: ['heading', 'paragraph'] }),
-    Image.configure({ inline: false, allowBase64: true }),
-    Table.configure({ resizable: true }),
-    TableRow,
-    TableHeader,
-    TableCell,
   ],
   content: props.modelValue,
   editorProps: {

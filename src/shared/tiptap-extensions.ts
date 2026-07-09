@@ -11,21 +11,32 @@ import Link         from '@tiptap/extension-link'
 import TextAlign    from '@tiptap/extension-text-align'
 import type { JsonValue } from '../types/content'
 
-// Read-only extension set used to render stored TipTap JSON to HTML. Kept in one
-// place so article bodies and notes always render identically — if an extension is
-// added here it applies to both, so they can never drift apart.
-export const readOnlyExtensions: Extensions = [
-  StarterKit,
-  Image.configure({ allowBase64: true }),
-  Table.configure({ resizable: false }),
-  TableRow,
-  TableHeader,
-  TableCell,
-  Typography,
-  Underline,
-  Link,
-  TextAlign.configure({ types: ['heading', 'paragraph'] }),
-]
+// Single source of truth for the TipTap node/mark schema. The editor
+// (TiptapEditor.vue) builds its extensions from this too, and the server
+// sanitizer's node/mark allowlist is asserted against this schema in
+// tests/src/tiptap-contract.test.ts — so the three places that must agree on
+// "what a document may contain" (edit, render, sanitize) can no longer drift.
+// Only presentation-level options differ per caller (e.g. resizable tables in
+// the editor); the set of schema-contributing extensions is identical.
+export function buildContentExtensions(options: { resizableTables?: boolean } = {}): Extensions {
+  return [
+    StarterKit,
+    Image.configure({ allowBase64: true }),
+    Table.configure({ resizable: options.resizableTables ?? false }),
+    TableRow,
+    TableHeader,
+    TableCell,
+    Typography,
+    Underline,
+    Link.configure({ openOnClick: false }),
+    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+  ]
+}
+
+// Read-only extension set used to render stored TipTap JSON to HTML. Tables are
+// non-interactive here; article bodies and notes both render through this set so
+// they can never drift apart.
+export const readOnlyExtensions: Extensions = buildContentExtensions()
 
 // Render stored TipTap JSON to an HTML string. Returns '' for empty content and a
 // safe fallback if the document can't be parsed.

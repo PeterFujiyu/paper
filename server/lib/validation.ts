@@ -24,7 +24,12 @@ const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 // would otherwise resolve off-site.
 const safeRelativeUrlPattern = /^(?:\/(?!\/)|\.\/?|#)/
 const safeDataImagePattern = /^data:image\/(?:avif|gif|jpe?g|png|webp);base64,[a-z0-9+/=]+$/i
-const allowedNodeTypes = new Set([
+// Node/mark types the sanitizer accepts. These MUST match the schema produced by
+// the shared TipTap extension set (src/shared/tiptap-extensions.ts); the match is
+// enforced by tests/src/tiptap-contract.test.ts so adding an editor extension
+// without allowing it here (or vice versa) fails the build instead of silently
+// rejecting or dropping stored content. Exported for that test only.
+export const allowedNodeTypes = new Set([
   'blockquote',
   'bulletList',
   'codeBlock',
@@ -42,7 +47,7 @@ const allowedNodeTypes = new Set([
   'tableRow',
   'text',
 ])
-const allowedMarkTypes = new Set(['bold', 'code', 'italic', 'link', 'strike', 'underline'])
+export const allowedMarkTypes = new Set(['bold', 'code', 'italic', 'link', 'strike', 'underline'])
 const containerNodeTypes = new Set([
   'blockquote',
   'bulletList',

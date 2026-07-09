@@ -4,25 +4,8 @@ import { extractPlainText } from '../server/lib/content-text.js'
 import { withPostMetrics } from '../server/lib/post-metrics.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
 import { normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent, validatePostBody, type PostBody } from '../server/lib/validation.js'
+import { isDuplicateSlugError, slugExists } from '../server/lib/post-slug.js'
 import Post from '../server/models/Post.js'
-
-function isDuplicateSlugError(error: unknown): boolean {
-  return Boolean(
-    error &&
-    typeof error === 'object' &&
-    'code' in error &&
-    (error as { code?: number }).code === 11000 &&
-    'keyPattern' in error &&
-    (error as { keyPattern?: Record<string, unknown> }).keyPattern?.slug
-  )
-}
-
-async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
-  const query: Record<string, unknown> = { slug }
-  if (excludeId) query._id = { $ne: excludeId }
-  const existing = await Post.findOne(query).select('_id').lean()
-  return !!existing
-}
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   const meta = beginRequest(req)

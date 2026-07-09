@@ -2,7 +2,7 @@ import { connectDB } from '../server/lib/db.js'
 import { beginRequest, finishRequest, getQueryParam, logError, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
 import { requireAuth } from '../server/lib/vercel-auth.js'
 import { normalizeSlug } from '../server/lib/validation.js'
-import Post from '../server/models/Post.js'
+import { slugExists } from '../server/lib/post-slug.js'
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   const meta = beginRequest(req)
@@ -25,10 +25,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     }
 
     await connectDB()
-    const query: Record<string, unknown> = { slug }
-    if (excludeId) query._id = { $ne: excludeId }
-    const existing = await Post.findOne(query).select('_id').lean()
-    sendJson(res, 200, { available: !existing }, meta)
+    sendJson(res, 200, { available: !(await slugExists(slug, excludeId)) }, meta)
   } catch (error) {
     logError('[api/slug-check]', meta, error)
     sendJson(res, 500, { error: 'Request failed' }, meta)

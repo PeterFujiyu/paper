@@ -119,62 +119,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { renderContentHTML } from '../shared/tiptap-extensions'
+import { useDebouncedSearch } from '../shared/useDebouncedSearch'
 import type { PostSummary, NoteSummary } from '../types/content'
-
-const MIN_QUERY = 2
-const DEBOUNCE_MS = 200
-
-const posts = ref<PostSummary[]>([])   // full list, shown when not searching
-const results = ref<PostSummary[]>([]) // server-side full-text search hits
-const loading = ref(true)              // initial list fetch
-const searching = ref(false)           // a query is pending or in flight
-const query = ref('')
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
-const trimmedQuery = computed(() => query.value.trim())
-const isSearching = computed(() => trimmedQuery.value.length >= MIN_QUERY)
-const displayPosts = computed(() => (isSearching.value ? results.value : posts.value))
+// ─── Writing ─── (full list + debounced server search)
+const posts = ref<PostSummary[]>([])
+const loading = ref(true)
+const {
+  query,
+  searching,
+  isSearching,
+  trimmedQuery,
+  displayItems: displayPosts,
+} = useDebouncedSearch<PostSummary>('/posts', posts)
 
-let debounceTimer: ReturnType<typeof setTimeout> | undefined
-let activeController: AbortController | undefined
-
-watch(trimmedQuery, (q) => {
-  clearTimeout(debounceTimer)
-  activeController?.abort()
-  activeController = undefined
-
-  if (q.length < MIN_QUERY) {
-    searching.value = false
-    results.value = []
-    return
-  }
-
-  searching.value = true
-  debounceTimer = setTimeout(() => void runSearch(q), DEBOUNCE_MS)
-})
-
-async function runSearch(q: string): Promise<void> {
-  const controller = new AbortController()
-  activeController = controller
-  try {
-    const res = await fetch(`${API_BASE}/posts?q=${encodeURIComponent(q)}`, {
-      signal: controller.signal,
-    })
-    if (res.ok) results.value = await res.json() as PostSummary[]
-  } catch (err) {
-    if ((err as Error).name !== 'AbortError') results.value = []
-  } finally {
-    // Only the latest request may clear the pending flag; stale ones are ignored.
-    if (activeController === controller) {
-      searching.value = false
-      activeController = undefined
-    }
-  }
-}
+// ─── Notes ─── (public read-only list + search; authored in the admin area)
+const notes = ref<NoteSummary[]>([])
+const notesLoading = ref(true)
+const {
+  query: noteQuery,
+  searching: noteSearching,
+  isSearching: isSearchingNotes,
+  trimmedQuery: trimmedNoteQuery,
+  displayItems: displayNotes,
+} = useDebouncedSearch<NoteSummary>('/notes', notes)
 
 onMounted(async () => {
   void loadNotes()
@@ -186,69 +159,6 @@ onMounted(async () => {
   }
 })
 
-onBeforeUnmount(() => {
-  clearTimeout(debounceTimer)
-  activeController?.abort()
-  clearTimeout(noteDebounceTimer)
-  noteController?.abort()
-})
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-}
-
-function formatViews(count: number): string {
-  return `${count.toLocaleString('en-US')} ${count === 1 ? 'view' : 'views'}`
-}
-
-// ─── Notes ─── (public read-only list + search; authored in the admin area)
-const notes = ref<NoteSummary[]>([])          // full list, shown when not searching
-const noteResults = ref<NoteSummary[]>([])    // server-side full-text search hits
-const notesLoading = ref(true)                // initial list fetch
-const noteSearching = ref(false)              // a query is pending or in flight
-const noteQuery = ref('')
-
-const trimmedNoteQuery = computed(() => noteQuery.value.trim())
-const isSearchingNotes = computed(() => trimmedNoteQuery.value.length >= MIN_QUERY)
-const displayNotes = computed(() => (isSearchingNotes.value ? noteResults.value : notes.value))
-
-let noteDebounceTimer: ReturnType<typeof setTimeout> | undefined
-let noteController: AbortController | undefined
-
-watch(trimmedNoteQuery, (q) => {
-  clearTimeout(noteDebounceTimer)
-  noteController?.abort()
-  noteController = undefined
-
-  if (q.length < MIN_QUERY) {
-    noteSearching.value = false
-    noteResults.value = []
-    return
-  }
-
-  noteSearching.value = true
-  noteDebounceTimer = setTimeout(() => void runNoteSearch(q), DEBOUNCE_MS)
-})
-
-async function runNoteSearch(q: string): Promise<void> {
-  const controller = new AbortController()
-  noteController = controller
-  try {
-    const res = await fetch(`${API_BASE}/notes?q=${encodeURIComponent(q)}`, {
-      signal: controller.signal,
-    })
-    if (res.ok) noteResults.value = await res.json() as NoteSummary[]
-  } catch (err) {
-    if ((err as Error).name !== 'AbortError') noteResults.value = []
-  } finally {
-    // Only the latest request may clear the pending flag; stale ones are ignored.
-    if (noteController === controller) {
-      noteSearching.value = false
-      noteController = undefined
-    }
-  }
-}
-
 async function loadNotes(): Promise<void> {
   try {
     const res = await fetch(`${API_BASE}/notes`)
@@ -256,6 +166,14 @@ async function loadNotes(): Promise<void> {
   } finally {
     notesLoading.value = false
   }
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+function formatViews(count: number): string {
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'view' : 'views'}`
 }
 </script>
 

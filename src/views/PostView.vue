@@ -71,11 +71,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { renderContentHTML } from '../shared/tiptap-extensions'
-import { getHCaptchaToken } from '../shared/hcaptcha'
-import type { PostDocument, PostMetrics, PostSummary } from '../types/content'
+import { usePostMetrics } from '../shared/usePostMetrics'
+import { useReadingProgress } from '../shared/useReadingProgress'
+import type { PostDocument, PostSummary } from '../types/content'
 
 const props = defineProps({
   slug: { type: String, required: true },
@@ -87,21 +88,22 @@ const loading = ref(true)
 const articleRef = ref<HTMLElement | null>(null)
 const completionSent = ref(false)
 const completionInFlight = ref(false)
-const readProgress = ref(0)
-let scrollFrame: number | null = null
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
-type MetricError = {
-  requiresHCaptcha?: boolean
-}
+const { recordMetric } = usePostMetrics()
+// Fires on every scroll past 90%; reportReadCompletion self-guards so the
+// completion is reported at most once.
+const {
+  readProgress,
+  readPercent,
+  start: startScrollTracking,
+  stop: stopScrollTracking,
+  reset: resetProgress,
+} = useReadingProgress(articleRef, () => void reportReadCompletion())
 
 onMounted(() => {
   void loadPost()
-})
-
-onBeforeUnmount(() => {
-  stopScrollTracking()
 })
 
 watch(() => props.slug, () => {
@@ -113,7 +115,7 @@ async function loadPost(): Promise<void> {
   post.value = null
   relatedPosts.value = []
   completionSent.value = false
-  readProgress.value = 0
+  resetProgress()
   stopScrollTracking()
 
   try {
@@ -148,8 +150,6 @@ async function loadRelated(currentSlug: string): Promise<void> {
 
 const renderedHTML = computed(() => renderContentHTML(post.value?.content))
 
-const readPercent = computed(() => Math.round(readProgress.value * 100))
-
 function formatDate(iso?: string): string {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -157,92 +157,6 @@ function formatDate(iso?: string): string {
 
 function formatViews(count: number): string {
   return `${count.toLocaleString('en-US')} ${count === 1 ? 'view' : 'views'}`
-}
-
-function startScrollTracking(): void {
-  if (!post.value) return
-  window.addEventListener('scroll', scheduleScrollUpdate, { passive: true })
-  window.addEventListener('resize', scheduleScrollUpdate)
-  scheduleScrollUpdate()
-}
-
-function stopScrollTracking(): void {
-  window.removeEventListener('scroll', scheduleScrollUpdate)
-  window.removeEventListener('resize', scheduleScrollUpdate)
-  if (scrollFrame !== null) {
-    window.cancelAnimationFrame(scrollFrame)
-    scrollFrame = null
-  }
-}
-
-function scheduleScrollUpdate(): void {
-  if (scrollFrame !== null) return
-  scrollFrame = window.requestAnimationFrame(() => {
-    scrollFrame = null
-    updateScroll()
-  })
-}
-
-// One scroll pass drives both the reading-progress bar (goal-gradient
-// feedback) and the 90%-completion metric. Keeps running after the metric
-// is sent so the bar still tracks to the end.
-function updateScroll(): void {
-  if (!post.value || !articleRef.value) return
-
-  const articleTop = articleRef.value.offsetTop
-  const articleHeight = articleRef.value.offsetHeight
-  const viewportBottom = window.scrollY + window.innerHeight
-  const progress = articleHeight <= window.innerHeight
-    ? 1
-    : (viewportBottom - articleTop) / articleHeight
-  const clamped = Math.min(Math.max(progress, 0), 1)
-
-  readProgress.value = clamped
-
-  if (!completionSent.value && !completionInFlight.value && clamped >= 0.9) {
-    void reportReadCompletion()
-  }
-}
-
-async function readMetricError(res: Response): Promise<MetricError> {
-  try {
-    return await res.json() as MetricError
-  } catch {
-    return {}
-  }
-}
-
-async function sendMetricRequest(
-  endpoint: 'post-view' | 'post-completion',
-  slug: string,
-  hcaptchaToken = ''
-): Promise<Response> {
-  return fetch(`${API_BASE}/${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      slug,
-      ...(hcaptchaToken ? { hcaptchaToken } : {}),
-    }),
-  })
-}
-
-async function recordMetric(endpoint: 'post-view' | 'post-completion', slug: string): Promise<PostMetrics | null> {
-  const res = await sendMetricRequest(endpoint, slug)
-  if (res.ok) {
-    return await res.json() as PostMetrics
-  }
-
-  const error = await readMetricError(res)
-  if (!error.requiresHCaptcha) return null
-
-  const token = await getHCaptchaToken()
-  if (!token) return null
-
-  const retry = await sendMetricRequest(endpoint, slug, token)
-  if (!retry.ok) return null
-
-  return await retry.json() as PostMetrics
 }
 
 async function reportPostView(slug: string): Promise<void> {
