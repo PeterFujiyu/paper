@@ -53,10 +53,11 @@ describe('HomeView live regions', () => {
     vi.stubGlobal('fetch', stubFetch([samplePost()], []))
     const wrapper = mount(HomeView)
 
-    // Two persistent regions (writing + notes), both showing Loading… pre-resolve.
+    // Two persistent regions (writing + notes), each announcing its own load.
     const regions = wrapper.findAll('[role="status"]')
     expect(regions.length).toBeGreaterThanOrEqual(2)
-    expect(regions[0].text()).toContain('Loading…')
+    expect(regions[0].text()).toContain('Loading essays…')
+    expect(regions[1].text()).toContain('Loading notes…')
 
     await flushPromises()
 

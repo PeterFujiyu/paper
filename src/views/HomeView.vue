@@ -33,7 +33,7 @@
 
       <!-- Persistent live region: state changes here are announced -->
       <div role="status">
-        <p v-if="loading" class="state-msg">Loading…</p>
+        <LoadingIndicator v-if="loading" label="Loading essays…" />
         <p v-else-if="!posts.length" class="state-msg">No posts yet.</p>
         <p v-else-if="searching" class="state-msg">Searching…</p>
         <p v-else-if="isSearching && !displayPosts.length" class="state-msg">Nothing matches “{{ trimmedQuery }}”.</p>
@@ -76,7 +76,7 @@
 
       <!-- List -->
       <div role="status">
-        <p v-if="notesLoading" class="state-msg">Loading…</p>
+        <LoadingIndicator v-if="notesLoading" label="Loading notes…" />
         <p v-else-if="noteSearching" class="state-msg">Searching…</p>
         <p v-else-if="isSearchingNotes && !displayNotes.length" class="state-msg">Nothing matches “{{ trimmedNoteQuery }}”.</p>
         <p v-else-if="!displayNotes.length" class="state-msg">No notes yet.</p>
@@ -123,6 +123,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { renderContentHTML } from '../shared/tiptap-extensions'
 import { scrollToHash } from '../shared/scroll'
+import LoadingIndicator from '../components/LoadingIndicator.vue'
 import type { PostSummary, NoteSummary } from '../types/content'
 
 const MIN_QUERY = 2

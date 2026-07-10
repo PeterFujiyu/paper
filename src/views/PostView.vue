@@ -16,7 +16,7 @@
     <!-- Persistent live region: announces load state + the 404 to screen
          readers. The visible 404 block below keeps its link outside the region. -->
     <div role="status">
-      <p v-if="loading" class="state-msg">Loading…</p>
+      <LoadingIndicator v-if="loading" label="Loading essay…" />
       <span v-else-if="!post" class="sr-only">This essay doesn't exist.</span>
     </div>
 
@@ -75,6 +75,7 @@ import { ref, computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { renderContentHTML } from '../shared/tiptap-extensions'
 import { getHCaptchaToken } from '../shared/hcaptcha'
+import LoadingIndicator from '../components/LoadingIndicator.vue'
 import type { PostDocument, PostMetrics, PostSummary } from '../types/content'
 
 const props = defineProps({
