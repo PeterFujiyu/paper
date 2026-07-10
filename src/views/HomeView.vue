@@ -119,9 +119,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { RouterLink } from 'vue-router'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import { renderContentHTML } from '../shared/tiptap-extensions'
+import { scrollToHash } from '../shared/scroll'
 import type { PostSummary, NoteSummary } from '../types/content'
 
 const MIN_QUERY = 2
@@ -134,6 +135,8 @@ const searching = ref(false)           // a query is pending or in flight
 const query = ref('')
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
+
+const route = useRoute()
 
 const trimmedQuery = computed(() => query.value.trim())
 const isSearching = computed(() => trimmedQuery.value.length >= MIN_QUERY)
@@ -177,12 +180,20 @@ async function runSearch(q: string): Promise<void> {
 }
 
 onMounted(async () => {
-  void loadNotes()
+  const notesReady = loadNotes()
   try {
     const res = await fetch(`${API_BASE}/posts`)
     if (res.ok) posts.value = await res.json() as PostSummary[]
   } finally {
     loading.value = false
+  }
+
+  // Sections render before their lists do, so a hash arriving with the
+  // navigation anchors against a shorter page. Re-anchor once both lists exist.
+  if (route.hash) {
+    await notesReady
+    await nextTick()
+    scrollToHash(route.hash)
   }
 })
 

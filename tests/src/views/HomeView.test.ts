@@ -8,6 +8,7 @@ vi.mock('vue-router', () => ({
     props: { to: { type: [String, Object], default: '' } },
     setup: (_, { slots }) => () => h('a', slots.default?.()),
   }),
+  useRoute: () => ({ hash: '' }),
 }))
 
 import HomeView from '../../../src/views/HomeView.vue'

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { loadSession } from '../admin/store'
+import { headerOffset, scrollMotion } from '../shared/scroll'
 import HomeView from '../views/HomeView.vue'
 import PostView from '../views/PostView.vue'
 
@@ -35,7 +36,9 @@ const routes: RouteRecordRaw[] = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  scrollBehavior() {
+  scrollBehavior(to, _from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash, top: headerOffset(), behavior: scrollMotion() }
     return { top: 0 }
   },
 })
