@@ -48,6 +48,9 @@
       <!-- Render Tiptap JSON as HTML via generateHTML -->
       <div class="post-body prose" :class="{ 'post-body--has-cover': post.coverImage }" v-html="renderedHTML" />
 
+      <!-- Tombstone: the editorial "this piece is over" mark -->
+      <QuillOrnament variant="mark" />
+
       <!-- Related — peak-end close, keeps the reading loop open (Zeigarnik) -->
       <section v-if="relatedPosts.length" class="related" aria-label="Continue reading">
         <h2 class="related-heading">Continue reading</h2>
@@ -73,6 +76,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import QuillOrnament from '../components/QuillOrnament.vue'
 import { renderContentHTML } from '../shared/tiptap-extensions'
 import { usePostMetrics } from '../shared/usePostMetrics'
 import { useReadingProgress } from '../shared/useReadingProgress'
@@ -390,7 +394,18 @@ async function reportReadCompletion(): Promise<void> {
   font-style: italic;
   font-size: 1.1rem;
 }
-.prose hr  { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
+/* Dinkus, not a rule: the quill's ink stroke centred in the measure. Painted
+   as a mask over a token colour so it follows the theme — a data-URI
+   background-image would bake in one fill and go murky in dark mode. */
+.prose hr {
+  border: none;
+  margin: 3rem 0;
+  height: 12px;
+  background-color: var(--text-muted);
+  opacity: 0.75;
+  -webkit-mask: var(--dinkus) center / 44px 12px no-repeat;
+  mask: var(--dinkus) center / 44px 12px no-repeat;
+}
 .prose ul, .prose ol { padding-left: 1.5rem; margin: 0 0 1.4em; }
 .prose li  { margin-bottom: 0.4em; line-height: 1.7; }
 .prose .tableWrapper {
