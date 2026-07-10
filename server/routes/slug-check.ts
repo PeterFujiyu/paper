@@ -1,8 +1,8 @@
-import { connectDB } from '../server/lib/db.js'
-import { beginRequest, finishRequest, getQueryParam, logError, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
-import { requireAuth } from '../server/lib/vercel-auth.js'
-import { normalizeSlug } from '../server/lib/validation.js'
-import Post from '../server/models/Post.js'
+import { connectDB } from '../lib/db.js'
+import { beginRequest, finishRequest, getQueryParam, logError, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
+import { requireAuth } from '../lib/vercel-auth.js'
+import { normalizeSlug } from '../lib/validation.js'
+import Post from '../models/Post.js'
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   const meta = beginRequest(req)

@@ -1,10 +1,10 @@
-import { connectDB } from '../server/lib/db.js'
-import { getHCaptchaToken, verifyHCaptcha } from '../server/lib/hcaptcha.js'
-import { beginRequest, finishRequest, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
-import { trackMetricRequest } from '../server/lib/metric-throttle.js'
-import { withPostMetrics } from '../server/lib/post-metrics.js'
-import { normalizeSlug } from '../server/lib/validation.js'
-import Post from '../server/models/Post.js'
+import { connectDB } from '../lib/db.js'
+import { getHCaptchaToken, verifyHCaptcha } from '../lib/hcaptcha.js'
+import { beginRequest, finishRequest, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
+import { trackMetricRequest } from '../lib/metric-throttle.js'
+import { withPostMetrics } from '../lib/post-metrics.js'
+import { normalizeSlug } from '../lib/validation.js'
+import Post from '../models/Post.js'
 
 type PostViewBody = {
   slug?: unknown

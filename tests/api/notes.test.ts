@@ -20,7 +20,7 @@ vi.mock('../../server/models/Note.js', () => ({
   },
 }))
 
-import handler from '../../api/notes.js'
+import handler from '../../server/routes/notes.js'
 import type { ApiRequest, ApiResponse } from '../../server/lib/logger.js'
 
 const helloDoc = {

@@ -1,5 +1,5 @@
-import { beginRequest, finishRequest, logError, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
-import { requireAuth } from '../server/lib/vercel-auth.js'
+import { beginRequest, finishRequest, logError, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
+import { requireAuth } from '../lib/vercel-auth.js'
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   const meta = beginRequest(req)

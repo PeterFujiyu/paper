@@ -1,10 +1,10 @@
-import { connectDB } from '../server/lib/db.js'
-import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
-import { extractPlainText } from '../server/lib/content-text.js'
-import { withPostMetrics } from '../server/lib/post-metrics.js'
-import { requireAuth } from '../server/lib/vercel-auth.js'
-import { normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent, validatePostBody, type PostBody } from '../server/lib/validation.js'
-import Post from '../server/models/Post.js'
+import { connectDB } from '../lib/db.js'
+import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
+import { extractPlainText } from '../lib/content-text.js'
+import { withPostMetrics } from '../lib/post-metrics.js'
+import { requireAuth } from '../lib/vercel-auth.js'
+import { normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent, validatePostBody, type PostBody } from '../lib/validation.js'
+import Post from '../models/Post.js'
 
 function isDuplicateSlugError(error: unknown): boolean {
   return Boolean(

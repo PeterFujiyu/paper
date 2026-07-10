@@ -20,7 +20,7 @@ vi.mock('../../server/models/Post.js', () => ({
   },
 }))
 
-import handler from '../../api/post.js'
+import handler from '../../server/routes/post.js'
 import type { ApiRequest, ApiResponse } from '../../server/lib/logger.js'
 
 function makeReq(options: {

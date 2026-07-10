@@ -1,39 +1,14 @@
 import 'dotenv/config'
 import { createServer } from 'node:http'
 import { parse as parseUrl } from 'node:url'
-import postsHandler from '../api/posts.js'
-import postHandler from '../api/post.js'
-import notesHandler from '../api/notes.js'
-import noteHandler from '../api/note.js'
-import adminNotesHandler from '../api/admin-notes.js'
-import postViewHandler from '../api/post-view.js'
-import postCompletionHandler from '../api/post-completion.js'
-import adminPostsHandler from '../api/admin-posts.js'
-import adminPostHandler from '../api/admin-post.js'
-import slugCheckHandler from '../api/slug-check.js'
-import authLoginHandler from '../api/auth-login.js'
-import authLogoutHandler from '../api/auth-logout.js'
-import authRegisterHandler from '../api/auth-register.js'
-import authMeHandler from '../api/auth-me.js'
 import type { ApiRequest, ApiResponse } from './lib/logger.js'
+import { allRoutes, type RouteHandler } from './routes/index.js'
 import { applySecurityHeaders } from './lib/security.js'
 
-const routes: Record<string, (req: ApiRequest, res: ApiResponse) => Promise<void>> = {
-  '/api/posts': postsHandler,
-  '/api/post': postHandler,
-  '/api/notes': notesHandler,
-  '/api/note': noteHandler,
-  '/api/admin-notes': adminNotesHandler,
-  '/api/post-view': postViewHandler,
-  '/api/post-completion': postCompletionHandler,
-  '/api/admin-posts': adminPostsHandler,
-  '/api/admin-post': adminPostHandler,
-  '/api/slug-check': slugCheckHandler,
-  '/api/auth-login': authLoginHandler,
-  '/api/auth-logout': authLogoutHandler,
-  '/api/auth-register': authRegisterHandler,
-  '/api/auth-me': authMeHandler,
-}
+// Same table the api/ dispatchers serve, so dev and prod cannot drift apart.
+const routes: Record<string, RouteHandler> = Object.fromEntries(
+  Object.entries(allRoutes).map(([name, handler]) => [`/api/${name}`, handler]),
+)
 
 createServer(async (req, res) => {
   const url = parseUrl(req.url ?? '', true)

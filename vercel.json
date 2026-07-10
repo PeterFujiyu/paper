@@ -38,6 +38,24 @@
     }
   ],
   "rewrites": [
+    { "source": "/api/auth-login", "destination": "/api/auth?route=auth-login" },
+    { "source": "/api/auth-logout", "destination": "/api/auth?route=auth-logout" },
+    { "source": "/api/auth-me", "destination": "/api/auth?route=auth-me" },
+    { "source": "/api/auth-register", "destination": "/api/auth?route=auth-register" },
+
+    { "source": "/api/admin-notes", "destination": "/api/admin?route=admin-notes" },
+    { "source": "/api/admin-post", "destination": "/api/admin?route=admin-post" },
+    { "source": "/api/admin-posts", "destination": "/api/admin?route=admin-posts" },
+    { "source": "/api/slug-check", "destination": "/api/admin?route=slug-check" },
+
+    { "source": "/api/note", "destination": "/api/content?route=note" },
+    { "source": "/api/notes", "destination": "/api/content?route=notes" },
+    { "source": "/api/post", "destination": "/api/content?route=post" },
+    { "source": "/api/posts", "destination": "/api/content?route=posts" },
+
+    { "source": "/api/post-completion", "destination": "/api/metrics?route=post-completion" },
+    { "source": "/api/post-view", "destination": "/api/metrics?route=post-view" },
+
     { "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }
   ]
 }

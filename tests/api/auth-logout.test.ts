@@ -14,7 +14,7 @@ vi.mock('../../server/models/User.js', () => ({
   default: { findOneAndUpdate: mockFindOneAndUpdate },
 }))
 
-import handler from '../../api/auth-logout.js'
+import handler from '../../server/routes/auth-logout.js'
 import { signToken } from '../../server/lib/auth.js'
 import type { ApiRequest, ApiResponse } from '../../server/lib/logger.js'
 

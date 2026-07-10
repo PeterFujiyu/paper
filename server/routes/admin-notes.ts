@@ -1,7 +1,7 @@
-import { connectDB } from '../server/lib/db.js'
-import { beginRequest, finishRequest, logError, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
-import { requireAuth } from '../server/lib/vercel-auth.js'
-import Note from '../server/models/Note.js'
+import { connectDB } from '../lib/db.js'
+import { beginRequest, finishRequest, logError, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
+import { requireAuth } from '../lib/vercel-auth.js'
+import Note from '../models/Note.js'
 
 // Full note list for the admin management view. Auth-gated; returns the content
 // so the list can show a preview. `contentText` stays server-side.

@@ -1,7 +1,7 @@
-import { connectDB } from '../server/lib/db.js'
-import { clearAuthCookie, getAuthToken, verifyToken } from '../server/lib/auth.js'
-import { beginRequest, finishRequest, logError, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
-import User from '../server/models/User.js'
+import { connectDB } from '../lib/db.js'
+import { clearAuthCookie, getAuthToken, verifyToken } from '../lib/auth.js'
+import { beginRequest, finishRequest, logError, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
+import User from '../models/User.js'
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   const meta = beginRequest(req)

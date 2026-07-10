@@ -1,8 +1,8 @@
-import { connectDB } from '../server/lib/db.js'
-import { setAuthCookie, signToken } from '../server/lib/auth.js'
-import { beginRequest, finishRequest, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
-import { validateRegisterBody, type AuthBody } from '../server/lib/validation.js'
-import User from '../server/models/User.js'
+import { connectDB } from '../lib/db.js'
+import { setAuthCookie, signToken } from '../lib/auth.js'
+import { beginRequest, finishRequest, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
+import { validateRegisterBody, type AuthBody } from '../lib/validation.js'
+import User from '../models/User.js'
 
 // ---------------------------------------------------------------------------
 // In-memory rate limit — same pattern as auth-login.ts.

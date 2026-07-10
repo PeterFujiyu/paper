@@ -1,9 +1,9 @@
-import { connectDB } from '../server/lib/db.js'
-import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../server/lib/logger.js'
-import { escapeRegExp } from '../server/lib/regex.js'
-import { prepareNoteContent } from '../server/lib/note-content.js'
-import { requireAuth } from '../server/lib/vercel-auth.js'
-import Note from '../server/models/Note.js'
+import { connectDB } from '../lib/db.js'
+import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
+import { escapeRegExp } from '../lib/regex.js'
+import { prepareNoteContent } from '../lib/note-content.js'
+import { requireAuth } from '../lib/vercel-auth.js'
+import Note from '../models/Note.js'
 
 type NoteBody = {
   content?: unknown
