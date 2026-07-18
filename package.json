@@ -7,6 +7,8 @@
     "dev": "vite",
     "api:dev": "tsx server/dev.ts",
     "backfill:search": "tsx server/scripts/backfill-search.ts",
+    "benchmark": "node agent-benchmark/cli.mjs",
+    "benchmark:test": "vitest run tests/agent-benchmark/cli.test.ts",
     "typecheck": "vue-tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview",

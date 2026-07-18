@@ -1,0 +1,379 @@
+{
+  "schemaVersion": 1,
+  "sourceRef": "main",
+  "selectionMethod": {
+    "description": "按技术深度、产品影响、回归证据和基准隔离性加权筛选；排除 merge、stash、旁支重复、纯视觉/文档和机械迁移提交。",
+    "weights": {
+      "technicalDepth": 35,
+      "productImpact": 25,
+      "regressionEvidence": 25,
+      "benchmarkIsolation": 15
+    }
+  },
+  "cases": [
+    {
+      "rank": 1,
+      "id": "auth-session-hardening",
+      "title": "强化会话校验与注册安全",
+      "category": "security",
+      "difficulty": "expert",
+      "timeBudgetMinutes": 75,
+      "selectionScore": 97,
+      "referenceCommit": "801b47edd7b2dde22e1822c1fa969f9b669a3af0",
+      "baseCommit": "3a8db61eb647576c68aefde82f03640b6a23afe9",
+      "harnessFiles": [
+        {
+          "source": "agent-benchmark/oracles/auth-session-hardening.test.ts",
+          "destination": "tests/benchmark-oracle/auth-session-hardening.test.ts",
+          "sha256": "52130913e831cf11e5a8165e9f7329714630e912f79ca4094c69ccd25dddb308"
+        }
+      ],
+      "stats": { "files": 16, "insertions": 382, "deletions": 20 },
+      "rationale": "覆盖 JWT 部署隔离、持久化 token version、原子登出撤销、旧用户兼容和注册枚举防护，是高风险且要求跨路由一致性的安全改造。",
+      "prompt": "强化管理端认证流程。JWT 必须能按部署环境隔离，并携带与用户记录绑定的会话版本；受保护请求在验签后还要核验数据库中的版本，使登出能够立即撤销旧会话。实现时必须兼容尚无 tokenVersion 字段的旧用户，且过期、旧版或已失效 token 不能误伤更新的有效会话。注册端还需要基于请求 IP 限制连续失败，并对错误邀请码与已存在邮箱返回一致的失败响应，避免枚举。",
+      "acceptanceCriteria": [
+        "签发和校验 JWT 时支持可选部署 audience，并包含持久化会话版本。",
+        "requireAuth 核验用户及 tokenVersion；缺字段的旧用户按版本 0 兼容。",
+        "登出只用 token 自身的明确版本做原子条件更新，陈旧 token 不会递增新会话版本。",
+        "注册失败按 IP 限流，并统一邀请码错误与邮箱已存在的对外响应。"
+      ],
+      "checks": [
+        {
+          "id": "behavior",
+          "kind": "vitest",
+          "label": "认证与撤销回归测试",
+          "files": ["tests/api/auth-logout.test.ts", "tests/server/lib/auth.test.ts", "tests/server/lib/vercel-auth.test.ts", "tests/benchmark-oracle/auth-session-hardening.test.ts"],
+          "points": 70,
+          "timeoutMs": 120000
+        },
+        { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },
+        { "id": "build", "kind": "npm-script", "label": "生产构建", "script": "build", "points": 15, "timeoutMs": 120000 }
+      ]
+    },
+    {
+      "rank": 2,
+      "id": "captcha-metric-gate",
+      "title": "为文章指标加入 hCaptcha 与限流门禁",
+      "category": "security",
+      "difficulty": "expert",
+      "timeBudgetMinutes": 75,
+      "selectionScore": 96,
+      "referenceCommit": "4f30c1473a4c63c541e0903c382a23332558f911",
+      "baseCommit": "560ba4a7d24c5bbf700b42ebd8077e33529cfc04",
+      "harnessFiles": [
+        {
+          "source": "agent-benchmark/oracles/captcha-metric-gate.test.ts",
+          "destination": "tests/benchmark-oracle/captcha-metric-gate.test.ts",
+          "sha256": "9d9b38110450476bbdcd90aa5565de7264373c22ffadf746bee78913757a12ce"
+        }
+      ],
+      "stats": { "files": 18, "insertions": 883, "deletions": 36 },
+      "rationale": "把外部验证、MongoDB 原子计数、分动作阈值、服务端安全响应与浏览器重试协议组合成完整的滥用防护链路。",
+      "prompt": "文章浏览数与读完数接口容易被脚本刷量。请为两类指标建立按请求来源、文章 slug、动作和时间窗口聚合的服务端限流：低频请求无感通过，超过各自动作阈值后要求 hCaptcha。前端收到 challenge 后应加载验证码、取得 token 并只重试原动作；服务端必须验证 token 后才更新指标。阈值、窗口和站点密钥由环境变量配置，缺少生产配置时要安全失败，同时保持 CSP、Vercel 路由和本地开发路由可用。",
+      "acceptanceCriteria": [
+        "服务端以不可逆来源指纹和时间桶原子记录 view/completion 请求，并支持各自动作阈值。",
+        "超过阈值时返回明确 challenge；有效 hCaptcha token 通过后才更新指标。",
+        "浏览器按需加载 hCaptcha，并能在 challenge 后重试对应指标请求。",
+        "环境变量、CSP、Vercel rewrite、本地路由和错误处理完整且不泄露敏感信息。"
+      ],
+      "checks": [
+        {
+          "id": "behavior",
+          "kind": "vitest",
+          "label": "验证码与限流回归测试",
+          "files": ["tests/api/post-completion.test.ts", "tests/api/post-view.test.ts", "tests/api/post.test.ts", "tests/server/lib/hcaptcha.test.ts", "tests/server/lib/metric-throttle.test.ts", "tests/benchmark-oracle/captcha-metric-gate.test.ts"],
+          "points": 70,
+          "timeoutMs": 120000
+        },
+        { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },
+        { "id": "build", "kind": "npm-script", "label": "生产构建", "script": "build", "points": 15, "timeoutMs": 120000 }
+      ]
+    },
+    {
+      "rank": 3,
+      "id": "serverless-route-dispatch",
+      "title": "在 Vercel 函数上限内重构 API 路由",
+      "category": "architecture",
+      "difficulty": "expert",
+      "timeBudgetMinutes": 75,
+      "selectionScore": 95,
+      "referenceCommit": "1bca3ed93fea95fd15679ddf76154b5ae5195c56",
+      "baseCommit": "da4562bdb669cb7715e49c670e6b1556c1c2a24a",
+      "stats": { "files": 30, "insertions": 324, "deletions": 113 },
+      "rationale": "真实部署约束触发的深层重构；需要同时维护生产重写、本地路由、权限分组和既有 API 契约，并用漂移测试守住边界。",
+      "prompt": "Vercel Hobby 计划按 api/ 下的文件数创建函数，当前 14 个处理器已超过 12 个上限并导致部署失败。请在不改变任何公开 /api URL、响应行为和本地开发体验的前提下，将处理器收敛到不超过 12 个入口。生产与本地开发必须共享同一份路由事实来源；不同权限或业务分组之间不能通过伪造 route 参数串组访问；未知路由应安全返回 404；Vercel 重写与路由表必须有自动化契约保护。",
+      "acceptanceCriteria": [
+        "公开 API URL 与处理器行为保持兼容，同时 api/ 中函数入口不超过 12 个。",
+        "本地开发服务器和生产 dispatcher 使用同一份路由表，避免双份配置漂移。",
+        "route 参数只能解析当前分组拥有的处理器，未知或跨组请求返回 404。",
+        "vercel.json 的 API rewrite 映射到正确分组，SPA fallback 保持最后。"
+      ],
+      "checks": [
+        {
+          "id": "behavior",
+          "kind": "vitest",
+          "label": "路由与部署契约回归测试",
+          "files": ["tests/api/auth-logout.test.ts", "tests/api/note.test.ts", "tests/api/notes.test.ts", "tests/api/post-completion.test.ts", "tests/api/post-view.test.ts", "tests/api/post.test.ts", "tests/api/posts.test.ts", "tests/server/lib/dispatch.test.ts"],
+          "points": 70,
+          "timeoutMs": 120000
+        },
+        { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },
+        { "id": "build", "kind": "npm-script", "label": "生产构建", "script": "build", "points": 15, "timeoutMs": 120000 }
+      ]
+    },
+    {
+      "rank": 4,
+      "id": "notes-vertical-slice",
+      "title": "实现可搜索的全栈 Notes 功能",
+      "category": "full-stack",
+      "difficulty": "expert",
+      "timeBudgetMinutes": 90,
+      "selectionScore": 93,
+      "referenceCommit": "936232fc7e21419f880af55ef9ae661839846725",
+      "baseCommit": "abb2adcaba0af896c9613360dcae017ab19f8db0",
+      "harnessFiles": [
+        {
+          "source": "agent-benchmark/oracles/notes-vertical-slice.test.ts",
+          "destination": "tests/benchmark-oracle/notes-vertical-slice.test.ts",
+          "sha256": "bc3ebd434d936773ce91f289b496d2d9f7930d8ae8e4ae933b193d23a02b7ee3"
+        }
+      ],
+      "stats": { "files": 19, "insertions": 1091, "deletions": 39 },
+      "rationale": "从模型、富文本清洗、公开及管理 API 到编辑器、路由和公共阅读界面的完整垂直功能，能检验跨层一致性。",
+      "prompt": "新增 Notes 内容类型：访客可在首页浏览和搜索短笔记，管理员可创建、编辑、删除并查看完整列表。Notes 使用现有 TipTap JSON 编辑体验，但服务端必须清洗内容、限制体积并维护用于搜索的纯文本投影；公开读取无需认证，所有写入与管理读取必须认证且禁止边缘缓存。抽取可复用的只读 TipTap 扩展配置和正则转义工具，避免与文章逻辑重复。",
+      "acceptanceCriteria": [
+        "Note 模型、共享类型和公开及管理 CRUD API 形成一致的数据契约。",
+        "写入内容经过清洗和大小限制，并同步安全的 contentText 搜索投影。",
+        "公开列表支持转义后的大小写不敏感搜索，写入及管理接口受认证保护。",
+        "管理端路由、列表、编辑器和首页只读展示完整接通，并复用 TipTap 配置。"
+      ],
+      "checks": [
+        {
+          "id": "behavior",
+          "kind": "vitest",
+          "label": "Notes API 回归测试",
+          "files": ["tests/api/note.test.ts", "tests/api/notes.test.ts", "tests/benchmark-oracle/notes-vertical-slice.test.ts"],
+          "points": 70,
+          "timeoutMs": 120000
+        },
+        { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },
+        { "id": "build", "kind": "npm-script", "label": "生产构建", "script": "build", "points": 15, "timeoutMs": 120000 }
+      ]
+    },
+    {
+      "rank": 5,
+      "id": "content-auth-security",
+      "title": "系统加固富文本、Cookie 认证与 HTTP 安全",
+      "category": "security",
+      "difficulty": "expert",
+      "timeBudgetMinutes": 90,
+      "selectionScore": 92,
+      "referenceCommit": "156adebfbde854a961af612b9ea0ba15f2f2a240",
+      "baseCommit": "bde35d4a0093fd392eb48d87c3b81d92ee203f86",
+      "oracleCommit": "f4e2e831e5b587cf9745ef5205104389b7a1789b",
+      "oracleSupportFiles": ["tests/setup.ts", "vitest.config.ts"],
+      "harnessFiles": [
+        {
+          "source": "agent-benchmark/oracles/content-auth-security.test.ts",
+          "destination": "tests/benchmark-oracle/content-auth-security.test.ts",
+          "sha256": "600668c9e3a401730496956cae7d67fe6287095416abfc2ee28ba4d46e4432af"
+        }
+      ],
+      "stats": { "files": 21, "insertions": 634, "deletions": 61 },
+      "rationale": "包含深度受限的 TipTap allowlist sanitizer、链接及图片协议安全、HttpOnly Cookie 会话和 CSP/安全头，是系统级安全基线。",
+      "prompt": "系统加固富文本存储、管理认证和 HTTP 响应。TipTap JSON 必须经递归 allowlist 清洗，限制树深、节点数和文本总量，丢弃未知键与危险原型键，并分别验证链接、图片、表格等属性。把浏览器端 token 持久化迁移到 HttpOnly、SameSite Cookie，同时保留受控 Bearer 兼容；刷新后可恢复会话，401 统一清理状态。所有 API 响应和 Vercel 部署配置应使用一致的安全头、CSP、no-sniff、frame 与 referrer 策略，错误响应不得泄露内部信息。",
+      "acceptanceCriteria": [
+        "TipTap sanitizer 对节点、mark 和 attrs 使用 allowlist，并限制深度、节点及文本规模。",
+        "危险协议、原型污染键和非法表格或媒体属性被拒绝或移除。",
+        "认证改用安全 Cookie，客户端会话恢复、登出和 401 行为一致。",
+        "本地 API 与 Vercel 配置的 CSP 及安全头保持一致，服务端错误对用户安全。"
+      ],
+      "checks": [
+        {
+          "id": "behavior",
+          "kind": "vitest",
+          "label": "富文本、认证与客户端状态回归测试",
+          "files": ["tests/server/lib/auth.test.ts", "tests/server/lib/validation.test.ts", "tests/src/store.test.ts", "tests/benchmark-oracle/content-auth-security.test.ts"],
+          "points": 70,
+          "timeoutMs": 120000
+        },
+        { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },
+        { "id": "build", "kind": "npm-script", "label": "生产构建", "script": "build", "points": 15, "timeoutMs": 120000 }
+      ]
+    },
+    {
+      "rank": 6,
+      "id": "full-essay-search",
+      "title": "实现正文投影与竞态安全的全文搜索",
+      "category": "full-stack",
+      "difficulty": "hard",
+      "timeBudgetMinutes": 60,
+      "selectionScore": 90,
+      "referenceCommit": "abb2adcaba0af896c9613360dcae017ab19f8db0",
+      "baseCommit": "fc8003ff13b26e1670dcadbba52d22c50f27b0ed",
+      "harnessFiles": [
+        {
+          "source": "agent-benchmark/oracles/full-essay-search.test.ts",
+          "destination": "tests/benchmark-oracle/full-essay-search.test.ts",
+          "sha256": "7a58626d5a6c4376c4f12024f5e8def1652f84d5258addd79b0b6aa2bbe39b85"
+        }
+      ],
+      "stats": { "files": 10, "insertions": 304, "deletions": 7 },
+      "rationale": "需要理解 TipTap 树、MongoDB 查询限制、历史数据回填、列表载荷控制，以及前端 debounce 和请求竞态。",
+      "prompt": "为首页 Writing 列表增加跨标题、摘要、标签和完整 TipTap 正文的搜索。列表响应不能直接携带正文，因此写入文章时应维护不可默认查询的纯文本投影，并提供一次性历史数据回填。MongoDB 连接启用了严格 Stable API，不能依赖被拒绝的全文索引方案；查询必须转义用户输入、限制结果数量。前端使用克制的行内搜索框，200ms 防抖，并保证旧请求不会覆盖较新的查询结果；清空输入恢复完整列表。",
+      "acceptanceCriteria": [
+        "TipTap JSON 可稳定提取纯文本，创建和更新文章时同步 contentText。",
+        "公开列表按 title、excerpt、tags 和 contentText 搜索，转义输入并限制结果数。",
+        "contentText 不进入普通列表载荷，并提供现有文章的回填脚本。",
+        "前端搜索具备防抖和请求取消或竞态保护，空查询恢复默认列表。"
+      ],
+      "checks": [
+        {
+          "id": "behavior",
+          "kind": "vitest",
+          "label": "搜索与文本投影回归测试",
+          "files": ["tests/api/post.test.ts", "tests/api/posts.test.ts", "tests/server/lib/content-text.test.ts", "tests/benchmark-oracle/full-essay-search.test.ts"],
+          "points": 70,
+          "timeoutMs": 120000
+        },
+        { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },
+        { "id": "build", "kind": "npm-script", "label": "生产构建", "script": "build", "points": 15, "timeoutMs": 120000 }
+      ]
+    },
+    {
+      "rank": 7,
+      "id": "accessibility-pass",
+      "title": "系统补齐站点可访问性与键盘交互",
+      "category": "frontend",
+      "difficulty": "hard",
+      "timeBudgetMinutes": 60,
+      "selectionScore": 88,
+      "referenceCommit": "a83a54c6315bbb17f8696a8ca2b381c870719475",
+      "baseCommit": "e757893a240f4c008871b18d1a27f116ac84a29e",
+      "stats": { "files": 18, "insertions": 584, "deletions": 102 },
+      "rationale": "涵盖 landmark、live region、表单命名、编辑器状态、modal 焦点陷阱和 reduced-motion，要求理解真实辅助技术行为。",
+      "prompt": "根据可访问性审计系统修复公共站点与管理端。加入键盘可见的 skip link 和正确 landmarks；加载、搜索、复制、错误、404、slug 状态应通过持久 live region 传达；表单和 TipTap 工具栏需要可计算名称及状态。现有自定义 modal 必须拥有稳定 ARIA 关联、只在可交互控件间循环焦点、支持 Escape，并在关闭后恢复触发元素。全局焦点样式和 prefers-reduced-motion 不能破坏 Vue transition 的完成。",
+      "acceptanceCriteria": [
+        "应用外壳、公共页和管理页具有正确 landmarks、label 与 live-region 语义。",
+        "skip link、焦点指示和 reduced-motion 对键盘及低动态用户有效。",
+        "TipTap toolbar 暴露分组、名称和 aria-pressed 等交互状态。",
+        "modal 正确捕获 Tab 和 Escape、跳过禁用或隐藏控件并恢复原焦点。"
+      ],
+      "checks": [
+        {
+          "id": "behavior",
+          "kind": "vitest",
+          "label": "可访问性与键盘交互回归测试",
+          "files": ["tests/src/App.test.ts", "tests/src/admin/LoginView.test.ts", "tests/src/admin/PostEditView.test.ts", "tests/src/shared/AppDialog.test.ts", "tests/src/views/HomeView.test.ts"],
+          "points": 70,
+          "timeoutMs": 120000
+        },
+        { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },
+        { "id": "build", "kind": "npm-script", "label": "生产构建", "script": "build", "points": 15, "timeoutMs": 120000 }
+      ]
+    },
+    {
+      "rank": 8,
+      "id": "post-metrics",
+      "title": "实现文章浏览与读完指标",
+      "category": "data-flow",
+      "difficulty": "hard",
+      "timeBudgetMinutes": 75,
+      "selectionScore": 86,
+      "referenceCommit": "6bd81b3d76b5435367143c3bbb4943a306da9fd9",
+      "baseCommit": "c9ce5a6f24bb52a2d042428b3a5cc0036bb74b69",
+      "harnessFiles": [
+        {
+          "source": "agent-benchmark/oracles/post-metrics-post-view.test.ts",
+          "destination": "tests/benchmark-oracle/post-metrics-post-view.test.ts",
+          "sha256": "5d05799c49d6eda55254290eb8b9a9bad9873271ecfc69ce3b92eb90fb2a9acf"
+        }
+      ],
+      "stats": { "files": 17, "insertions": 767, "deletions": 53 },
+      "rationale": "把数据库原子计数、派生比率、公开及管理响应、浏览器一次性上报和后台展示串成可验证的数据闭环。",
+      "prompt": "为已发布文章实现浏览次数和读完次数。浏览详情时增加 view；读者滚动到正文末尾时每次页面会话最多上报一次 completion。计数必须通过数据库原子更新完成，slug 需规范化，只允许命中已发布文章，并返回 viewCount、readCompletionCount 和安全计算的完成率。同步更新公开摘要、管理列表和编辑页的类型与展示。",
+      "acceptanceCriteria": [
+        "Post 模型包含默认值为 0 的浏览和读完计数，并提供稳定的完成率计算。",
+        "指标 API 校验方法与 slug，仅对已发布文章执行原子增量。",
+        "文章页用可靠的可见性或滚动机制一次性报告读完，路由切换时清理状态。",
+        "公开和管理 API、共享类型及后台 UI 一致展示指标。"
+      ],
+      "checks": [
+        {
+          "id": "behavior",
+          "kind": "vitest",
+          "label": "指标数据流回归测试",
+          "files": ["tests/api/post-completion.test.ts", "tests/api/post.test.ts", "tests/src/admin/PostEditView.test.ts", "tests/benchmark-oracle/post-metrics-post-view.test.ts"],
+          "points": 70,
+          "timeoutMs": 120000
+        },
+        { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },
+        { "id": "build", "kind": "npm-script", "label": "生产构建", "script": "build", "points": 15, "timeoutMs": 120000 }
+      ]
+    },
+    {
+      "rank": 9,
+      "id": "hash-scroll-restoration",
+      "title": "修复异步页面中的锚点滚动恢复",
+      "category": "frontend",
+      "difficulty": "medium",
+      "timeBudgetMinutes": 35,
+      "selectionScore": 83,
+      "referenceCommit": "0f3eaa38fb91697b0a5422b1491387274ea6d54b",
+      "baseCommit": "c18c08bd9731f8fe3affd299f484a8c88fbf97c2",
+      "stats": { "files": 5, "insertions": 122, "deletions": 4 },
+      "rationale": "体量适中但包含路由优先级、动态 header 偏移、异步列表改变布局和 back/forward 恢复等难测的浏览器时序问题。",
+      "prompt": "修复首页 hash 导航。当前 router 的 scrollBehavior 总是回到顶部，导致 /#writing、/#notes 和 /#contact 被错误覆盖。实现时应优先恢复浏览器 back/forward 的 savedPosition；普通 hash 导航要按固定 header 的实际高度计算偏移，不能写死响应式尺寸；首页异步加载文章和 Notes 后还要在布局稳定时重新锚定一次，但不得对无 hash 或非当前路由重复滚动。",
+      "acceptanceCriteria": [
+        "savedPosition 的优先级高于 hash 和默认顶部位置。",
+        "hash 目标使用运行时测量的 header 高度作为 top offset。",
+        "异步内容加载完成后只对仍然有效的当前 hash 重新定位。",
+        "浏览器或 DOM 缺失等边界可安全退化，并有独立辅助函数测试。"
+      ],
+      "checks": [
+        {
+          "id": "behavior",
+          "kind": "vitest",
+          "label": "锚点与路由时序回归测试",
+          "files": ["tests/src/shared/scroll.test.ts", "tests/src/views/HomeView.test.ts"],
+          "points": 70,
+          "timeoutMs": 120000
+        },
+        { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },
+        { "id": "build", "kind": "npm-script", "label": "生产构建", "script": "build", "points": 15, "timeoutMs": 120000 }
+      ]
+    },
+    {
+      "rank": 10,
+      "id": "post-media-tags-api",
+      "title": "为封面图与标签建立安全的数据契约",
+      "category": "api-validation",
+      "difficulty": "medium",
+      "timeBudgetMinutes": 45,
+      "selectionScore": 80,
+      "referenceCommit": "556d4da887199a88782777efc78ab236b4b041a9",
+      "baseCommit": "47e637bea12130567fc0490ef4404cbaabce5db5",
+      "stats": { "files": 7, "insertions": 168, "deletions": 3 },
+      "rationale": "边界清晰但覆盖模型、验证、规范化、读写 API 与共享类型，能测出是否遗漏非 happy-path 数据契约。",
+      "prompt": "为文章增加可选封面图和标签的数据层支持。封面图只允许现有安全图片源规则认可的值并限制长度；标签必须是字符串数组，限制非空项数量和单项长度。写入前规范化：去空白、丢弃空项、按大小写不敏感方式去重并保留首次写法。创建和更新路径都必须使用同一规则，列表响应和前端共享类型需要暴露新字段，同时保留既有 slug 冲突与更新验证行为。",
+      "acceptanceCriteria": [
+        "Post schema、PostSummary 和公开列表响应支持 coverImage 与 tags。",
+        "验证拒绝不安全封面、错误标签类型、超长或过量输入。",
+        "规范化会 trim、过滤空值、大小写不敏感去重并限制最多 6 个标签。",
+        "创建和更新都持久化规范化结果，更新继续启用 runValidators。"
+      ],
+      "checks": [
+        {
+          "id": "behavior",
+          "kind": "vitest",
+          "label": "媒体与标签数据契约回归测试",
+          "files": ["tests/api/post.test.ts", "tests/server/lib/validation.test.ts"],
+          "points": 70,
+          "timeoutMs": 120000
+        },
+        { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },
+        { "id": "build", "kind": "npm-script", "label": "生产构建", "script": "build", "points": 15, "timeoutMs": 120000 }
+      ]
+    }
+  ]
+}

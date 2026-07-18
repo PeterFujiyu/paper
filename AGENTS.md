@@ -2,7 +2,7 @@
 
 ## Purpose
 - This file gives coding agents the repo-specific commands and conventions they need to work safely here.
-- It is based on the current codebase state on 2026-03-13.
+- It is based on the current codebase state on 2026-07-18.
 - If the repo adds new tooling or rules files later, update this document in the same change.
 
 ## Rule Files
@@ -18,6 +18,7 @@
 - Database: MongoDB via Mongoose.
 - Rich text: TipTap JSON content for post editing and rendering.
 - Styling: custom CSS with CSS variables; Tailwind v4 is installed but not the dominant style system.
+- Agent evaluation: a standalone Git-history benchmark CLI lives in `agent-benchmark/`.
 
 ## Repository Map
 - `src/` - client app, router, admin UI, shared client types.
@@ -25,6 +26,7 @@
 - `server/lib/` - auth, DB, validation, logging, and security helpers.
 - `server/models/` - Mongoose schemas and model exports.
 - `public/` - static assets.
+- `agent-benchmark/` - tracked benchmark catalog, CLI, evaluator, and documentation.
 - `dist/` - generated build output; do not hand-edit.
 - `.env.example` - required local env vars and setup notes.
 - `vercel.json` - build, rewrite, and security-header configuration.
@@ -44,12 +46,15 @@
 - Full local dev: run `npm run api:dev` and `npm run dev` in separate terminals.
 - Type checking: `npm run typecheck`
 - Production build: `npm run build`
+- Lint: `npm run lint`
+- Agent benchmark CLI: `npm run benchmark -- <command>`
+- Agent benchmark tests: `npm run benchmark:test`
 - Preview built app: `npm run preview`
 - Recommended validation after most code changes: `npm run typecheck && npm run build`
 
 ## Lint And Test Status
-- There is no `lint` script in `package.json`.
-- There is no ESLint, Prettier, Biome, or other lint config in the repo root.
+- ESLint uses the flat config in `eslint.config.js`; run it with `npm run lint`.
+- There is no Prettier, Biome, or other formatter config in the repo root.
 - Unit tests run with Vitest; test files live under `tests/`.
 - Recommended validation after most code changes: `npm run typecheck && npm run build && npm test`
 
@@ -65,6 +70,7 @@
 - `tests/server/lib/validation.test.ts` — unit tests for all validation helpers.
 - `tests/server/lib/auth.test.ts` — unit tests for JWT, cookie, and header helpers.
 - `tests/src/store.test.ts` — unit tests for the admin auth store (`setAuth`, `apiFetch`, `loadSession`, `logout`).
+- `tests/agent-benchmark/cli.test.ts` — CLI, Git isolation, oracle injection, and scoring integration tests.
 - Add new test files under `tests/` mirroring the source tree structure.
 
 ## What To Run For Common Changes
@@ -73,6 +79,7 @@
 - API route or validation change: `npm run typecheck && npm run build`, then smoke test with `npm run api:dev`
 - Auth, DB, or cookie change: run both local servers and exercise a real login/logout flow
 - Deployment-sensitive change: re-check `vercel.json` assumptions and same-origin `/api` behavior
+- Agent benchmark change: `npm run benchmark:test && npm run benchmark -- validate`
 
 ## Import Conventions
 - Use ESM everywhere.

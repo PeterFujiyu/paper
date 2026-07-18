@@ -32,3 +32,6 @@ image.png
 
 # Local database exports
 backup_db-*/
+
+# Agent benchmark runtime (the tracked tool lives in agent-benchmark/)
+/.agent-benchmark/
