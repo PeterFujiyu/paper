@@ -133,6 +133,38 @@ function expiresAfter(timestamp, durationMs) {
   return new Date(Date.parse(timestamp) + durationMs).toISOString()
 }
 
+function localDayBoundary(value, endOfDay = false) {
+  if (value === '') return null
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) throw new Error(`日期必须使用 YYYY-MM-DD 格式：${value}`)
+  const [, yearText, monthText, dayText] = match
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const day = Number(dayText)
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0,
+  )
+  if (
+    date.getFullYear() !== year
+    || date.getMonth() !== month - 1
+    || date.getDate() !== day
+  ) {
+    throw new Error(`无效日期：${value}`)
+  }
+  return date.toISOString()
+}
+
+function hasActiveResultFilters(filters) {
+  return ['caseId', 'adapterId', 'requestedModel', 'from', 'to']
+    .some(key => filters[key] !== undefined)
+}
+
 export class BenchmarkRunner {
   constructor({
     manifest,
@@ -145,6 +177,8 @@ export class BenchmarkRunner {
     probeAdapter = defaultProbeAdapter,
     prepare = prepareCase,
     evaluator = evaluateCaseInSubprocess,
+    buildResultDetail = null,
+    buildResultComparison = null,
     createId = randomUUID,
     now = () => new Date(),
   }) {
@@ -158,6 +192,8 @@ export class BenchmarkRunner {
     this.probeAdapter = probeAdapter
     this.prepare = prepare
     this.evaluator = evaluator
+    this.buildResultDetail = buildResultDetail
+    this.buildResultComparison = buildResultComparison
     this.createId = createId
     this.now = now
     this.cachedProbes = null
@@ -202,8 +238,8 @@ export class BenchmarkRunner {
           label: '继续未完成的评测',
           disabled: incomplete.length === 0,
         },
-        { value: 'results', label: '查看历史结果（后续版本）', disabled: true },
-        { value: 'compare', label: '对比两次结果（后续版本）', disabled: true },
+        { value: 'results', label: '查看历史结果' },
+        { value: 'compare', label: '对比两次结果' },
         { value: 'doctor', label: '环境检查' },
         { value: 'exit', label: '退出' },
       ], { defaultIndex })
@@ -211,6 +247,14 @@ export class BenchmarkRunner {
       if (action === 'exit') return { action: 'exit' }
       if (action === 'doctor') {
         this.printEnvironment(probes)
+        continue
+      }
+      if (action === 'results') {
+        await this.resultsFlow()
+        continue
+      }
+      if (action === 'compare') {
+        await this.compareFlow()
         continue
       }
       if (action === 'new') {
@@ -231,6 +275,424 @@ export class BenchmarkRunner {
         await this.resume(selected, { waitForHandoff: true })
         return { action: 'resume', runId: selected }
       }
+    }
+  }
+
+  async resultsFlow() {
+    let filters = { limit: 20, offset: 0 }
+    while (true) {
+      const page = this.repository.listResultSummaries(filters)
+      if (page.items.length === 0) {
+        if (hasActiveResultFilters(filters)) {
+          this.terminal.write('筛选无结果。可以修改或清除筛选条件。\n')
+          const emptyAction = await this.terminal.select('筛选结果操作', [
+            { value: 'filter', label: '重新设置筛选' },
+            { value: 'clear', label: '清除筛选' },
+            { value: 'home', label: '返回首页' },
+          ], { defaultIndex: 1 })
+          if (emptyAction === 'filter') {
+            filters = await this.resultFiltersFlow(filters)
+            continue
+          }
+          if (emptyAction === 'clear') {
+            filters = { limit: 20, offset: 0 }
+            continue
+          }
+          return { action: 'home' }
+        }
+        this.terminal.write('还没有历史评测结果。完成一次评价后再来查看。\n')
+        return { action: 'empty' }
+      }
+
+      this.printResultSummaries(page)
+      const action = await this.terminal.select('历史结果操作', [
+        ...page.items.map(run => ({
+          value: `detail:${run.id}`,
+          label: `查看 ${run.displayId ?? shortId(run.id)} 的详情`,
+        })),
+        { value: 'previous', label: '上一页', disabled: !page.hasPrevious },
+        { value: 'next', label: '下一页', disabled: !page.hasNext },
+        { value: 'filter', label: '设置筛选' },
+        {
+          value: 'clear',
+          label: '清除筛选',
+          disabled: !hasActiveResultFilters(filters),
+        },
+        { value: 'home', label: '返回首页' },
+      ], { defaultIndex: 0 })
+      if (action === 'home') return { action: 'home' }
+      if (action === 'previous') {
+        filters = {
+          ...filters,
+          offset: Math.max(0, filters.offset - filters.limit),
+        }
+        continue
+      }
+      if (action === 'next') {
+        filters = { ...filters, offset: filters.offset + filters.limit }
+        continue
+      }
+      if (action === 'filter') {
+        filters = await this.resultFiltersFlow(filters)
+        continue
+      }
+      if (action === 'clear') {
+        filters = { limit: 20, offset: 0 }
+        continue
+      }
+      if (action.startsWith('detail:')) {
+        const runId = action.slice('detail:'.length)
+        await this.resultDetailFlow(runId)
+      }
+    }
+  }
+
+  async resultFiltersFlow(current) {
+    while (true) {
+      const selectedCaseId = await this.terminal.select('筛选题目', [
+        { value: '', label: '全部题目' },
+        ...sortedCases(this.manifest).map(benchmarkCase => ({
+          value: benchmarkCase.id,
+          label: `${benchmarkCase.id} · ${benchmarkCase.title}`,
+        })),
+      ], { defaultIndex: 0 })
+      const adapterId = await this.terminal.select('筛选 Agent', [
+        { value: '', label: '全部 Agent' },
+        { value: 'codex', label: 'Codex CLI' },
+        { value: 'claude', label: 'Claude Code' },
+      ], { defaultIndex: 0 })
+      const requestedModel = await this.terminal.input('筛选模型（留空表示全部）', {
+        defaultValue: current.requestedModel ?? '',
+      })
+      const from = await this.terminal.input('开始日期 YYYY-MM-DD（留空不限）', {
+        defaultValue: '',
+      })
+      const to = await this.terminal.input('结束日期 YYYY-MM-DD（留空不限）', {
+        defaultValue: '',
+      })
+      try {
+        const fromBoundary = localDayBoundary(from)
+        const toBoundary = localDayBoundary(to, true)
+        if (fromBoundary !== null
+          && toBoundary !== null
+          && Date.parse(fromBoundary) > Date.parse(toBoundary)) {
+          throw new Error('开始日期不能晚于结束日期')
+        }
+        return {
+          ...(selectedCaseId === '' ? {} : { caseId: selectedCaseId }),
+          ...(adapterId === '' ? {} : { adapterId }),
+          ...(requestedModel === '' ? {} : { requestedModel }),
+          ...(fromBoundary === null ? {} : { from: fromBoundary }),
+          ...(toBoundary === null ? {} : { to: toBoundary }),
+          limit: 20,
+          offset: 0,
+        }
+      } catch (error) {
+        this.terminal.write(`筛选条件无效：${safeError(error)}。请重新输入。\n`)
+      }
+    }
+  }
+
+  async resultDetailFlow(runReference) {
+    const buildDetail = this.buildResultDetail
+      ?? (await import('./results.mjs')).buildResultDetail
+    const detail = buildDetail(this.repository, runReference)
+    this.printResultDetail(detail)
+    const action = await this.terminal.select('结果详情操作', [
+      {
+        value: 'compare',
+        label: detail.run.primaryEvaluationId === null
+          ? '以此 Run 发起对比（需要 primary）'
+          : '以此 Run 发起对比',
+        disabled: detail.run.primaryEvaluationId === null,
+      },
+      { value: 'back', label: '返回历史列表' },
+    ], { defaultIndex: 1 })
+    if (action === 'compare') await this.compareFlow(runReference)
+    return { action, detail }
+  }
+
+  async compareFlow(initialRunReference = null) {
+    const candidates = []
+    let offset = 0
+    while (true) {
+      const page = this.repository.listResultSummaries({ limit: 100, offset })
+      candidates.push(...page.items.filter(run => run.primaryEvaluation != null))
+      if (!page.hasNext) break
+      const nextOffset = page.offset + page.limit
+      if (nextOffset <= offset) {
+        throw new Error('历史结果分页没有向前推进，无法加载对比候选')
+      }
+      offset = nextOffset
+    }
+    if (candidates.length < 2) {
+      this.terminal.write(
+        '至少需要两条已完成 primary 评价才能对比；请先完成更多评测。\n',
+      )
+      return { action: 'insufficient-results' }
+    }
+
+    const initialRun = initialRunReference === null
+      ? null
+      : candidates.find(run => run.id === initialRunReference
+        || run.displayId === initialRunReference)
+    if (initialRunReference !== null && initialRun === undefined) {
+      throw new Error(`Run ${initialRunReference} 没有可用于对比的 primary 评价`)
+    }
+    const runAId = initialRun?.id ?? await this.terminal.select(
+      '选择 Run A',
+      candidates.map(run => ({
+        value: run.id,
+        label: this.resultChoiceLabel(run),
+      })),
+      { defaultIndex: 0 },
+    )
+    const runA = candidates.find(run => run.id === runAId)
+    const runBCandidates = candidates
+      .filter(run => run.id !== runAId)
+      .sort((left, right) => {
+        const leftSameCase = left.caseId === runA.caseId ? 0 : 1
+        const rightSameCase = right.caseId === runA.caseId ? 0 : 1
+        return leftSameCase - rightSameCase
+      })
+    const runBId = await this.terminal.select(
+      '选择 Run B',
+      runBCandidates.map(run => ({
+        value: run.id,
+        label: this.resultChoiceLabel(run),
+      })),
+      { defaultIndex: 0 },
+    )
+    const buildComparison = this.buildResultComparison
+      ?? (await import('./results.mjs')).buildResultComparison
+    const comparison = buildComparison(this.repository, runAId, runBId)
+    this.printResultComparison(comparison)
+    return { action: 'compared', comparison }
+  }
+
+  resultChoiceLabel(run) {
+    const evaluation = run.primaryEvaluation
+    const score = evaluation ? `${evaluation.score}/${evaluation.maxScore}` : '—'
+    return `${run.displayId ?? shortId(run.id)} · ${run.title} · ${score}`
+  }
+
+  printResultComparison(comparison) {
+    this.terminal.write(
+      `\n对比结果 · ${String(comparison.comparability.level).toUpperCase()}\n`,
+    )
+    const left = comparison.runA
+    const right = comparison.runB
+    this.terminal.write(
+      `${left.displayId ?? shortId(left.runId)} · ${left.score}/${left.maxScore}`
+      + ` | ${right.displayId ?? shortId(right.runId)} · ${right.score}/${right.maxScore}\n`,
+    )
+    for (const warning of comparison.comparability.warnings ?? []) {
+      this.terminal.write(`⚠ ${warning.message ?? warning}\n`)
+    }
+    this.printComparisonRow(
+      'Case',
+      left.caseId ?? '未知',
+      right.caseId ?? '未知',
+    )
+    this.printComparisonRow(
+      'Agent',
+      left.adapterDisplayName ?? left.adapterId ?? '未知',
+      right.adapterDisplayName ?? right.adapterId ?? '未知',
+    )
+    this.printComparisonRow(
+      'CLI 版本',
+      left.versionNormalized ?? '未知',
+      right.versionNormalized ?? '未知',
+    )
+    this.printComparisonRow(
+      '模型',
+      `${left.requestedModel ?? '未知'} / ${left.effectiveModel ?? '未知'}`,
+      `${right.requestedModel ?? '未知'} / ${right.effectiveModel ?? '未知'}`,
+    )
+    this.printComparisonRow(
+      'Effort',
+      `${left.requestedEffort ?? '未知'} / ${left.effectiveEffort ?? '未知'}`,
+      `${right.requestedEffort ?? '未知'} / ${right.effectiveEffort ?? '未知'}`,
+    )
+    for (const [label, key] of [
+      ['运行方式', 'runMode'],
+      ['依赖策略', 'dependencyStrategy'],
+      ['权限策略', 'permissionPolicy'],
+      ['写入隔离', 'writeIsolation'],
+      ['秘密隔离', 'secretIsolation'],
+      ['网络隔离', 'toolNetworkIsolation'],
+      ['暴露状态', 'exposureState'],
+    ]) {
+      this.printComparisonRow(
+        label,
+        left[key] ?? '未知',
+        right[key] ?? '未知',
+      )
+    }
+    this.printComparisonRow(
+      '配置验证',
+      left.executionConfigVerified ? '已验证' : '未验证',
+      right.executionConfigVerified ? '已验证' : '未验证',
+    )
+    for (const [id, label] of [
+      ['behavior', '行为测试'],
+      ['typecheck', '类型检查'],
+      ['build', '生产构建'],
+    ]) {
+      this.printComparisonRow(
+        label,
+        this.comparisonCheckStatus(left.checks, id),
+        this.comparisonCheckStatus(right.checks, id),
+      )
+    }
+    this.printComparisonRow(
+      '路径 F1',
+      this.formatPercentage(left.changedFileF1),
+      this.formatPercentage(right.changedFileF1),
+    )
+    this.printComparisonRow(
+      'Agent 用时',
+      this.formatDuration(left.agentDurationMs),
+      this.formatDuration(right.agentDurationMs),
+    )
+    this.printComparisonRow(
+      '评价用时',
+      this.formatDuration(left.evaluationDurationMs),
+      this.formatDuration(right.evaluationDurationMs),
+    )
+    this.printComparisonRow(
+      'Tokens in/out/cache/reasoning',
+      this.formatTokens(left),
+      this.formatTokens(right),
+    )
+    this.printComparisonRow(
+      '费用',
+      left.cost ?? '—',
+      right.cost ?? '—',
+    )
+  }
+
+  printComparisonRow(label, left, right) {
+    this.terminal.write(`${label} · ${left} | ${right}\n`)
+  }
+
+  comparisonCheckStatus(checks, id) {
+    const check = Array.isArray(checks)
+      ? checks.find(candidate => candidate.id === id)
+      : checks?.[id]
+    if (!check) return '—'
+    return check.passed ? '通过' : '失败'
+  }
+
+  formatPercentage(value) {
+    return typeof value === 'number' ? `${(value * 100).toFixed(1)}%` : '—'
+  }
+
+  formatDuration(value) {
+    return typeof value === 'number' ? `${(value / 1000).toFixed(1)}s` : '—'
+  }
+
+  formatTokens(side) {
+    return [
+      side.inputTokens,
+      side.outputTokens,
+      side.cachedTokens,
+      side.reasoningTokens,
+    ].map(value => value ?? '—').join('/')
+  }
+
+  printResultSummaries(page) {
+    this.terminal.write(`\n历史结果 · ${page.total} 条\n`)
+    for (const run of page.items) {
+      const evaluation = run.primaryEvaluation
+      const score = evaluation ? `${evaluation.score}/${evaluation.maxScore}` : '—'
+      const agent = run.adapterDisplayName ?? run.adapterId ?? '未知'
+      const version = run.versionNormalized ?? '版本未知'
+      const model = run.requestedModel ?? '未知'
+      const effort = run.requestedEffort ?? '未知'
+      const later = run.hasLaterEvaluation ? ' · latest 另有结果' : ''
+      const nonPrimary = evaluation === null && run.hasNonPrimaryEvaluation
+        ? ' · 仅有 non-primary 评价'
+        : ''
+      const configuration = run.executionConfigVerified
+        ? '配置已验证'
+        : run.runMode === 'handoff'
+          ? '准备时探测，实际执行未验证'
+          : '配置未验证'
+      const behavior = this.comparisonCheckStatus(evaluation?.checks, 'behavior')
+      const typecheck = this.comparisonCheckStatus(evaluation?.checks, 'typecheck')
+      const build = this.comparisonCheckStatus(evaluation?.checks, 'build')
+      const f1 = this.formatPercentage(evaluation?.changedFileF1)
+      this.terminal.write(
+        `${run.displayId ?? shortId(run.id)} · ${run.caseId} · ${run.title}`
+        + ` · ${run.status} · Primary ${score}${later}${nonPrimary}`
+        + ` · Agent ${agent} ${version} · 模型 ${model} · Effort ${effort}`
+        + ` · ${configuration}`
+        + ` · 行为 ${behavior} · 类型 ${typecheck} · 构建 ${build}`
+        + ` · 路径 F1 ${f1}`
+        + ` · Agent 用时 ${this.formatDuration(run.agentDurationMs)}`
+        + ` · 评价时间 ${run.activityAt ?? '—'}\n`,
+      )
+    }
+  }
+
+  printResultDetail(detail) {
+    this.terminal.write('\n结果详情\n')
+    const run = detail.run
+    this.terminal.write(
+      `${run.displayId ?? shortId(run.runId)} · ${run.title} · ${run.status}\n`,
+    )
+    this.printDetailRow('Agent', run.adapterDisplayName ?? run.adapterId ?? '未知')
+    this.printDetailRow('CLI 版本', run.versionNormalized ?? '未知')
+    this.printDetailRow('模型', run.effectiveModel ?? run.requestedModel ?? '未知')
+    this.printDetailRow('Effort', run.effectiveEffort ?? run.requestedEffort ?? '未知')
+    for (const [label, key] of [
+      ['运行方式', 'runMode'],
+      ['依赖策略', 'dependencyStrategy'],
+      ['权限策略', 'permissionPolicy'],
+      ['写入隔离', 'writeIsolation'],
+      ['秘密隔离', 'secretIsolation'],
+      ['网络隔离', 'toolNetworkIsolation'],
+      ['暴露状态', 'exposureState'],
+    ]) {
+      this.printDetailRow(label, run[key] ?? '未知')
+    }
+    this.printDetailRow('配置验证', run.executionConfigVerified ? '已验证' : '未验证')
+    this.printDetailRow('Agent 用时', this.formatDuration(run.agentDurationMs))
+    this.printDetailRow('Tokens in/out/cache/reasoning', this.formatTokens(run))
+    this.printDetailRow('费用', run.cost ?? '—')
+    if (detail.evaluations.length === 0) {
+      this.terminal.write('尚无评价结果。\n')
+    }
+    for (const evaluation of detail.evaluations) {
+      const score = typeof evaluation.score === 'number'
+        ? `${evaluation.score}/${evaluation.maxScore}`
+        : '—'
+      const exposure = evaluation.postExposure ? ' · POST-EXPOSURE' : ''
+      this.terminal.write(
+        `${evaluation.label}${exposure} · ${evaluation.evaluationId} · ${score}`
+        + ` · 路径 F1 ${this.formatPercentage(evaluation.changedFileF1)}`
+        + ` · 评价用时 ${this.formatDuration(evaluation.evaluationDurationMs)}\n`,
+      )
+      this.printSafeChecks(evaluation.checks)
+    }
+  }
+
+  printDetailRow(label, value) {
+    this.terminal.write(`${label} · ${value}\n`)
+  }
+
+  printSafeChecks(checks) {
+    const labels = {
+      behavior: '行为测试',
+      typecheck: '类型检查',
+      build: '生产构建',
+    }
+    const entries = Array.isArray(checks)
+      ? checks.map(check => [check.id, check])
+      : Object.entries(checks ?? {})
+    for (const [id, check] of entries) {
+      this.terminal.write(`${labels[id] ?? id} · ${check.passed ? '通过' : '失败'}\n`)
     }
   }
 

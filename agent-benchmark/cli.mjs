@@ -14,6 +14,7 @@ import {
   prepareCase,
 } from './src/engine.mjs'
 import { BenchmarkRunner } from './src/runner.mjs'
+import { buildResultComparison } from './src/results.mjs'
 import { createReadlineTerminal, TerminalCancelledError } from './src/terminal.mjs'
 
 const manifestPath = fileURLToPath(new URL('./benchmarks.json', import.meta.url))
@@ -75,6 +76,31 @@ function positionalId(args, valueOptions) {
   return undefined
 }
 
+function positionalValues(args, valueOptions) {
+  const values = []
+  for (let index = 0; index < args.length; index += 1) {
+    if (valueOptions.includes(args[index])) {
+      index += 1
+      continue
+    }
+    if (!args[index].startsWith('-')) values.push(args[index])
+  }
+  return values
+}
+
+function assertKnownValueOptions(args, command, valueOptions) {
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index]
+    if (valueOptions.includes(argument)) {
+      index += 1
+      continue
+    }
+    if (argument.startsWith('-')) {
+      throw new Error(`${command} 不支持选项：${argument}`)
+    }
+  }
+}
+
 function printCases(cases) {
   const rows = cases.map(benchmarkCase => ({
     rank: String(benchmarkCase.rank),
@@ -94,6 +120,8 @@ Usage:
   agent-benchmark run [options]
   agent-benchmark resume [<run-id>]
   agent-benchmark evaluate <run-id>
+  agent-benchmark results [--case <id>] [--adapter <id>] [--model <model>] [--from <date>] [--to <date>] [--limit <n>] [--offset <n>] [--json]
+  agent-benchmark compare <run-a> <run-b> [--evaluation-a <uuid>] [--evaluation-b <uuid>] [--json]
   agent-benchmark list [--json]
   agent-benchmark show <id> [--json]
   agent-benchmark doctor [--json]
@@ -223,6 +251,199 @@ function printReport(report) {
   console.log(`FILES  F1 ${(report.scoring.changedFiles.f1 * 100).toFixed(1)}%  ${report.scoring.changedFiles.matchedCount}/${report.scoring.changedFiles.referenceCount} reference paths`)
   console.log(`Score: ${report.score}/${report.maxScore}`)
   console.log(`Report: ${report.reportFile}`)
+}
+
+function formatDuration(milliseconds) {
+  if (!Number.isFinite(milliseconds)) return '未知'
+  return `${(milliseconds / 1000).toFixed(1)} 秒`
+}
+
+function formatCheckStatus(check) {
+  if (check === null || check === undefined) return '—'
+  return check.passed ? '通过' : '失败'
+}
+
+function printResultSummary(item) {
+  const displayId = item.displayId ?? item.id.slice(0, 8)
+  const agent = item.adapterDisplayName ?? item.adapterId ?? '未知'
+  const version = item.versionNormalized ?? '版本未知'
+  const model = item.requestedModel ?? '未知'
+  const effort = item.requestedEffort ?? '未知'
+  const primary = item.primaryEvaluation
+  const configuration = item.executionConfigVerified
+    ? '配置已验证'
+    : item.runMode === 'handoff'
+      ? '准备时探测，实际执行未验证'
+      : '配置未验证'
+  console.log(`${displayId}  ${item.caseId}  ${item.status}`)
+  console.log(
+    `  Agent  ${agent} ${version}  |  模型 ${model}`
+    + `  |  思考深度 ${effort}  |  ${configuration}`,
+  )
+  if (!primary) {
+    const nonPrimary = item.hasNonPrimaryEvaluation
+      ? '  |  仅有 non-primary 评价'
+      : ''
+    console.log(`  Primary  —${nonPrimary}  |  行为 —  类型 —  构建 —  |  路径 F1 —`)
+    console.log(`  Agent 用时 ${formatDuration(item.agentDurationMs)}  |  最近活动 ${item.activityAt}`)
+    return
+  }
+  const later = item.hasLaterEvaluation ? '  |  latest 另有结果' : ''
+  console.log(`  Primary  ${primary.score}/${primary.maxScore}${later}`)
+  console.log(
+    `  行为 ${formatCheckStatus(primary.checks.behavior)}`
+    + `  类型 ${formatCheckStatus(primary.checks.typecheck)}`
+    + `  构建 ${formatCheckStatus(primary.checks.build)}`,
+  )
+  const f1 = Number.isFinite(primary.changedFileF1)
+    ? `${(primary.changedFileF1 * 100).toFixed(1)}%`
+    : '—'
+  console.log(
+    `  路径 F1 ${f1}  |  Agent 用时 ${formatDuration(item.agentDurationMs)}`
+    + `  |  评价时间 ${item.activityAt}`,
+  )
+}
+
+function valueOrUnknown(value) {
+  return value === null || value === undefined || value === '' ? '未知' : String(value)
+}
+
+function comparisonCheck(side, id) {
+  return side.checks.find(check => check.id === id)
+}
+
+function comparisonLine(label, left, right) {
+  console.log(`${label}  ${left}  |  ${right}`)
+}
+
+function printResultComparison(comparison) {
+  const left = comparison.runA
+  const right = comparison.runB
+  console.log(
+    `对比 ${left.displayId} ↔ ${right.displayId}`
+    + `  [${comparison.comparability.level.toUpperCase()}]`,
+  )
+  for (const warning of comparison.comparability.warnings) {
+    console.log(`警告：${warning.message}`)
+  }
+  comparisonLine('Case', left.caseId, right.caseId)
+  comparisonLine(
+    'Agent / CLI',
+    `${valueOrUnknown(left.adapterDisplayName)} ${valueOrUnknown(left.versionNormalized)}`,
+    `${valueOrUnknown(right.adapterDisplayName)} ${valueOrUnknown(right.versionNormalized)}`,
+  )
+  comparisonLine(
+    'Requested model',
+    `${valueOrUnknown(left.requestedModel)} / ${valueOrUnknown(left.effectiveModel)}`,
+    `${valueOrUnknown(right.requestedModel)} / ${valueOrUnknown(right.effectiveModel)}`,
+  )
+  comparisonLine(
+    '思考深度',
+    `${valueOrUnknown(left.requestedEffort)} / ${valueOrUnknown(left.effectiveEffort)}`,
+    `${valueOrUnknown(right.requestedEffort)} / ${valueOrUnknown(right.effectiveEffort)}`,
+  )
+  comparisonLine('运行方式', valueOrUnknown(left.runMode), valueOrUnknown(right.runMode))
+  comparisonLine(
+    '依赖策略',
+    valueOrUnknown(left.dependencyStrategy),
+    valueOrUnknown(right.dependencyStrategy),
+  )
+  comparisonLine(
+    '权限策略',
+    valueOrUnknown(left.permissionPolicy),
+    valueOrUnknown(right.permissionPolicy),
+  )
+  comparisonLine(
+    '写入 / Secret / 网络隔离',
+    `${valueOrUnknown(left.writeIsolation)} / ${valueOrUnknown(left.secretIsolation)} / ${valueOrUnknown(left.toolNetworkIsolation)}`,
+    `${valueOrUnknown(right.writeIsolation)} / ${valueOrUnknown(right.secretIsolation)} / ${valueOrUnknown(right.toolNetworkIsolation)}`,
+  )
+  comparisonLine(
+    '执行配置',
+    `${left.executionConfigVerified ? '已验证' : '未验证'} / ${valueOrUnknown(left.executionConfigSource)}`,
+    `${right.executionConfigVerified ? '已验证' : '未验证'} / ${valueOrUnknown(right.executionConfigSource)}`,
+  )
+  comparisonLine(
+    'Exposure',
+    `${valueOrUnknown(left.exposureState)} / ${left.exposureTypes.join(', ') || '无'}`,
+    `${valueOrUnknown(right.exposureState)} / ${right.exposureTypes.join(', ') || '无'}`,
+  )
+  comparisonLine(
+    '评价口径',
+    `${left.isPrimary ? 'PRIMARY' : 'ITERATION'}${left.postExposure ? ' / POST-EXPOSURE' : ''}`,
+    `${right.isPrimary ? 'PRIMARY' : 'ITERATION'}${right.postExposure ? ' / POST-EXPOSURE' : ''}`,
+  )
+  comparisonLine('总分', `${left.score}/${left.maxScore}`, `${right.score}/${right.maxScore}`)
+  for (const [id, label] of [
+    ['behavior', '行为'],
+    ['typecheck', '类型检查'],
+    ['build', '生产构建'],
+  ]) {
+    comparisonLine(
+      label,
+      formatCheckStatus(comparisonCheck(left, id)),
+      formatCheckStatus(comparisonCheck(right, id)),
+    )
+  }
+  comparisonLine(
+    '路径 F1',
+    Number.isFinite(left.changedFileF1) ? `${(left.changedFileF1 * 100).toFixed(1)}%` : '—',
+    Number.isFinite(right.changedFileF1) ? `${(right.changedFileF1 * 100).toFixed(1)}%` : '—',
+  )
+  comparisonLine(
+    'Agent 用时',
+    formatDuration(left.agentDurationMs),
+    formatDuration(right.agentDurationMs),
+  )
+  comparisonLine(
+    '评价耗时',
+    formatDuration(left.evaluationDurationMs),
+    formatDuration(right.evaluationDurationMs),
+  )
+  comparisonLine(
+    'Tokens (input/output/cached/reasoning)',
+    `${valueOrUnknown(left.inputTokens)}/${valueOrUnknown(left.outputTokens)}/${valueOrUnknown(left.cachedTokens)}/${valueOrUnknown(left.reasoningTokens)}`,
+    `${valueOrUnknown(right.inputTokens)}/${valueOrUnknown(right.outputTokens)}/${valueOrUnknown(right.cachedTokens)}/${valueOrUnknown(right.reasoningTokens)}`,
+  )
+  comparisonLine('费用', valueOrUnknown(left.cost), valueOrUnknown(right.cost))
+}
+
+function integerOption(args, name, { defaultValue, min, max }) {
+  const value = optionValue(args, name)
+  if (value === undefined) return defaultValue
+  if (!/^\d+$/.test(value)) throw new Error(`${name} must be an integer`)
+  const parsed = Number(value)
+  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
+    throw new Error(`${name} must be between ${min} and ${max}`)
+  }
+  return parsed
+}
+
+function localDateBoundary(value, name, endOfDay = false) {
+  if (value === undefined) return undefined
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) throw new Error(`${name} must use YYYY-MM-DD`)
+  const [, yearText, monthText, dayText] = match
+  const year = Number(yearText)
+  const month = Number(monthText)
+  const day = Number(dayText)
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+    endOfDay ? 23 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 59 : 0,
+    endOfDay ? 999 : 0,
+  )
+  if (
+    date.getFullYear() !== year
+    || date.getMonth() !== month - 1
+    || date.getDate() !== day
+  ) {
+    throw new Error(`${name} is not a valid calendar date`)
+  }
+  return date.toISOString()
 }
 
 let globals
@@ -391,6 +612,121 @@ if (!command) {
     repository?.close()
     terminal.close()
   }
+} else if (command === 'compare') {
+  let repository
+  try {
+    const compareOptions = ['--evaluation-a', '--evaluation-b']
+    assertKnownValueOptions(args, 'compare', compareOptions)
+    const runReferences = positionalValues(args, compareOptions)
+    if (runReferences.length !== 2) {
+      throw new Error('compare 需要且仅接受两个 Run ID 或唯一前缀')
+    }
+    const terminal = nonInteractiveTerminal(jsonOutput ? process.stderr : process.stdout)
+    const resources = await createRunnerResources({
+      databasePath: globals.databasePath,
+      terminal,
+    })
+    repository = resources.repository
+    const comparison = buildResultComparison(
+      repository,
+      runReferences[0],
+      runReferences[1],
+      {
+        evaluationA: optionValue(args, '--evaluation-a'),
+        evaluationB: optionValue(args, '--evaluation-b'),
+      },
+    )
+    if (jsonOutput) {
+      console.log(JSON.stringify(comparison, null, 2))
+    } else {
+      printResultComparison(comparison)
+    }
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exitCode = 2
+  } finally {
+    repository?.close()
+  }
+} else if (command === 'results') {
+  let repository
+  try {
+    const resultsOptions = [
+      '--case',
+      '--adapter',
+      '--model',
+      '--from',
+      '--to',
+      '--limit',
+      '--offset',
+    ]
+    assertKnownValueOptions(args, 'results', resultsOptions)
+    const unexpectedPositionals = positionalValues(args, resultsOptions)
+    if (unexpectedPositionals.length > 0) {
+      throw new Error(`results 不接受位置参数：${unexpectedPositionals.join(', ')}`)
+    }
+    const terminal = nonInteractiveTerminal(jsonOutput ? process.stderr : process.stdout)
+    const resources = await createRunnerResources({
+      databasePath: globals.databasePath,
+      terminal,
+    })
+    repository = resources.repository
+    const limit = integerOption(args, '--limit', { defaultValue: 20, min: 1, max: 100 })
+    const offset = integerOption(args, '--offset', {
+      defaultValue: 0,
+      min: 0,
+      max: Number.MAX_SAFE_INTEGER,
+    })
+    const caseId = optionValue(args, '--case')
+    const adapterId = optionValue(args, '--adapter')
+    const requestedModel = optionValue(args, '--model')
+    const fromDate = optionValue(args, '--from')
+    const toDate = optionValue(args, '--to')
+    const from = localDateBoundary(fromDate, '--from')
+    const to = localDateBoundary(toDate, '--to', true)
+    if (from && to && Date.parse(from) > Date.parse(to)) {
+      throw new Error('--from must not be after --to')
+    }
+    const page = repository.listResultSummaries({
+      caseId,
+      adapterId,
+      requestedModel,
+      from,
+      to,
+      limit,
+      offset,
+    })
+    if (jsonOutput) {
+      console.log(JSON.stringify({
+        schemaVersion: 2,
+        type: 'results',
+        filters: {
+          caseId: caseId ?? null,
+          adapterId: adapterId ?? null,
+          requestedModel: requestedModel ?? null,
+          from: fromDate ?? null,
+          to: toDate ?? null,
+        },
+        pagination: {
+          total: page.total,
+          limit: page.limit,
+          offset: page.offset,
+          hasPrevious: page.hasPrevious,
+          hasNext: page.hasNext,
+        },
+        results: page.items,
+      }, null, 2))
+    } else if (page.items.length === 0) {
+      console.log('没有历史 Run。可运行 benchmark 开始新的评测。')
+    } else {
+      console.log(`历史结果 ${page.offset + 1}-${page.offset + page.items.length} / ${page.total}`)
+      for (const item of page.items) printResultSummary(item)
+    }
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exitCode = 2
+  } finally {
+    repository?.close()
+  }
 } else if (command === 'result') {
   let repository
   try {
@@ -415,7 +751,16 @@ if (!command) {
         : '执行配置：准备时探测，实际执行未验证')
       console.log(`Workspace: ${run.workspace}`)
       for (const evaluation of evaluations) {
-        console.log(`${evaluation.isPrimary ? 'PRIMARY' : 'LATEST'}  ${evaluation.id.slice(0, 8)}  ${evaluation.score}/${evaluation.maxScore}`)
+        const label = evaluation.isPrimary
+          ? 'PRIMARY'
+          : evaluation.id === run.latestEvaluationId
+            ? 'LATEST'
+            : 'ITERATION'
+        const exposure = evaluation.postExposure ? '  POST-EXPOSURE' : ''
+        console.log(
+          `${label}${exposure}  ${evaluation.id}`
+          + `  ${evaluation.score}/${evaluation.maxScore}`,
+        )
       }
     }
   } catch (error) {

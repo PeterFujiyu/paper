@@ -28,6 +28,27 @@
 | `pnpm run benchmark` 真实 TTY 首页 | 仅统计并恢复有效 handoff Run；残留 ad-hoc 记录不再计入未完成评测。 |
 | `npm run typecheck`、`node --check`、`git diff --check` | 通过。 |
 
+## 历史结果与两次 Run 对比
+
+2026-07-19 完成首页“查看历史结果”和“对比两次结果”的 MVP，并为同一能力增加显式
+`results` / `compare` 命令。测试采用独立临时 SQLite，不读取开发者本机历史，也不运行真实 agent。
+
+| 命令 | 结果 |
+|---|---|
+| `npx vitest run tests/agent-benchmark/history-repository.test.ts tests/agent-benchmark/results-comparison.test.ts tests/agent-benchmark/history-runner.test.ts tests/agent-benchmark/history-cli.test.ts tests/agent-benchmark/repository.test.ts tests/agent-benchmark/runner.test.ts` | 通过：6 个文件、54 个测试。覆盖历史筛选/排序/分页、primary 固定、无评价与仅 non-primary 状态、安全字段白名单、详情、交互错误恢复、超过 100 条的对比候选、完整 Evaluation UUID、post-exposure 标记、显式 CLI 与跨 case 可比性警告。 |
+| `node --check agent-benchmark/cli.mjs`、`node --check agent-benchmark/src/repository.mjs`、`node --check agent-benchmark/src/results.mjs`、`node --check agent-benchmark/src/runner.mjs` | 通过。 |
+| `npx eslint agent-benchmark/cli.mjs agent-benchmark/src/repository.mjs agent-benchmark/src/results.mjs agent-benchmark/src/runner.mjs tests/agent-benchmark/history-cli.test.ts tests/agent-benchmark/history-repository.test.ts tests/agent-benchmark/history-runner.test.ts tests/agent-benchmark/results-comparison.test.ts` | 通过。 |
+| `git diff --check -- agent-benchmark tests/agent-benchmark` | 通过。 |
+| `npm run typecheck` | 通过。 |
+| `npm run build` | 通过；Vite 构建成功。存在原项目已有的单 chunk 大于 500 kB 警告。 |
+
+关键测试按红灯到绿灯推进：先验证缺少历史查询、对比模块、完整交互摘要、非法参数拒绝、
+post-exposure/完整 UUID、effective telemetry 警告和跨页候选等行为确实失败，再加入对应实现。
+新 JSON 输出还检查了 prompt、workspace、report、diagnostic 与 oracle sentinel 不会泄漏。
+
+本轮没有运行 `npm run benchmark:test` 完整套件；这是此前“尽快交付 MVP / 跳过完整测试”的范围约定。
+上表仅记录本轮实际完成的定向测试、typecheck 与 build。
+
 ## 完整 benchmark 套件状态
 
 `npm run benchmark:test` 已改为 `--no-file-parallelism`，避免多个真实 Git prepare/evaluate 测试并行争用磁盘。完整套件的早期运行中，功能断言未显示新增失败，但若干真实 Git/评价测试超过原有 5 秒或 60 秒测试时限；对应慢测试时限已按实际负载调整。

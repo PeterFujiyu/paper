@@ -646,6 +646,229 @@ export class BenchmarkRepository {
     `).all().map(row => this.#runRecord(row))
   }
 
+  listResultSummaries({
+    caseId,
+    adapterId,
+    requestedModel,
+    from,
+    to,
+    limit = 20,
+    offset = 0,
+  } = {}) {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new TypeError('limit must be an integer between 1 and 100')
+    }
+    if (!Number.isSafeInteger(offset) || offset < 0) {
+      throw new TypeError('offset must be a non-negative integer')
+    }
+    for (const [label, value] of [
+      ['caseId', caseId],
+      ['adapterId', adapterId],
+      ['requestedModel', requestedModel],
+    ]) {
+      if (value !== undefined) normalizeNonEmptyString(value, label)
+    }
+    if (from !== undefined) normalizeTimestamp(from, 'from')
+    if (to !== undefined) normalizeTimestamp(to, 'to')
+    if (from !== undefined && to !== undefined && Date.parse(from) > Date.parse(to)) {
+      throw new TypeError('from must not be after to')
+    }
+
+    const predicates = []
+    const parameters = { limit, offset }
+    if (caseId !== undefined) {
+      predicates.push('runs.case_id = @caseId')
+      parameters.caseId = caseId
+    }
+    if (adapterId !== undefined) {
+      predicates.push('runs.adapter_id = @adapterId')
+      parameters.adapterId = adapterId
+    }
+    if (requestedModel !== undefined) {
+      predicates.push('runs.requested_model = @requestedModel')
+      parameters.requestedModel = requestedModel
+    }
+    if (from !== undefined) {
+      predicates.push('COALESCE(latest.finished_at, runs.updated_at) >= @from')
+      parameters.from = from
+    }
+    if (to !== undefined) {
+      predicates.push('COALESCE(latest.finished_at, runs.updated_at) <= @to')
+      parameters.to = to
+    }
+    const whereClause = predicates.length === 0
+      ? ''
+      : `WHERE ${predicates.join('\n        AND ')}`
+
+    const rows = this.database.prepare(`
+      WITH completed_evaluations AS (
+        SELECT evaluations.*,
+               ROW_NUMBER() OVER (
+                 PARTITION BY run_id
+                 ORDER BY finished_at DESC, id ASC
+               ) AS recency
+        FROM evaluations
+        WHERE status = 'completed'
+          AND finished_at IS NOT NULL
+      )
+      SELECT runs.id,
+             runs.display_id,
+             runs.case_id,
+             runs.case_title,
+             runs.adapter_id,
+             runs.adapter_display_name,
+             runs.version_normalized,
+             runs.requested_model,
+             runs.requested_effort,
+             runs.run_mode,
+             runs.status,
+             runs.execution_config_verified,
+             runs.agent_duration_ms,
+             runs.input_tokens,
+             runs.output_tokens,
+             runs.cached_tokens,
+             runs.reasoning_tokens,
+             runs.cost,
+             COALESCE(latest.finished_at, runs.updated_at) AS activity_at,
+             primary_evaluation.id AS primary_evaluation_id,
+             primary_evaluation.score AS primary_score,
+             primary_evaluation.max_score AS primary_max_score,
+             primary_evaluation.changed_file_f1 AS primary_changed_file_f1,
+             primary_evaluation.finished_at AS primary_finished_at,
+             primary_evaluation.duration_ms AS primary_duration_ms,
+             latest.id AS completed_latest_evaluation_id,
+             EXISTS (
+               SELECT 1
+               FROM completed_evaluations later
+               WHERE later.run_id = runs.id
+                 AND later.id != primary_evaluation.id
+                 AND (
+                   later.finished_at > primary_evaluation.finished_at
+                   OR (
+                     later.finished_at = primary_evaluation.finished_at
+                     AND later.id < primary_evaluation.id
+                   )
+                 )
+             ) AS has_later_evaluation,
+             EXISTS (
+               SELECT 1
+               FROM completed_evaluations non_primary
+               WHERE non_primary.run_id = runs.id
+                 AND non_primary.is_primary = 0
+             ) AS has_non_primary_evaluation
+      FROM benchmark_runs runs
+      LEFT JOIN completed_evaluations latest
+        ON latest.run_id = runs.id
+       AND latest.recency = 1
+      LEFT JOIN evaluations primary_evaluation
+        ON primary_evaluation.id = runs.primary_evaluation_id
+       AND primary_evaluation.status = 'completed'
+      ${whereClause}
+      ORDER BY (latest.id IS NULL) ASC,
+               latest.finished_at DESC,
+               CASE WHEN latest.id IS NULL THEN runs.updated_at END DESC,
+               runs.id ASC
+      LIMIT @limit OFFSET @offset
+    `).all(parameters)
+
+    const primaryEvaluationIds = rows
+      .map(row => row.primary_evaluation_id)
+      .filter(id => id !== null)
+    const checksByEvaluationId = new Map()
+    if (primaryEvaluationIds.length > 0) {
+      const placeholders = primaryEvaluationIds.map(() => '?').join(', ')
+      const checks = this.database.prepare(`
+        SELECT evaluation_id, check_id, points, passed, duration_ms
+        FROM evaluation_checks
+        WHERE evaluation_id IN (${placeholders})
+          AND check_id IN ('behavior', 'typecheck', 'build')
+        ORDER BY evaluation_id ASC, sort_order ASC, check_id ASC
+      `).all(...primaryEvaluationIds)
+      for (const check of checks) {
+        let evaluationChecks = checksByEvaluationId.get(check.evaluation_id)
+        if (evaluationChecks === undefined) {
+          evaluationChecks = {}
+          checksByEvaluationId.set(check.evaluation_id, evaluationChecks)
+        }
+        evaluationChecks[check.check_id] = {
+          id: check.check_id,
+          passed: check.passed === 1,
+          points: check.points,
+          durationMs: check.duration_ms,
+        }
+      }
+    }
+
+    const total = this.database.prepare(`
+      WITH completed_evaluations AS (
+        SELECT evaluations.*,
+               ROW_NUMBER() OVER (
+                 PARTITION BY run_id
+                 ORDER BY finished_at DESC, id ASC
+               ) AS recency
+        FROM evaluations
+        WHERE status = 'completed'
+          AND finished_at IS NOT NULL
+      )
+      SELECT COUNT(*) AS count
+      FROM benchmark_runs runs
+      LEFT JOIN completed_evaluations latest
+        ON latest.run_id = runs.id
+       AND latest.recency = 1
+      ${whereClause}
+    `).get(parameters).count
+
+    return {
+      items: rows.map(row => {
+        const storedChecks = checksByEvaluationId.get(row.primary_evaluation_id) ?? {}
+        return {
+          id: row.id,
+          displayId: row.display_id,
+          caseId: row.case_id,
+          title: row.case_title,
+          adapterId: row.adapter_id,
+          adapterDisplayName: row.adapter_display_name,
+          versionNormalized: row.version_normalized,
+          requestedModel: row.requested_model,
+          requestedEffort: row.requested_effort,
+          runMode: row.run_mode,
+          status: row.status,
+          executionConfigVerified: row.execution_config_verified === 1,
+          agentDurationMs: row.agent_duration_ms,
+          inputTokens: row.input_tokens,
+          outputTokens: row.output_tokens,
+          cachedTokens: row.cached_tokens,
+          reasoningTokens: row.reasoning_tokens,
+          cost: row.cost,
+          activityAt: row.activity_at,
+          primaryEvaluation: row.primary_evaluation_id === null
+            ? null
+            : {
+                id: row.primary_evaluation_id,
+                score: row.primary_score,
+                maxScore: row.primary_max_score,
+                changedFileF1: row.primary_changed_file_f1,
+                finishedAt: row.primary_finished_at,
+                durationMs: row.primary_duration_ms,
+                checks: {
+                  behavior: storedChecks.behavior ?? null,
+                  typecheck: storedChecks.typecheck ?? null,
+                  build: storedChecks.build ?? null,
+                },
+              },
+          latestEvaluationId: row.completed_latest_evaluation_id,
+          hasLaterEvaluation: row.has_later_evaluation === 1,
+          hasNonPrimaryEvaluation: row.has_non_primary_evaluation === 1,
+        }
+      }),
+      total,
+      limit,
+      offset,
+      hasPrevious: offset > 0,
+      hasNext: offset + rows.length < total,
+    }
+  }
+
   listResumableHandoffRuns() {
     const placeholders = INCOMPLETE_RUN_STATUSES.map(() => '?').join(', ')
     return this.database.prepare(`

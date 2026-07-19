@@ -35,7 +35,7 @@ npm run benchmark
 无参数命令会打开中文首页，并行探测本机的 Codex CLI 与 Claude Code。选择“开始新的评测”后，向导会依次确认题目、CLI、模型、思考深度、运行方式和依赖策略；最终确认之前不会创建 Run 或 workspace。
 
 当前第一条 v2 主路径是 handoff：runner 会为每个 Run 创建全新的
-`.agent-benchmark/workspaces/<case-id>/<run-uuid>`，然后完整打印绝对目录、供应商中立 Prompt 和安全引用的启动命令。把命令粘贴到另一终端完成任务即可。handoff 无法证明另一终端实际使用的 CLI、模型或 effort，因此 SQLite 会如实记录 `execution_config_verified=false`，结果页显示“准备时探测，实际执行未验证”。托管 agent、历史筛选和结果对比会在后续路径开放，当前首页会明确标为不可用。
+`.agent-benchmark/workspaces/<case-id>/<run-uuid>`，然后完整打印绝对目录、供应商中立 Prompt 和安全引用的启动命令。把命令粘贴到另一终端完成任务即可。handoff 无法证明另一终端实际使用的 CLI、模型或 effort，因此 SQLite 会如实记录 `execution_config_verified=false`，结果页显示“准备时探测，实际执行未验证”。托管 agent 仍是后续路径；历史筛选、结果详情和两次 Run 对比已经可以从中文首页直接进入。
 
 随时可以暂停并用短 Run ID 恢复，恢复不会重新准备或覆盖 workspace：
 
@@ -44,6 +44,35 @@ npm run benchmark -- resume 7f3a91c2
 npm run benchmark -- evaluate 7f3a91c2
 npm run benchmark -- result 7f3a91c2
 ```
+
+历史页默认每页显示 20 条 Run，可按 case、Agent、requested model 和本地自然日筛选。列表固定显示第一次完整评分产生的 primary evaluation；若同一 Run 后来又评价过，会标记“latest 另有结果”，但不会用更高的新分数覆盖首轮结果。显式命令提供相同数据：
+
+```bash
+npm run benchmark -- results
+npm run benchmark -- results \
+  --case auth-session-hardening \
+  --adapter codex \
+  --model default \
+  --from 2026-07-01 \
+  --to 2026-07-31 \
+  --limit 20 --offset 0 --json
+```
+
+两次 Run 默认比较双方 primary，并同时展示 CLI、模型、effort、隔离策略、检查状态、路径 F1、Agent 用时、评价耗时以及可用的 token/费用。配置、Prompt、manifest、exposure 或 case 不一致时仍会展示数据，但顶部标为 `CAUTION` 或 `INCOMPARABLE`，不会自动宣布赢家：
+
+```bash
+npm run benchmark -- compare 7f3a91c2 91da47e0
+npm run benchmark -- compare 7f3a91c2 91da47e0 --json
+```
+
+如需研究迭代结果，只能显式传入属于对应 Run 的完整 Evaluation UUID。输出会标记 `iterated=true`，post-exposure 评价不会被包装成公平首轮对比：
+
+```bash
+npm run benchmark -- compare 7f3a91c2 91da47e0 \
+  --evaluation-a 11111111-2222-4333-8444-555555555555
+```
+
+`result <run-id>` 的人类输出会列出每次评价的完整 UUID，并明确标记 `PRIMARY`、`LATEST`、`ITERATION` 与 `POST-EXPOSURE`；`result <run-id> --json` 保持原有机器输出结构。
 
 评价仍使用隐藏 oracle、类型检查、生产构建和原有 100 分公式。Run、Prompt/CLI 配置、Evaluation 和 checks 的权威记录写入 `.agent-benchmark/benchmark.sqlite3`；完整评价完成后会先落原子 recovery spool，再提交 SQLite。可以用 `--db <path>` 覆盖数据库，或用 `db recover` 幂等恢复未提交的评分结果。
 
