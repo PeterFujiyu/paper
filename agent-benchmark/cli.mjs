@@ -5,6 +5,11 @@ import { resolve } from 'node:path'
 
 import { probeAdapters } from './src/adapters.mjs'
 import { loadManifest, sortedCases, validateManifest } from './src/catalog.mjs'
+import {
+  orderedResultCheckIds,
+  resultCheck,
+  resultCheckLabel,
+} from './src/checks.mjs'
 import { assertSafeDatabasePath } from './src/database-path.mjs'
 import { diagnoseEnvironment } from './src/doctor.mjs'
 import {
@@ -284,17 +289,16 @@ function printResultSummary(item) {
     const nonPrimary = item.hasNonPrimaryEvaluation
       ? '  |  仅有 non-primary 评价'
       : ''
-    console.log(`  Primary  —${nonPrimary}  |  行为 —  类型 —  构建 —  |  路径 F1 —`)
+    console.log(`  Primary  —${nonPrimary}  |  检查 —  |  路径 F1 —`)
     console.log(`  Agent 用时 ${formatDuration(item.agentDurationMs)}  |  最近活动 ${item.activityAt}`)
     return
   }
   const later = item.hasLaterEvaluation ? '  |  latest 另有结果' : ''
   console.log(`  Primary  ${primary.score}/${primary.maxScore}${later}`)
-  console.log(
-    `  行为 ${formatCheckStatus(primary.checks.behavior)}`
-    + `  类型 ${formatCheckStatus(primary.checks.typecheck)}`
-    + `  构建 ${formatCheckStatus(primary.checks.build)}`,
-  )
+  const checks = orderedResultCheckIds(primary.checks)
+    .map(id => `${resultCheckLabel(id)} ${formatCheckStatus(resultCheck(primary.checks, id))}`)
+    .join('  ')
+  console.log(`  ${checks || '检查 —'}`)
   const f1 = Number.isFinite(primary.changedFileF1)
     ? `${(primary.changedFileF1 * 100).toFixed(1)}%`
     : '—'
@@ -306,10 +310,6 @@ function printResultSummary(item) {
 
 function valueOrUnknown(value) {
   return value === null || value === undefined || value === '' ? '未知' : String(value)
-}
-
-function comparisonCheck(side, id) {
-  return side.checks.find(check => check.id === id)
 }
 
 function comparisonLine(label, left, right) {
@@ -374,15 +374,11 @@ function printResultComparison(comparison) {
     `${right.isPrimary ? 'PRIMARY' : 'ITERATION'}${right.postExposure ? ' / POST-EXPOSURE' : ''}`,
   )
   comparisonLine('总分', `${left.score}/${left.maxScore}`, `${right.score}/${right.maxScore}`)
-  for (const [id, label] of [
-    ['behavior', '行为'],
-    ['typecheck', '类型检查'],
-    ['build', '生产构建'],
-  ]) {
+  for (const id of orderedResultCheckIds(left.checks, right.checks)) {
     comparisonLine(
-      label,
-      formatCheckStatus(comparisonCheck(left, id)),
-      formatCheckStatus(comparisonCheck(right, id)),
+      resultCheckLabel(id),
+      formatCheckStatus(resultCheck(left.checks, id)),
+      formatCheckStatus(resultCheck(right.checks, id)),
     )
   }
   comparisonLine(

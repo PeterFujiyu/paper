@@ -86,14 +86,47 @@ function makeReport(score: number): Record<string, unknown> {
     maxScore: 100,
     checks: [
       {
-        id: 'behavior',
+        id: 'sanitizer',
         kind: 'vitest',
-        label: '行为回归测试',
-        points: 70,
+        label: '富文本 sanitizer 与输入验证',
+        points: 25,
         passed: true,
         exitCode: 0,
         signal: null,
-        durationMs: 400,
+        durationMs: 150,
+        detailsHidden: true,
+      },
+      {
+        id: 'auth',
+        kind: 'vitest',
+        label: 'Cookie 与 Bearer 认证',
+        points: 20,
+        passed: true,
+        exitCode: 0,
+        signal: null,
+        durationMs: 100,
+        detailsHidden: true,
+      },
+      {
+        id: 'client-session',
+        kind: 'vitest',
+        label: '客户端会话恢复与 401',
+        points: 15,
+        passed: true,
+        exitCode: 0,
+        signal: null,
+        durationMs: 75,
+        detailsHidden: true,
+      },
+      {
+        id: 'security-headers',
+        kind: 'vitest',
+        label: 'HTTP 安全头与部署策略',
+        points: 10,
+        passed: true,
+        exitCode: 0,
+        signal: null,
+        durationMs: 75,
         detailsHidden: true,
       },
       {
@@ -120,7 +153,7 @@ function makeReport(score: number): Record<string, unknown> {
       },
     ],
     scoring: {
-      checks: { score: 85, maxScore: 85, weight: 80 },
+      checks: { score: 100, maxScore: 100, weight: 80 },
       changedFiles: {
         candidateCount: 5,
         referenceCount: 6,
@@ -399,7 +432,11 @@ test('results human output shows the complete primary summary and latest marker'
     assert.match(result.stdout, /Codex CLI.*0\.144\.5/)
     assert.match(result.stdout, /模型.*default.*思考深度.*high/)
     assert.match(result.stdout, /Primary.*84\.2\/100.*latest 另有结果/i)
-    assert.match(result.stdout, /行为.*通过.*类型.*通过.*构建.*通过/)
+    assert.match(result.stdout, /富文本清洗.*通过/)
+    assert.match(result.stdout, /认证.*通过/)
+    assert.match(result.stdout, /客户端会话.*通过/)
+    assert.match(result.stdout, /安全头.*通过/)
+    assert.match(result.stdout, /类型.*通过.*构建.*通过/)
     assert.match(result.stdout, /路径 F1.*75\.0%/)
     assert.match(result.stdout, /Agent 用时.*12\.0 秒/)
     assert.match(result.stdout, /评价时间.*2026-07-18T02:01:00\.000Z/)
@@ -476,7 +513,10 @@ test('compare human output keeps agent and evaluation durations distinct', () =>
     assert.match(result.stdout, /权限策略.*workspace-write.*workspace-write/)
     assert.match(result.stdout, /Exposure.*blind.*blind/)
     assert.match(result.stdout, /总分.*84\.2\/100.*88\/100/)
-    assert.match(result.stdout, /行为.*通过.*通过/)
+    assert.match(result.stdout, /富文本清洗.*通过.*通过/)
+    assert.match(result.stdout, /认证.*通过.*通过/)
+    assert.match(result.stdout, /客户端会话.*通过.*通过/)
+    assert.match(result.stdout, /安全头.*通过.*通过/)
     assert.match(result.stdout, /类型检查.*通过.*通过/)
     assert.match(result.stdout, /生产构建.*通过.*通过/)
     assert.match(result.stdout, /路径 F1.*75\.0%.*75\.0%/)

@@ -781,7 +781,6 @@ export class BenchmarkRepository {
         SELECT evaluation_id, check_id, points, passed, duration_ms
         FROM evaluation_checks
         WHERE evaluation_id IN (${placeholders})
-          AND check_id IN ('behavior', 'typecheck', 'build')
         ORDER BY evaluation_id ASC, sort_order ASC, check_id ASC
       `).all(...primaryEvaluationIds)
       for (const check of checks) {
@@ -850,11 +849,7 @@ export class BenchmarkRepository {
                 changedFileF1: row.primary_changed_file_f1,
                 finishedAt: row.primary_finished_at,
                 durationMs: row.primary_duration_ms,
-                checks: {
-                  behavior: storedChecks.behavior ?? null,
-                  typecheck: storedChecks.typecheck ?? null,
-                  build: storedChecks.build ?? null,
-                },
+                checks: storedChecks,
               },
           latestEvaluationId: row.completed_latest_evaluation_id,
           hasLaterEvaluation: row.has_later_evaluation === 1,

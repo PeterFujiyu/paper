@@ -219,6 +219,37 @@ test('history rows show the complete primary summary without replacing it with l
   assert.match(terminal.output, /准备时探测，实际执行未验证/)
 })
 
+test('history rows name split behavior domains independently', async () => {
+  const { runner, terminal } = createRunner(
+    ['results', 'home', 'exit'],
+    [makeSummary(RUN_A, {
+      primaryEvaluation: {
+        id: 'aaaaaaaa-1111-4111-8111-111111111111',
+        score: 72,
+        maxScore: 100,
+        changedFileF1: 0.7,
+        checks: {
+          sanitizer: { passed: true, points: 25 },
+          auth: { passed: false, points: 20 },
+          'client-session': { passed: true, points: 15 },
+          'security-headers': { passed: false, points: 10 },
+          typecheck: { passed: true, points: 15 },
+          build: { passed: true, points: 15 },
+        },
+      },
+    })],
+  )
+
+  await runner.home()
+
+  assert.match(terminal.output, /富文本清洗.*通过/)
+  assert.match(terminal.output, /认证.*失败/)
+  assert.match(terminal.output, /客户端会话.*通过/)
+  assert.match(terminal.output, /安全头.*失败/)
+  assert.match(terminal.output, /类型检查.*通过.*生产构建.*通过/)
+  assert.doesNotMatch(terminal.output, /行为测试/)
+})
+
 test('history marks an unevaluated ad-hoc run score and agent configuration as unknown', async () => {
   const { runner, terminal } = createRunner(
     ['results', 'home', 'exit'],
@@ -484,7 +515,10 @@ test('compare selects two distinct primary runs and prints their warning', async
       agentDurationMs: 45_000,
       evaluationDurationMs: 12_345,
       checks: [
-        { id: 'behavior', passed: true },
+        { id: 'sanitizer', passed: true },
+        { id: 'auth', passed: false },
+        { id: 'client-session', passed: true },
+        { id: 'security-headers', passed: true },
         { id: 'typecheck', passed: true },
         { id: 'build', passed: false },
       ],
@@ -519,7 +553,10 @@ test('compare selects two distinct primary runs and prints their warning', async
       agentDurationMs: 50_000,
       evaluationDurationMs: 10_000,
       checks: [
-        { id: 'behavior', passed: true },
+        { id: 'sanitizer', passed: true },
+        { id: 'auth', passed: true },
+        { id: 'client-session', passed: false },
+        { id: 'security-headers', passed: true },
         { id: 'typecheck', passed: true },
         { id: 'build', passed: true },
       ],
@@ -559,7 +596,10 @@ test('compare selects two distinct primary runs and prints their warning', async
     /模型.*gpt-5.*gpt-5-2026-07-01.*\|.*claude-opus-4-1.*claude-opus-4-1-20260701/,
   )
   assert.match(terminal.output, /Effort.*high.*xhigh-runtime.*\|.*high.*high-runtime/)
-  assert.match(terminal.output, /行为测试.*通过.*\|.*通过/)
+  assert.match(terminal.output, /富文本清洗.*通过.*\|.*通过/)
+  assert.match(terminal.output, /认证.*失败.*\|.*通过/)
+  assert.match(terminal.output, /客户端会话.*通过.*\|.*失败/)
+  assert.match(terminal.output, /安全头.*通过.*\|.*通过/)
   assert.match(terminal.output, /生产构建.*失败.*\|.*通过/)
   assert.match(terminal.output, /路径 F1.*72\.7%.*\|.*80\.0%/)
   assert.match(terminal.output, /Agent 用时.*45\.0s.*\|.*50\.0s/)

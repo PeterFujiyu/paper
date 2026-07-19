@@ -61,6 +61,61 @@ test('show --json exposes a complete task contract for one case', () => {
   )
 })
 
+test('content auth security exposes four independently weighted behavior checks', () => {
+  const result = runCli(['show', 'content-auth-security', '--json'])
+
+  assert.equal(result.status, 0, result.stderr)
+  const benchmarkCase = JSON.parse(result.stdout) as {
+    checks: Array<{
+      id: string
+      kind: string
+      label: string
+      files?: string[]
+      points: number
+    }>
+  }
+  const behaviorChecks = benchmarkCase.checks.filter(check => check.kind === 'vitest')
+
+  assert.deepEqual(behaviorChecks, [
+    {
+      id: 'sanitizer',
+      kind: 'vitest',
+      label: '富文本 sanitizer 与输入验证',
+      files: ['tests/server/lib/validation.test.ts'],
+      points: 25,
+      timeoutMs: 120_000,
+    },
+    {
+      id: 'auth',
+      kind: 'vitest',
+      label: 'Cookie 与 Bearer 认证',
+      files: ['tests/server/lib/auth.test.ts'],
+      points: 20,
+      timeoutMs: 120_000,
+    },
+    {
+      id: 'client-session',
+      kind: 'vitest',
+      label: '客户端会话恢复与 401',
+      files: ['tests/src/store.test.ts'],
+      points: 15,
+      timeoutMs: 120_000,
+    },
+    {
+      id: 'security-headers',
+      kind: 'vitest',
+      label: 'HTTP 安全头与部署策略',
+      files: ['tests/benchmark-oracle/content-auth-security.test.ts'],
+      points: 10,
+      timeoutMs: 120_000,
+    },
+  ])
+  assert.equal(
+    behaviorChecks.reduce((total, check) => total + check.points, 0),
+    70,
+  )
+})
+
 test('validate --json verifies all manifest entries against git history', () => {
   const result = runCli(['validate', '--json'])
 

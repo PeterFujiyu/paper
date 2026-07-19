@@ -190,11 +190,35 @@
       ],
       "checks": [
         {
-          "id": "behavior",
+          "id": "sanitizer",
           "kind": "vitest",
-          "label": "富文本、认证与客户端状态回归测试",
-          "files": ["tests/server/lib/auth.test.ts", "tests/server/lib/validation.test.ts", "tests/src/store.test.ts", "tests/benchmark-oracle/content-auth-security.test.ts"],
-          "points": 70,
+          "label": "富文本 sanitizer 与输入验证",
+          "files": ["tests/server/lib/validation.test.ts"],
+          "points": 25,
+          "timeoutMs": 120000
+        },
+        {
+          "id": "auth",
+          "kind": "vitest",
+          "label": "Cookie 与 Bearer 认证",
+          "files": ["tests/server/lib/auth.test.ts"],
+          "points": 20,
+          "timeoutMs": 120000
+        },
+        {
+          "id": "client-session",
+          "kind": "vitest",
+          "label": "客户端会话恢复与 401",
+          "files": ["tests/src/store.test.ts"],
+          "points": 15,
+          "timeoutMs": 120000
+        },
+        {
+          "id": "security-headers",
+          "kind": "vitest",
+          "label": "HTTP 安全头与部署策略",
+          "files": ["tests/benchmark-oracle/content-auth-security.test.ts"],
+          "points": 10,
           "timeoutMs": 120000
         },
         { "id": "typecheck", "kind": "npm-script", "label": "TypeScript 类型检查", "script": "typecheck", "points": 15, "timeoutMs": 120000 },

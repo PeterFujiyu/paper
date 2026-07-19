@@ -210,6 +210,66 @@ test('lists a safe run summary using the immutable primary score and latest acti
   })
 })
 
+test('history summaries preserve independently weighted domain checks', () => {
+  withRepository(repository => {
+    repository.createRun(makeRun(RUN_A))
+    repository.beginEvaluation(
+      RUN_A,
+      EVALUATION_A,
+      '2026-07-19T01:00:00.000Z',
+      'split-check-fingerprint',
+    )
+    const report = makeReport(72)
+    report.checks = [
+      { id: 'sanitizer', label: '富文本 sanitizer 与输入验证', points: 25, passed: true },
+      { id: 'auth', label: 'Cookie 与 Bearer 认证', points: 20, passed: false },
+      { id: 'client-session', label: '客户端会话恢复与 401', points: 15, passed: true },
+      { id: 'security-headers', label: 'HTTP 安全头与部署策略', points: 10, passed: false },
+      { id: 'typecheck', label: '类型检查', points: 15, passed: true },
+      { id: 'build', label: '生产构建', points: 15, passed: true },
+    ]
+    report.scoring = {
+      checks: { score: 70, maxScore: 100, weight: 80 },
+      changedFiles: {
+        candidateCount: 5,
+        referenceCount: 6,
+        matchedCount: 4,
+        precision: 0.8,
+        recall: 2 / 3,
+        f1: 0.7272727272727272,
+        weight: 20,
+      },
+    }
+    repository.completeEvaluation(
+      RUN_A,
+      EVALUATION_A,
+      report,
+      '2026-07-19T01:00:12.345Z',
+    )
+
+    const checks = repository.listResultSummaries().items[0]?.primaryEvaluation?.checks
+
+    assert.deepEqual(checks, {
+      sanitizer: { id: 'sanitizer', passed: true, points: 25, durationMs: null },
+      auth: { id: 'auth', passed: false, points: 20, durationMs: null },
+      'client-session': {
+        id: 'client-session',
+        passed: true,
+        points: 15,
+        durationMs: null,
+      },
+      'security-headers': {
+        id: 'security-headers',
+        passed: false,
+        points: 10,
+        durationMs: null,
+      },
+      typecheck: { id: 'typecheck', passed: true, points: 15, durationMs: null },
+      build: { id: 'build', passed: true, points: 15, durationMs: null },
+    })
+  })
+})
+
 test('applies exact run filters and inclusive activity date boundaries', () => {
   withRepository(repository => {
     repository.createRun(makeRun(RUN_A, {

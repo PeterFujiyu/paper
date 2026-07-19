@@ -63,3 +63,23 @@ post-exposure/完整 UUID、effective telemetry 警告和跨页候选等行为�
 - SQLite Run/Evaluation/check 持久化、primary/latest 与 oracle exposure
 - handoff 暂停/恢复、Run ID 快捷评价、评价操作租约和 recovery spool
 - 既有 `list/show/doctor/validate/prepare/evaluate <case>` 显式命令兼容
+
+## `content-auth-security` 行为评分拆分
+
+2026-07-19 将该题原先全有或全无的 70 点 `behavior` 拆为四个独立检查：sanitizer
+25、认证 20、客户端会话 15、安全头 10。历史列表、详情和 Run 对比会动态展示新检查；旧
+Evaluation 中的 `behavior` 仍可读取。
+
+本轮按红灯到绿灯推进了两个公开 seam：`show --json` 的清单契约，以及 SQLite
+历史/中文结果展示。
+
+| 命令 | 结果 |
+|---|---|
+| `npx vitest run tests/agent-benchmark/cli.test.ts -t "content auth security exposes"` | 通过：清单固定为 `sanitizer=25`、`auth=20`、`client-session=15`、`security-headers=10`，行为点数合计 70。 |
+| `npx vitest run tests/agent-benchmark/history-repository.test.ts tests/agent-benchmark/history-cli.test.ts tests/agent-benchmark/history-runner.test.ts tests/agent-benchmark/runner.test.ts` | 通过：4 个文件、33 个测试。覆盖动态检查持久化、历史/详情/对比输出和旧 `behavior` 兼容。 |
+| `node agent-benchmark/cli.mjs validate content-auth-security --json` | 通过：manifest、Git parent、source ref、diff 统计和 oracle 文件校验均有效。 |
+| `node agent-benchmark/cli.mjs validate content-auth-security --run-gold --json` | 通过：未实现基线四个领域全部失败并得 0；参考实现的四领域、typecheck、build 全部通过并得 100；补充安全头 harness 在 base/gold 上分别为 0/100。 |
+| `npm run benchmark:test` | 通过：15 个文件、99 个测试，Vitest 总时长 366.65 秒；规格审查随后移除了 2 个范围外的 manifest 硬拒绝测试，保留的实现测试未变。 |
+| `npm run typecheck` | 通过。 |
+| `npm run build` | 通过；Vite 构建成功，保留原有单 chunk 大于 500 kB 警告。 |
+| `node --check`、定向 ESLint、`git diff --check -- agent-benchmark tests/agent-benchmark` | 通过。 |

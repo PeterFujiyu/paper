@@ -5,6 +5,12 @@ import { join, resolve } from 'node:path'
 
 import { sortedCases } from './catalog.mjs'
 import {
+  orderedResultCheckIds,
+  resultCheck,
+  resultCheckEntries,
+  resultCheckLabel,
+} from './checks.mjs'
+import {
   buildHandoffCommand,
   getAdapter,
   probeAdapter as defaultProbeAdapter,
@@ -534,13 +540,9 @@ export class BenchmarkRunner {
       left.executionConfigVerified ? '已验证' : '未验证',
       right.executionConfigVerified ? '已验证' : '未验证',
     )
-    for (const [id, label] of [
-      ['behavior', '行为测试'],
-      ['typecheck', '类型检查'],
-      ['build', '生产构建'],
-    ]) {
+    for (const id of orderedResultCheckIds(left.checks, right.checks)) {
       this.printComparisonRow(
-        label,
+        resultCheckLabel(id),
         this.comparisonCheckStatus(left.checks, id),
         this.comparisonCheckStatus(right.checks, id),
       )
@@ -577,9 +579,7 @@ export class BenchmarkRunner {
   }
 
   comparisonCheckStatus(checks, id) {
-    const check = Array.isArray(checks)
-      ? checks.find(candidate => candidate.id === id)
-      : checks?.[id]
+    const check = resultCheck(checks, id)
     if (!check) return '—'
     return check.passed ? '通过' : '失败'
   }
@@ -619,16 +619,16 @@ export class BenchmarkRunner {
         : run.runMode === 'handoff'
           ? '准备时探测，实际执行未验证'
           : '配置未验证'
-      const behavior = this.comparisonCheckStatus(evaluation?.checks, 'behavior')
-      const typecheck = this.comparisonCheckStatus(evaluation?.checks, 'typecheck')
-      const build = this.comparisonCheckStatus(evaluation?.checks, 'build')
+      const checks = orderedResultCheckIds(evaluation?.checks)
+        .map(id => `${resultCheckLabel(id)} ${this.comparisonCheckStatus(evaluation?.checks, id)}`)
+        .join(' · ')
       const f1 = this.formatPercentage(evaluation?.changedFileF1)
       this.terminal.write(
         `${run.displayId ?? shortId(run.id)} · ${run.caseId} · ${run.title}`
         + ` · ${run.status} · Primary ${score}${later}${nonPrimary}`
         + ` · Agent ${agent} ${version} · 模型 ${model} · Effort ${effort}`
         + ` · ${configuration}`
-        + ` · 行为 ${behavior} · 类型 ${typecheck} · 构建 ${build}`
+        + ` · ${checks || '检查 —'}`
         + ` · 路径 F1 ${f1}`
         + ` · Agent 用时 ${this.formatDuration(run.agentDurationMs)}`
         + ` · 评价时间 ${run.activityAt ?? '—'}\n`,
@@ -683,16 +683,8 @@ export class BenchmarkRunner {
   }
 
   printSafeChecks(checks) {
-    const labels = {
-      behavior: '行为测试',
-      typecheck: '类型检查',
-      build: '生产构建',
-    }
-    const entries = Array.isArray(checks)
-      ? checks.map(check => [check.id, check])
-      : Object.entries(checks ?? {})
-    for (const [id, check] of entries) {
-      this.terminal.write(`${labels[id] ?? id} · ${check.passed ? '通过' : '失败'}\n`)
+    for (const [id, check] of resultCheckEntries(checks)) {
+      this.terminal.write(`${resultCheckLabel(id)} · ${check.passed ? '通过' : '失败'}\n`)
     }
   }
 
@@ -981,6 +973,7 @@ export class BenchmarkRunner {
 
   async resume(runReference, { waitForHandoff = true, quiet = false } = {}) {
     let run = this.repository.getRun(runReference)
+    assertRunHasResumableConfiguration(run)
     if (run.status === 'evaluating') {
       const recovery = this.repository.recoverExpiredOperation(run.id, isoDate(this.now))
       if (!recovery.recovered) {
@@ -990,7 +983,6 @@ export class BenchmarkRunner {
       }
       run = this.repository.getRun(run.id)
     }
-    assertRunHasResumableConfiguration(run)
     if (run.status === 'preparing') {
       const benchmarkCase = sortedCases(this.manifest).find(entry => entry.id === run.caseId)
       try {
