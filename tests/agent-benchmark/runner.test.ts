@@ -92,6 +92,56 @@ test('Chinese home probes both CLIs and can exit without creating a Run', async 
   }
 })
 
+test('home ignores ad-hoc evaluation records and direct resume explains the incompatibility', async () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'paper-benchmark-runner-ad-hoc-'))
+  const terminal = new ScriptedTerminal(['exit'])
+  const { repository, runner } = createRunner(temporaryRoot, terminal)
+  const runId = '11111111-1111-4111-8111-111111111111'
+
+  try {
+    repository.createRun({
+      id: runId,
+      caseId: 'hash-scroll-restoration',
+      title: '修复异步页面中的锚点滚动恢复',
+      baseTree: 'a'.repeat(40),
+      benchmarkManifestHash: 'b'.repeat(64),
+      promptVersion: null,
+      promptProvenance: 'legacy_unverified',
+      promptText: null,
+      promptHash: null,
+      adapterId: null,
+      adapterDisplayName: null,
+      executablePath: null,
+      executableRealpath: null,
+      versionRaw: null,
+      versionNormalized: null,
+      capabilities: {},
+      requestedModel: null,
+      requestedEffort: null,
+      adapterEffortValue: null,
+      runMode: 'ad-hoc',
+      executionConfigVerified: false,
+      executionConfigSource: 'unknown',
+      dependencyStrategy: 'unknown',
+      workspace: join(temporaryRoot, 'legacy-workspace'),
+      status: 'ready_for_evaluation',
+      createdAt: '2026-07-19T00:00:00.000Z',
+      updatedAt: '2026-07-19T00:00:00.000Z',
+    })
+
+    await runner.home()
+
+    assert.doesNotMatch(terminal.output, /有 1 个未完成评测/)
+    await assert.rejects(
+      runner.resume(runId, { waitForHandoff: false, quiet: true }),
+      /ad-hoc.*不能通过 resume 恢复/,
+    )
+  } finally {
+    repository.close()
+    rmSync(temporaryRoot, { recursive: true, force: true })
+  }
+})
+
 test('cancelling the final wizard confirmation creates neither Run nor workspace', async () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'paper-benchmark-runner-cancel-'))
   const terminal = new ScriptedTerminal([

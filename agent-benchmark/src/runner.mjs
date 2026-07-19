@@ -104,6 +104,31 @@ function runStatusCanEvaluate(status) {
   ].includes(status)
 }
 
+function assertRunHasResumableConfiguration(run) {
+  if (run.runMode === 'ad-hoc') {
+    throw new Error(
+      `Run ${shortId(run.id)} 是 ad-hoc 低层评价记录，不能通过 resume 恢复；`
+      + '请使用显式 evaluate <case-id> --workspace <path> 重新评价。',
+    )
+  }
+  if (run.runMode !== 'handoff') {
+    throw new Error(
+      `Run ${shortId(run.id)} 的运行方式 ${run.runMode ?? '未知'} 当前不能通过 resume 恢复。`,
+    )
+  }
+  if (
+    typeof run.adapterId !== 'string'
+    || run.adapterId.length === 0
+    || typeof run.promptText !== 'string'
+    || typeof run.promptHash !== 'string'
+  ) {
+    throw new Error(
+      `Run ${shortId(run.id)} 缺少可恢复的 Agent 或 Prompt 配置；`
+      + '请保留原 workspace，并新建 Run 或使用显式 evaluate。',
+    )
+  }
+}
+
 function expiresAfter(timestamp, durationMs) {
   return new Date(Date.parse(timestamp) + durationMs).toISOString()
 }
@@ -161,7 +186,7 @@ export class BenchmarkRunner {
 
   async home() {
     const probes = await this.probe()
-    const incomplete = this.repository.listIncompleteRuns()
+    const incomplete = this.repository.listResumableHandoffRuns()
     this.terminal.write('\nPaper Agent Benchmark v2\n')
     if (incomplete.length > 0) {
       this.terminal.write(`有 ${incomplete.length} 个未完成评测。\n`)
@@ -503,6 +528,7 @@ export class BenchmarkRunner {
       }
       run = this.repository.getRun(run.id)
     }
+    assertRunHasResumableConfiguration(run)
     if (run.status === 'preparing') {
       const benchmarkCase = sortedCases(this.manifest).find(entry => entry.id === run.caseId)
       try {

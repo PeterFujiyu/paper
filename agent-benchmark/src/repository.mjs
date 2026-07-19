@@ -646,12 +646,13 @@ export class BenchmarkRepository {
     `).all().map(row => this.#runRecord(row))
   }
 
-  listIncompleteRuns() {
+  listResumableHandoffRuns() {
     const placeholders = INCOMPLETE_RUN_STATUSES.map(() => '?').join(', ')
     return this.database.prepare(`
       SELECT *
       FROM benchmark_runs
       WHERE status IN (${placeholders})
+        AND run_mode = 'handoff'
       ORDER BY updated_at DESC, id ASC
     `).all(...INCOMPLETE_RUN_STATUSES).map(row => this.#runRecord(row))
   }

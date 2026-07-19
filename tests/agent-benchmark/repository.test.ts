@@ -192,7 +192,7 @@ test('creates normalized runs, resolves unique UUID prefixes, and lists records'
     assert.deepEqual(repository.getRun(RUN_A), created)
     assert.deepEqual(repository.getRun('11111111'), created)
     assert.deepEqual(repository.listRuns(), [created])
-    assert.deepEqual(repository.listIncompleteRuns(), [created])
+    assert.deepEqual(repository.listResumableHandoffRuns(), [created])
     assert.throws(
       () => repository.getRun('1111111'),
       /at least 8 hexadecimal characters/,
@@ -232,9 +232,9 @@ test('compares and swaps run status transitions', () => {
     )
 
     assert.equal(repository.markRunReady(RUN_A).status, 'ready_for_evaluation')
-    assert.equal(repository.listIncompleteRuns().length, 1)
+    assert.equal(repository.listResumableHandoffRuns().length, 1)
     repository.transitionRun(RUN_A, ['ready_for_evaluation'], 'cancelled')
-    assert.deepEqual(repository.listIncompleteRuns(), [])
+    assert.deepEqual(repository.listResumableHandoffRuns(), [])
   } finally {
     repository.close()
     rmSync(temporaryRoot, { recursive: true, force: true })
@@ -262,6 +262,7 @@ test('preserves explicit legacy-unverified null provenance for ad-hoc evaluation
       adapterEffortValue: null,
       runMode: 'ad-hoc',
       executionConfigSource: 'unknown',
+      status: 'ready_for_evaluation',
     }))
 
     assert.equal(legacy.promptProvenance, 'legacy_unverified')
@@ -270,6 +271,7 @@ test('preserves explicit legacy-unverified null provenance for ad-hoc evaluation
     assert.equal(legacy.adapterId, null)
     assert.equal(legacy.requestedModel, null)
     assert.equal(legacy.requestedEffort, null)
+    assert.deepEqual(repository.listResumableHandoffRuns(), [])
   } finally {
     repository.close()
     rmSync(temporaryRoot, { recursive: true, force: true })

@@ -13,6 +13,21 @@
 | `npm run typecheck` | 通过。 |
 | `npm run build` | 通过；Vite 构建成功。存在原项目已有的单 chunk 大于 500 kB 警告。 |
 
+## 恢复路径缺陷修复复验
+
+2026-07-19 使用默认 SQLite 中的真实残留记录 `b3ee13cb` 稳定复现：该记录为
+`run_mode=ad-hoc`、`status=ready_for_evaluation` 且 `adapter_id=NULL`，旧首页会将其误列为
+可恢复 handoff Run，随后报错 `Unsupported agent adapter: null`。
+
+修复后完成以下最小验证：
+
+| 命令/场景 | 结果 |
+|---|---|
+| `npx vitest run tests/agent-benchmark/repository.test.ts tests/agent-benchmark/runner.test.ts` | 通过：2 个文件、12 个测试。新增覆盖 ad-hoc 未完成记录不进入首页恢复列表，以及显式 `resume` 返回中文兼容错误。 |
+| `node agent-benchmark/cli.mjs resume b3ee13cb` | 不再泄露底层 adapter 错误；明确说明 ad-hoc 记录不能通过 handoff resume 恢复。 |
+| `pnpm run benchmark` 真实 TTY 首页 | 仅统计并恢复有效 handoff Run；残留 ad-hoc 记录不再计入未完成评测。 |
+| `npm run typecheck`、`node --check`、`git diff --check` | 通过。 |
+
 ## 完整 benchmark 套件状态
 
 `npm run benchmark:test` 已改为 `--no-file-parallelism`，避免多个真实 Git prepare/evaluate 测试并行争用磁盘。完整套件的早期运行中，功能断言未显示新增失败，但若干真实 Git/评价测试超过原有 5 秒或 60 秒测试时限；对应慢测试时限已按实际负载调整。

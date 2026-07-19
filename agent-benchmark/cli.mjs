@@ -362,7 +362,7 @@ if (!command) {
       if (!process.stdin.isTTY || jsonOutput) {
         throw new Error('非交互 resume 需要 Run ID 或至少 8 位的唯一前缀')
       }
-      const incomplete = repository.listIncompleteRuns()
+      const incomplete = repository.listResumableHandoffRuns()
       if (incomplete.length === 0) throw new Error('当前没有可恢复的未完成 Run')
       runReference = await terminal.select(
         '选择要恢复的 Run',
