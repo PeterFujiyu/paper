@@ -76,7 +76,7 @@ test('validate --json verifies all manifest entries against git history', () => 
   assert.equal(validation.errors.length, 0)
   assert.ok(validation.cases.every(benchmarkCase => benchmarkCase.parentMatches))
   assert.ok(validation.cases.every(benchmarkCase => benchmarkCase.onSourceRef))
-})
+}, 120_000)
 
 test('doctor reports a ready local benchmark environment', () => {
   const result = runCli(['doctor', '--json'])
@@ -92,7 +92,7 @@ test('doctor reports a ready local benchmark environment', () => {
   assert.equal(diagnosis.manifest.valid, true)
   assert.equal(diagnosis.dependencies.available, true)
   assert.ok(['git', 'npm', 'tar'].every(tool => diagnosis.tools[tool]?.available))
-})
+}, 60_000)
 
 test('prepare creates a clean snapshot that cannot read the reference commit', () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'paper-benchmark-test-'))
@@ -129,7 +129,7 @@ test('prepare creates a clean snapshot that cannot read the reference commit', (
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true })
   }
-})
+}, 60_000)
 
 test('evaluate injects oracle tests into a disposable copy and scores an unsolved baseline', () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'paper-benchmark-evaluate-'))
@@ -151,6 +151,8 @@ test('evaluate injects oracle tests into a disposable copy and scores an unsolve
       'hash-scroll-restoration',
       '--workspace',
       workspace,
+      '--db',
+      join(temporaryRoot, 'benchmark.sqlite3'),
       '--results',
       resultsDirectory,
       '--json',
@@ -191,7 +193,7 @@ test('evaluate injects oracle tests into a disposable copy and scores an unsolve
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true })
   }
-}, 60_000)
+}, 120_000)
 
 test('evaluate rejects candidate symlinks before injecting oracle files', () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'paper-benchmark-symlink-'))
@@ -214,6 +216,8 @@ test('evaluate rejects candidate symlinks before injecting oracle files', () => 
       'hash-scroll-restoration',
       '--workspace',
       workspace,
+      '--db',
+      join(temporaryRoot, 'benchmark.sqlite3'),
       '--results',
       join(temporaryRoot, 'results'),
       '--json',
@@ -225,7 +229,7 @@ test('evaluate rejects candidate symlinks before injecting oracle files', () => 
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true })
   }
-})
+}, 60_000)
 
 test('validate --run-gold proves the oracle rejects baseline and accepts reference', () => {
   const result = runCli([

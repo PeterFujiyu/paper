@@ -86,7 +86,19 @@ export function prepareCase({
   repoRoot,
   workspace,
   linkDependencies = false,
+  promptBundle,
+  runId,
 }) {
+  if ((promptBundle && !runId) || (!promptBundle && runId)) {
+    throw new Error('A v2 workspace requires both promptBundle and runId')
+  }
+  if (promptBundle) {
+    const actualPromptHash = createHash('sha256').update(promptBundle.text).digest('hex')
+    if (actualPromptHash !== promptBundle.sha256) {
+      throw new Error('Prompt bundle hash does not match its text')
+    }
+  }
+
   const target = assertSafeNewWorkspace(repoRoot, workspace)
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'paper-agent-benchmark-prepare-'))
   const archive = join(temporaryRoot, 'base.tar')
@@ -126,13 +138,30 @@ export function prepareCase({
       join(target, '.git', 'info', 'exclude'),
       '\n.benchmark-task.md\n.benchmark-session.json\nnode_modules\n',
     )
-    writeFileSync(join(target, '.benchmark-task.md'), renderTask(benchmarkCase))
-    writeFileSync(join(target, '.benchmark-session.json'), `${JSON.stringify({
-      schemaVersion: 1,
-      caseId: benchmarkCase.id,
-      baselineTree,
-      createdAt: new Date().toISOString(),
-    }, null, 2)}\n`)
+    writeFileSync(
+      join(target, '.benchmark-task.md'),
+      promptBundle?.text ?? renderTask(benchmarkCase),
+    )
+    const session = promptBundle
+      ? {
+          schemaVersion: 2,
+          runId,
+          caseId: benchmarkCase.id,
+          baselineTree,
+          promptHash: promptBundle.sha256,
+          promptTemplateVersion: promptBundle.version,
+          createdAt: new Date().toISOString(),
+        }
+      : {
+          schemaVersion: 1,
+          caseId: benchmarkCase.id,
+          baselineTree,
+          createdAt: new Date().toISOString(),
+        }
+    writeFileSync(
+      join(target, '.benchmark-session.json'),
+      `${JSON.stringify(session, null, 2)}\n`,
+    )
 
     let dependenciesLinked = false
     const sourceDependencies = join(repoRoot, 'node_modules')
@@ -147,6 +176,8 @@ export function prepareCase({
       taskFile: join(target, '.benchmark-task.md'),
       dependenciesLinked,
       baselineTree,
+      runId: runId ?? null,
+      promptHash: promptBundle?.sha256 ?? null,
     }
   } catch (error) {
     if (workspaceCreated) rmSync(target, { recursive: true, force: true })
@@ -185,7 +216,41 @@ function assertPreparedWorkspace(benchmarkCase, repoRoot, workspace) {
   if (actualTree !== expectedTree || session.baselineTree !== expectedTree) {
     throw new Error('Workspace baseline does not match the selected benchmark case')
   }
-  return { target, baselineCommit: roots[0] }
+  return { target, baselineCommit: roots[0], baselineTree: expectedTree }
+}
+
+export function verifyRunWorkspace({
+  benchmarkCase,
+  repoRoot,
+  workspace,
+  runId,
+  promptHash,
+}) {
+  const prepared = assertPreparedWorkspace(benchmarkCase, repoRoot, workspace)
+  const session = JSON.parse(
+    readFileSync(join(prepared.target, '.benchmark-session.json'), 'utf8'),
+  )
+  if (session.schemaVersion !== 2) {
+    throw new Error('Recorded Run requires a v2 workspace attestation')
+  }
+  if (session.runId !== runId) {
+    throw new Error('Workspace attestation does not match the recorded Run')
+  }
+  if (session.promptHash !== promptHash) {
+    throw new Error('Workspace Prompt hash does not match the recorded Run')
+  }
+  return prepared
+}
+
+export function verifyLegacyWorkspace({ benchmarkCase, repoRoot, workspace }) {
+  const prepared = assertPreparedWorkspace(benchmarkCase, repoRoot, workspace)
+  const session = JSON.parse(
+    readFileSync(join(prepared.target, '.benchmark-session.json'), 'utf8'),
+  )
+  if (session.schemaVersion !== 1) {
+    throw new Error('v2 workspace 必须使用关联的 Run ID 评价，不能降级为 ad-hoc')
+  }
+  return prepared
 }
 
 function copyCandidateWorkspace(workspace, destination) {
@@ -391,10 +456,79 @@ function splitNullSeparated(value) {
   return value.split('\0').filter(Boolean)
 }
 
+function gitBuffer(cwd, args) {
+  const result = spawnSync('git', args, {
+    cwd,
+    encoding: null,
+    maxBuffer: 50 * 1024 * 1024,
+  })
+  if (result.status !== 0) {
+    throw new Error(
+      result.stderr?.toString().trim() || `git ${args.join(' ')} failed`,
+    )
+  }
+  return result.stdout
+}
+
 function isProductionPath(file) {
   return !file.startsWith('tests/')
     && !file.startsWith('coverage/')
     && !file.startsWith('.agent-benchmark/')
+    && file !== '.benchmark-task.md'
+    && file !== '.benchmark-session.json'
+}
+
+function isFingerprintPath(file) {
+  return file !== '.benchmark-task.md'
+    && file !== '.benchmark-session.json'
+    && !file.startsWith('node_modules/')
+    && !file.startsWith('.agent-benchmark/')
+}
+
+export function candidateFingerprint({ benchmarkCase, repoRoot, workspace }) {
+  const { target, baselineCommit, baselineTree } = assertPreparedWorkspace(
+    benchmarkCase,
+    repoRoot,
+    workspace,
+  )
+  const trackedDiff = gitBuffer(target, [
+    'diff',
+    '--binary',
+    '--full-index',
+    baselineCommit,
+    '--',
+    '.',
+    ':(exclude).benchmark-task.md',
+    ':(exclude).benchmark-session.json',
+  ])
+  const untracked = gitBuffer(target, [
+    'ls-files',
+    '--others',
+    '--exclude-standard',
+    '-z',
+  ])
+    .toString('utf8')
+    .split('\0')
+    .filter(Boolean)
+    .filter(isFingerprintPath)
+    .toSorted()
+
+  const hash = createHash('sha256')
+  hash.update('paper-agent-benchmark-candidate-v1\0')
+  hash.update(`${baselineTree}\0${trackedDiff.length}\0`)
+  hash.update(trackedDiff)
+  for (const file of untracked) {
+    const path = containedPath(target, file)
+    const stat = lstatSync(path)
+    if (stat.isSymbolicLink()) {
+      throw new Error(`Candidate symlinks are not allowed: ${file}`)
+    }
+    if (!stat.isFile()) continue
+    const content = readFileSync(path)
+    hash.update(`${Buffer.byteLength(file)}\0${file}\0${content.length}\0`)
+    hash.update(content)
+  }
+  return hash.digest('hex')
 }
 
 function changedFileCoverage(benchmarkCase, repoRoot, workspace, baselineCommit) {
@@ -405,6 +539,9 @@ function changedFileCoverage(benchmarkCase, repoRoot, workspace, baselineCommit)
     '-z',
     baselineCommit,
     '--',
+    '.',
+    ':(exclude).benchmark-task.md',
+    ':(exclude).benchmark-session.json',
   ]))
   const untracked = splitNullSeparated(git(workspace, [
     'ls-files',
@@ -443,6 +580,17 @@ function roundScore(value) {
   return Math.round(value * 10) / 10
 }
 
+function freezeCandidateWorkspace(workspace, destination) {
+  cpSync(workspace, destination, {
+    recursive: true,
+    filter(source) {
+      const path = relative(workspace, source)
+      if (!path) return true
+      return path.split(sep)[0] !== 'node_modules'
+    },
+  })
+}
+
 export function evaluateCase({
   benchmarkCase,
   repoRoot,
@@ -451,9 +599,9 @@ export function evaluateCase({
   keepEvaluation = false,
   revealCheckOutput = false,
 }) {
-  const { target, baselineCommit } = assertPreparedWorkspace(benchmarkCase, repoRoot, workspace)
+  const { target: liveTarget } = assertPreparedWorkspace(benchmarkCase, repoRoot, workspace)
   const reports = resolve(resultsDirectory)
-  if (reports === target || reports.startsWith(`${target}${sep}`)) {
+  if (reports === liveTarget || reports.startsWith(`${liveTarget}${sep}`)) {
     throw new Error('Results directory cannot be inside the candidate workspace')
   }
   const sourceDependencies = join(repoRoot, 'node_modules')
@@ -462,17 +610,30 @@ export function evaluateCase({
   }
 
   const evaluationParents = []
+  const frozenParent = mkdtempSync(join(tmpdir(), 'paper-agent-benchmark-snapshot-'))
+  const frozenWorkspace = join(frozenParent, 'candidate')
   let shouldClean = true
 
   try {
+    const startedAt = new Date().toISOString()
+    const startedMs = Date.now()
+    freezeCandidateWorkspace(liveTarget, frozenWorkspace)
+    const { target, baselineCommit } = assertPreparedWorkspace(
+      benchmarkCase,
+      repoRoot,
+      frozenWorkspace,
+    )
+    const fingerprint = candidateFingerprint({
+      benchmarkCase,
+      repoRoot,
+      workspace: target,
+    })
     const changedFiles = changedFileCoverage(
       benchmarkCase,
       repoRoot,
       target,
       baselineCommit,
     )
-    const startedAt = new Date().toISOString()
-    const startedMs = Date.now()
     const dependencyModes = new Set()
     let oracleFileCount = 0
     const checkPriority = check => {
@@ -524,7 +685,8 @@ export function evaluateCase({
       schemaVersion: 1,
       caseId: benchmarkCase.id,
       title: benchmarkCase.title,
-      workspace: target,
+      workspace: liveTarget,
+      candidateFingerprint: fingerprint,
       startedAt,
       durationMs: Date.now() - startedMs,
       score,
@@ -549,6 +711,7 @@ export function evaluateCase({
         rmSync(directory, { recursive: true, force: true })
       }
     }
+    rmSync(frozenParent, { recursive: true, force: true })
   }
 }
 

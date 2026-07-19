@@ -23,7 +23,46 @@
 
 完整 40 位 SHA、任务描述、验收标准、选择理由和检查项在 [`benchmarks.json`](./benchmarks.json) 中。CLI 的 `validate` 会核验 SHA、唯一父提交、`main` 可达性、diff 统计和 oracle 文件；benchmark 自带的补充 oracle 还必须是 Git 跟踪的普通文件且匹配清单中的 SHA-256，防止隐藏评分规则随工作区悄悄漂移。
 
-## 快速使用
+## 5 分钟快速上手（v2 handoff 主路径）
+
+需要 Node.js 22 或更高版本，并先完成根项目依赖安装：
+
+```bash
+npm install
+npm run benchmark
+```
+
+无参数命令会打开中文首页，并行探测本机的 Codex CLI 与 Claude Code。选择“开始新的评测”后，向导会依次确认题目、CLI、模型、思考深度、运行方式和依赖策略；最终确认之前不会创建 Run 或 workspace。
+
+当前第一条 v2 主路径是 handoff：runner 会为每个 Run 创建全新的
+`.agent-benchmark/workspaces/<case-id>/<run-uuid>`，然后完整打印绝对目录、供应商中立 Prompt 和安全引用的启动命令。把命令粘贴到另一终端完成任务即可。handoff 无法证明另一终端实际使用的 CLI、模型或 effort，因此 SQLite 会如实记录 `execution_config_verified=false`，结果页显示“准备时探测，实际执行未验证”。托管 agent、历史筛选和结果对比会在后续路径开放，当前首页会明确标为不可用。
+
+随时可以暂停并用短 Run ID 恢复，恢复不会重新准备或覆盖 workspace：
+
+```bash
+npm run benchmark -- resume 7f3a91c2
+npm run benchmark -- evaluate 7f3a91c2
+npm run benchmark -- result 7f3a91c2
+```
+
+评价仍使用隐藏 oracle、类型检查、生产构建和原有 100 分公式。Run、Prompt/CLI 配置、Evaluation 和 checks 的权威记录写入 `.agent-benchmark/benchmark.sqlite3`；完整评价完成后会先落原子 recovery spool，再提交 SQLite。可以用 `--db <path>` 覆盖数据库，或用 `db recover` 幂等恢复未提交的评分结果。
+
+CI 或脚本不能在非 TTY 中等待向导，必须显式提供所有选择：
+
+```bash
+npm run benchmark -- run \
+  --case hash-scroll-restoration \
+  --adapter codex \
+  --model default \
+  --effort high \
+  --mode handoff \
+  --dependency-strategy isolated \
+  --yes --json --no-color
+```
+
+`--json` 的 stdout 只包含最终 JSON；诊断写入 stderr。Prompt、数据库和默认报告不保存认证 secret、模型思考或隐藏测试原始输出。
+
+## 低层命令（保持兼容）
 
 先确认本机环境和清单：
 
@@ -40,7 +79,7 @@ npm run benchmark -- validate
 npm run benchmark -- prepare hash-scroll-restoration
 ```
 
-默认路径是 `.agent-benchmark/workspaces/<case-id>`。该目录包含 `.benchmark-task.md`；它的本地 `.git` 只有一个基线提交，无法 `git show` 目标提交。默认不共享根仓库的 `node_modules`，避免 agent 通过依赖目录反向修改源项目；可信的本地试跑可显式加 `--link-dependencies`。也可以指定独立目录：
+低层 `prepare` 的兼容默认路径仍是 `.agent-benchmark/workspaces/<case-id>`；v2 向导则始终使用 Run UUID 级独立目录。workspace 包含 `.benchmark-task.md`，本地 `.git` 只有一个基线提交，无法 `git show` 目标提交。默认不共享根仓库的 `node_modules`，避免 agent 通过依赖目录反向修改源项目；可信的本地试跑可显式加 `--link-dependencies`。也可以指定独立目录：
 
 ```bash
 npm run benchmark -- prepare hash-scroll-restoration \
@@ -54,7 +93,7 @@ npm run benchmark -- evaluate hash-scroll-restoration \
   --workspace /tmp/paper-hash-scroll
 ```
 
-默认报告写入 `.agent-benchmark/results/`，可用 `--results <path>` 改写。`--json` 提供机器可读输出。报告默认只保留检查的通过状态、退出码和耗时，不暴露隐藏测试的命令或原始输出；受信任的赛后诊断可显式使用 `--reveal-check-output`。`--keep-evaluation` 会保留已注入 oracle 的临时评价副本。
+默认报告写入 `.agent-benchmark/results/`，可用 `--results <path>` 改写。兼容 case/workspace 评价也会创建来源为 `ad-hoc` 的 SQLite Run，但不会伪造 agent、模型或历史 Prompt。`--json` 提供机器可读输出。报告默认只保留检查的通过状态、退出码和耗时，不暴露隐藏测试的命令或原始输出；受信任的赛后诊断可显式使用 `--reveal-check-output`。`--keep-evaluation` 会保留已注入 oracle 的临时评价副本。
 
 ## 评分
 
@@ -99,7 +138,7 @@ npm run benchmark -- validate --run-gold
 
 ## 开发与验证
 
-工具只使用 Node.js 内置模块，要求 Node 20+。运行自身测试：
+工具要求 Node.js 22+，并使用锁定版本的 `better-sqlite3` 保存本地运行历史。运行自身测试：
 
 ```bash
 npm run benchmark:test

@@ -7,10 +7,10 @@
     "paper-agent-benchmark": "./cli.mjs"
   },
   "scripts": {
-    "test": "node ../node_modules/vitest/vitest.mjs run --root .. tests/agent-benchmark/cli.test.ts",
+    "test": "node ../node_modules/vitest/vitest.mjs run --root .. tests/agent-benchmark --no-file-parallelism",
     "validate": "node cli.mjs validate"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }
