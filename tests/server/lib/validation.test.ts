@@ -421,6 +421,39 @@ describe('sanitizePostContent', () => {
     }
   })
 
+  it('rejects protocol-relative links', () => {
+    const result = sanitizePostContent({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Click',
+              marks: [{ type: 'link', attrs: { href: '//evil.example.com' } }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toMatch(/safe protocol/)
+    }
+  })
+
+  it('rejects protocol-relative image sources', () => {
+    const result = sanitizePostContent({
+      type: 'doc',
+      content: [{ type: 'image', attrs: { src: '//evil.example.com/x.png' } }],
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toMatch(/safe source/)
+    }
+  })
+
   it('accepts a valid heading with level', () => {
     const result = sanitizePostContent({
       type: 'doc',

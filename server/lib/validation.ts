@@ -431,6 +431,9 @@ function sanitizeTextAlign(value: unknown): string | null {
 }
 
 function isSafeHref(value: string): boolean {
+  // Reject protocol-relative URLs (`//host`) — they read as a same-site path but
+  // resolve off-site.
+  if (value.startsWith('//')) return false
   if (safeRelativeUrlPattern.test(value)) return true
 
   try {
@@ -443,6 +446,8 @@ function isSafeHref(value: string): boolean {
 
 function isSafeImageSrc(value: string): boolean {
   if (safeDataImagePattern.test(value)) return true
+  // Protocol-relative (`//host`) resolves off-site despite looking site-relative.
+  if (value.startsWith('//')) return false
   if (value.startsWith('/')) return true
 
   try {
