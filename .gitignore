@@ -35,3 +35,6 @@ backup_db-*/
 
 # Agent benchmark runtime (the tracked tool lives in agent-benchmark/)
 /.agent-benchmark/
+
+# Local Claude-specific benchmark experiments
+/agent-benchmark-claude/
