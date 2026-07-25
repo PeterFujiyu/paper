@@ -78,6 +78,21 @@ describe('api/notes', () => {
     expect(res.json).toHaveBeenCalledWith(notes)
   })
 
+  it('strips unsupported stored markup before serving a note publicly', async () => {
+    const tampered = {
+      type: 'doc',
+      content: [{ type: 'script', content: [{ type: 'text', text: 'alert(1)' }] }],
+    }
+    stubFind([{ _id: 'note-1', content: tampered, createdAt: '2026-06-01T00:00:00.000Z' }])
+    const res = makeRes()
+
+    await handler(makeReq(), res)
+
+    expect(res.json).toHaveBeenCalledWith([
+      { _id: 'note-1', content: null, createdAt: '2026-06-01T00:00:00.000Z' },
+    ])
+  })
+
   it('runs a case-insensitive substring search over contentText when q is provided', async () => {
     const { sort } = stubFind([])
     const res = makeRes()

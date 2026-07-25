@@ -1,3 +1,5 @@
+import type { JSONContent } from '@tiptap/core'
+
 import { extractPlainText } from './content-text.js'
 import { sanitizePostContent } from './validation.js'
 
@@ -47,4 +49,14 @@ export function prepareNoteContent(content: unknown): PreparedNote {
   }
 
   return { ok: true, content: sanitized.value, contentText: extractPlainText(sanitized.value) }
+}
+
+// Re-run the sanitizer on stored note content before it's served to a public
+// reader (notes render through v-html). This mirrors the posts read path so a
+// note can never render markup the write-time sanitizer wouldn't allow, even if
+// it was stored before a rule existed. Returns null when re-validation fails.
+export function sanitizeStoredNoteContent(content: unknown): JSONContent | null {
+  if (content == null) return null
+  const sanitized = sanitizePostContent(content)
+  return sanitized.ok ? sanitized.value : null
 }

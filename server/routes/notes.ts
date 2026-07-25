@@ -1,9 +1,20 @@
 import { connectDB } from '../lib/db.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
 import { escapeRegExp } from '../lib/regex.js'
-import { prepareNoteContent } from '../lib/note-content.js'
+import { prepareNoteContent, sanitizeStoredNoteContent } from '../lib/note-content.js'
 import { requireAuth } from '../lib/vercel-auth.js'
 import Note from '../models/Note.js'
+
+type StoredNote = { _id: unknown; content?: unknown; createdAt?: Date }
+
+// Re-sanitize each note's content before it ships to a public reader.
+function forRead(notes: StoredNote[]): Array<{ _id: unknown; content: unknown; createdAt?: Date }> {
+  return notes.map((note) => ({
+    _id: note._id,
+    content: sanitizeStoredNoteContent(note.content),
+    createdAt: note.createdAt,
+  }))
+}
 
 type NoteBody = {
   content?: unknown
@@ -36,7 +47,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
           .limit(20)
           .lean()
         res.setHeader('Cache-Control', 'no-store')
-        sendJson(res, 200, results, meta)
+        sendJson(res, 200, forRead(results as StoredNote[]), meta)
         return
       }
 
@@ -46,7 +57,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         .limit(30)
         .lean()
       res.setHeader('Cache-Control', 'no-store')
-      sendJson(res, 200, notes, meta)
+      sendJson(res, 200, forRead(notes as StoredNote[]), meta)
       return
     }
 
