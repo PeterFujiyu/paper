@@ -84,11 +84,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
+      // Set fields explicitly rather than spreading `body`, so a caller can't
+      // reassign server-owned fields (author, viewCount, readCompletionCount)
+      // through the update.
       const post = await Post.findByIdAndUpdate(
         id,
         {
           $set: {
-            ...body,
             title: body.title!.trim(),
             slug,
             excerpt: body.excerpt!.trim(),
@@ -96,6 +98,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
             tags: normalizeTags(body.tags),
             content: contentResult.value,
             contentText: extractPlainText(contentResult.value),
+            published: body.published === true,
           },
         },
         { new: true, runValidators: true }

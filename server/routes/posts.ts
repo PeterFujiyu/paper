@@ -88,8 +88,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
+      // Set fields explicitly rather than spreading `body`, so a caller can't
+      // slip in server-owned fields (viewCount, readCompletionCount, author,
+      // _id, createdAt) alongside the ones we validate.
       const post = await Post.create({
-        ...body,
         title: body.title!.trim(),
         slug,
         excerpt: body.excerpt!.trim(),
@@ -97,6 +99,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         tags: normalizeTags(body.tags),
         content: contentResult.value,
         contentText: extractPlainText(contentResult.value),
+        published: body.published === true,
         author: user.id,
       })
 

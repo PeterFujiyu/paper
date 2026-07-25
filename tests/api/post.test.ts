@@ -143,4 +143,31 @@ describe('api/post', () => {
       readCompletionRate: 25,
     })
   })
+
+  it('ignores server-owned fields injected into the update body', async () => {
+    stubFindOne(null)
+    stubFindByIdAndUpdate({ _id: 'post-1', slug: 'my-post-title' })
+    const res = makeRes()
+
+    await handler(makeReq({
+      method: 'PUT',
+      query: { id: 'post-1' },
+      body: {
+        title: 'My Post Title',
+        slug: 'my-post-title',
+        excerpt: 'A brief excerpt for the post.',
+        content: { type: 'doc', content: [] },
+        published: true,
+        // Injected fields that must not reach the database.
+        author: 'someone-else',
+        viewCount: 9999,
+        readCompletionCount: 9999,
+      },
+    }), res)
+
+    const setArg = mockFindByIdAndUpdate.mock.calls[0][1].$set
+    expect(setArg).not.toHaveProperty('author')
+    expect(setArg).not.toHaveProperty('viewCount')
+    expect(setArg).not.toHaveProperty('readCompletionCount')
+  })
 })
