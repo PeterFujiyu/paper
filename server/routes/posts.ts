@@ -7,6 +7,9 @@ import { escapeRegExp } from '../lib/regex.js'
 import { validatePostBody, type PostBody, normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent } from '../lib/validation.js'
 import Post from '../models/Post.js'
 
+// Upper bound on the search query; a literal substring match needs nothing longer.
+const MAX_SEARCH_LENGTH = 100
+
 function isDuplicateSlugError(error: unknown): boolean {
   return Boolean(
     error &&
@@ -33,7 +36,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
     if (req.method === 'GET') {
       const fields = 'slug title excerpt coverImage tags createdAt viewCount readCompletionCount'
-      const q = getQueryParam(req, 'q').trim()
+      // Cap the query length before it's compiled to a regex — search is a
+      // literal substring match, so nothing useful lives past this bound.
+      const q = getQueryParam(req, 'q').trim().slice(0, MAX_SEARCH_LENGTH)
 
       if (q) {
         // Case-insensitive substring search across title, excerpt, tags and the

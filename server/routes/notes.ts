@@ -25,6 +25,9 @@ type NoteBody = {
 // rendered in place rather than linked to a detail page.
 const FIELDS = 'content createdAt'
 
+// Upper bound on the search query; a literal substring match needs nothing longer.
+const MAX_SEARCH_LENGTH = 100
+
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   const meta = beginRequest(req)
 
@@ -33,7 +36,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
     // Reading notes is public; authoring them is admin-only.
     if (req.method === 'GET') {
-      const q = getQueryParam(req, 'q').trim()
+      const q = getQueryParam(req, 'q').trim().slice(0, MAX_SEARCH_LENGTH)
 
       if (q) {
         // Case-insensitive substring search over the plain-text body. The query is
