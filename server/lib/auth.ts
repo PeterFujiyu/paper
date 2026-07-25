@@ -39,13 +39,15 @@ function readJwtSecret(): string {
 }
 
 export function signToken(payload: Pick<UserPayload, 'id' | 'email' | 'name' | 'tkv'>): string {
-  const options: SignOptions = { expiresIn: TOKEN_TTL_SECONDS }
+  const options: SignOptions = { expiresIn: TOKEN_TTL_SECONDS, algorithm: 'HS256' }
   if (AUDIENCE) options.audience = AUDIENCE
   return jwt.sign(payload, SECRET, options)
 }
 
 export function verifyToken(token: string): UserPayload {
-  const options: VerifyOptions = {}
+  // Pin the algorithm so verification can't be steered onto a different class
+  // (e.g. a token claiming "none"); we only ever issue HS256.
+  const options: VerifyOptions = { algorithms: ['HS256'] }
   if (AUDIENCE) options.audience = AUDIENCE
   const decoded = jwt.verify(token, SECRET, options)
   if (typeof decoded === 'string') {
