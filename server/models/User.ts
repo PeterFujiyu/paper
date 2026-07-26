@@ -14,7 +14,11 @@ interface UserMethods {
   comparePassword(candidate: string): Promise<boolean>
 }
 
-type UserModel = Model<User, Record<string, never>, UserMethods>
+interface UserStatics {
+  hashPassword(plain: string): Promise<string>
+}
+
+type UserModel = Model<User, Record<string, never>, UserMethods> & UserStatics
 type UserDocument = HydratedDocument<User, UserMethods>
 
 const userSchema = new Schema<User, UserModel, UserMethods>(
@@ -28,9 +32,17 @@ const userSchema = new Schema<User, UserModel, UserMethods>(
   { timestamps: true }
 )
 
+const BCRYPT_COST = 12
+
+// Exposed as a static so update paths that bypass the pre-save hook (e.g. an
+// atomic findOneAndUpdate) hash at the same cost instead of re-deriving it.
+userSchema.statics.hashPassword = function (plain: string) {
+  return bcrypt.hash(plain, BCRYPT_COST)
+}
+
 userSchema.pre('save', async function (this: UserDocument) {
   if (!this.isModified('password')) return
-  this.password = await bcrypt.hash(this.password, 12)
+  this.password = await bcrypt.hash(this.password, BCRYPT_COST)
 })
 
 userSchema.methods.comparePassword = function (candidate: string) {

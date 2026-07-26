@@ -4,6 +4,7 @@
       <h1 class="admin-title">Notes</h1>
       <div class="admin-header-actions">
         <RouterLink to="/admin" class="btn-ghost">Writing</RouterLink>
+        <RouterLink to="/admin/account" class="btn-ghost">Account</RouterLink>
         <RouterLink to="/admin/notes/new" class="btn-primary">New note</RouterLink>
         <button class="btn-ghost" @click="signOut">Sign out</button>
       </div>

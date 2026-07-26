@@ -5,6 +5,7 @@ import adminPostsHandler from './admin-posts.js'
 import authLoginHandler from './auth-login.js'
 import authLogoutHandler from './auth-logout.js'
 import authMeHandler from './auth-me.js'
+import authPasswordHandler from './auth-password.js'
 import authRegisterHandler from './auth-register.js'
 import noteHandler from './note.js'
 import notesHandler from './notes.js'
@@ -24,6 +25,7 @@ export const authRoutes: RouteTable = {
   'auth-login': authLoginHandler,
   'auth-logout': authLogoutHandler,
   'auth-me': authMeHandler,
+  'auth-password': authPasswordHandler,
   'auth-register': authRegisterHandler,
 }
 

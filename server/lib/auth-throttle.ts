@@ -1,6 +1,6 @@
 import AuthThrottle from '../models/AuthThrottle.js'
 
-export type AuthThrottleAction = 'login' | 'register'
+export type AuthThrottleAction = 'login' | 'register' | 'password'
 
 const MAX_FAILS = 5
 const LOCK_MS = 15 * 60 * 1000

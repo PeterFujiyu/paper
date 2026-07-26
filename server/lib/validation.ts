@@ -7,6 +7,11 @@ export type AuthBody = {
   inviteCode?: string
 }
 
+export type PasswordChangeBody = {
+  currentPassword?: string
+  newPassword?: string
+}
+
 export type PostBody = {
   title?: string
   slug?: string
@@ -96,6 +101,17 @@ export function validateLoginBody(body: AuthBody): string | null {
   if (!emailPattern.test(email)) return 'Enter a valid email address.'
   if (!password) return 'Password is required.'
   if (password.length < 8) return 'Password must be at least 8 characters.'
+  return null
+}
+
+export function validatePasswordChangeBody(body: PasswordChangeBody): string | null {
+  const currentPassword = body.currentPassword ?? ''
+  const newPassword = body.newPassword ?? ''
+
+  if (!currentPassword) return 'Current password is required.'
+  if (!newPassword) return 'New password is required.'
+  if (newPassword.length < 8) return 'Password must be at least 8 characters.'
+  if (newPassword === currentPassword) return 'New password must differ from the current one.'
   return null
 }
 

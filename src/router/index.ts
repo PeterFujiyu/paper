@@ -10,6 +10,7 @@ const PostsListView = () => import('../admin/views/PostsListView.vue')
 const PostEditView = () => import('../admin/views/PostEditView.vue')
 const NotesListView = () => import('../admin/views/NotesListView.vue')
 const NoteEditView = () => import('../admin/views/NoteEditView.vue')
+const AccountView = () => import('../admin/views/AccountView.vue')
 
 const routes: RouteRecordRaw[] = [
   // ─── Public ───
@@ -29,6 +30,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'notes',      name: 'admin-notes', component: NotesListView },
       { path: 'notes/new',  name: 'note-new',    component: NoteEditView },
       { path: 'notes/:id',  name: 'note-edit',   component: NoteEditView },
+      { path: 'account',    name: 'admin-account', component: AccountView },
     ],
   },
 ]

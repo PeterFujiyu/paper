@@ -41,6 +41,7 @@
     { "source": "/api/auth-login", "destination": "/api/auth?route=auth-login" },
     { "source": "/api/auth-logout", "destination": "/api/auth?route=auth-logout" },
     { "source": "/api/auth-me", "destination": "/api/auth?route=auth-me" },
+    { "source": "/api/auth-password", "destination": "/api/auth?route=auth-password" },
     { "source": "/api/auth-register", "destination": "/api/auth?route=auth-register" },
 
     { "source": "/api/admin-notes", "destination": "/api/admin?route=admin-notes" },
