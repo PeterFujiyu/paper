@@ -6,7 +6,16 @@
         <RouterLink to="/admin/notes" class="btn-ghost">Notes</RouterLink>
         <RouterLink to="/admin/account" class="btn-ghost">Account</RouterLink>
         <RouterLink to="/admin/posts/new" class="btn-primary">New post</RouterLink>
-        <button class="btn-ghost" @click="signOut">Sign out</button>
+        <button
+          class="btn-ghost"
+          :class="{ 'btn-ghost--busy': signOutAction.pending }"
+          :disabled="signOutAction.pending"
+          :aria-busy="signOutAction.pending"
+          @click="signOut"
+        >
+          <ActionIndicator :phase="signOutAction.phase" />
+          {{ signOutAction.label }}
+        </button>
       </div>
     </header>
 
@@ -41,12 +50,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import ActionIndicator from '../../components/ActionIndicator.vue'
 import { apiFetch, logout } from '../store'
+import { holdDone, useActionState } from '../../shared/action-state'
 import type { PostSummary } from '../../types/content'
 
 const router = useRouter()
 const posts = ref<PostSummary[]>([])
 const loading = ref(true)
+
+const signOutAction = useActionState({ idle: 'Sign out', doing: 'Signing out…', done: 'Signed out' })
 
 onMounted(async () => {
   try {
@@ -69,7 +82,15 @@ function formatCompletionRate(rate: number): string {
 }
 
 async function signOut() {
-  await logout()
+  if (signOutAction.pending) return
+  // logout() clears local auth even when the request fails, so the redirect
+  // happens either way — the label just skips its confirmation beat.
+  try {
+    await signOutAction.run(() => logout())
+    await holdDone()
+  } catch {
+    signOutAction.reset()
+  }
   router.push('/admin/login')
 }
 </script>
@@ -114,6 +135,9 @@ async function signOut() {
 .btn-primary:hover { opacity: 0.75; }
 
 .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
   font-family: inherit;
   font-size: 0.875rem;
   background: none;
@@ -125,6 +149,8 @@ async function signOut() {
   transition: color 0.2s;
 }
 .btn-ghost:hover { color: var(--text-main); }
+.btn-ghost--busy { cursor: default; }
+.btn-ghost--busy:hover { color: var(--text-muted); }
 
 .state-msg {
   color: var(--text-muted);

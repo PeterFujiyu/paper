@@ -1,20 +1,37 @@
 <template>
   <div class="editor-shell">
     <div class="toolbar" role="group" aria-label="Formatting">
+      <!-- Toggles keep aria-pressed and their glyph; one-shot inserts carry an
+           ActionState instead, so their label and mark report the outcome. -->
       <button
         v-for="btn in toolbarButtons"
         :key="btn.label"
         type="button"
         class="tb-btn"
-        :class="{ 'tb-btn--active': btn.isActive?.() }"
+        :class="{ 'tb-btn--active': btn.isActive?.(), 'tb-btn--busy': btn.state?.pending }"
         @click="btn.action"
-        :title="btn.name"
-        :aria-label="btn.name"
+        :title="btn.state ? btn.state.label : btn.name"
+        :aria-label="btn.state ? btn.state.label : btn.name"
         :aria-pressed="btn.isActive ? btn.isActive() : undefined"
-      >{{ btn.label }}</button>
+        :aria-busy="btn.state ? btn.state.pending : undefined"
+      >
+        <ActionIndicator v-if="btn.state" :phase="btn.state.phase">{{ btn.label }}</ActionIndicator>
+        <template v-else>{{ btn.label }}</template>
+      </button>
 
       <!-- Image upload — separate from the v-for loop to use a ref -->
-      <button type="button" class="tb-btn" title="Insert image" aria-label="Insert image" @click="fileInputRef?.click()">Img</button>
+      <button
+        type="button"
+        class="tb-btn"
+        :class="{ 'tb-btn--busy': imageAction.pending }"
+        :title="imageAction.label"
+        :aria-label="imageAction.label"
+        :aria-busy="imageAction.pending"
+        :disabled="imageAction.pending"
+        @click="fileInputRef?.click()"
+      >
+        <ActionIndicator :phase="imageAction.phase">Img</ActionIndicator>
+      </button>
     </div>
 
     <!-- Hidden file input -->
@@ -43,56 +60,101 @@
             @mousedown.prevent
           >
             <!-- Add row below -->
-            <button type="button" class="tbl-btn" title="Add row below" aria-label="Add row below" @click="editorCmd('addRowAfter')">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-                <rect x="1" y="1" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
-                <rect x="1" y="8" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.5"/>
-                <line x1="7" y1="9.5" x2="7" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-                <line x1="6" y1="10.5" x2="8" y2="10.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-              </svg>
+            <button
+              type="button"
+              class="tbl-btn"
+              :title="tableActions.addRowAfter.label"
+              :aria-label="tableActions.addRowAfter.label"
+              :aria-busy="tableActions.addRowAfter.pending"
+              @click="editorCmd('addRowAfter')"
+            >
+              <ActionIndicator :phase="tableActions.addRowAfter.phase">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                  <rect x="1" y="1" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
+                  <rect x="1" y="8" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.5"/>
+                  <line x1="7" y1="9.5" x2="7" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                  <line x1="6" y1="10.5" x2="8" y2="10.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                </svg>
+              </ActionIndicator>
             </button>
 
             <!-- Delete row -->
-            <button type="button" class="tbl-btn" title="Delete row" aria-label="Delete row" @click="editorCmd('deleteRow')">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-                <rect x="1" y="1" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
-                <rect x="1" y="8" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.35"/>
-                <line x1="5.5" y1="9.5" x2="8.5" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-                <line x1="8.5" y1="9.5" x2="5.5" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-              </svg>
+            <button
+              type="button"
+              class="tbl-btn"
+              :title="tableActions.deleteRow.label"
+              :aria-label="tableActions.deleteRow.label"
+              :aria-busy="tableActions.deleteRow.pending"
+              @click="editorCmd('deleteRow')"
+            >
+              <ActionIndicator :phase="tableActions.deleteRow.phase">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                  <rect x="1" y="1" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
+                  <rect x="1" y="8" width="12" height="5" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.35"/>
+                  <line x1="5.5" y1="9.5" x2="8.5" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                  <line x1="8.5" y1="9.5" x2="5.5" y2="11.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                </svg>
+              </ActionIndicator>
             </button>
 
             <div class="tbl-sep"></div>
 
             <!-- Add column right -->
-            <button type="button" class="tbl-btn" title="Add column right" aria-label="Add column right" @click="editorCmd('addColumnAfter')">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-                <rect x="1" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
-                <rect x="8" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.5"/>
-                <line x1="9.5" y1="7" x2="11.5" y2="7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-                <line x1="10.5" y1="6" x2="10.5" y2="8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-              </svg>
+            <button
+              type="button"
+              class="tbl-btn"
+              :title="tableActions.addColumnAfter.label"
+              :aria-label="tableActions.addColumnAfter.label"
+              :aria-busy="tableActions.addColumnAfter.pending"
+              @click="editorCmd('addColumnAfter')"
+            >
+              <ActionIndicator :phase="tableActions.addColumnAfter.phase">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                  <rect x="1" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
+                  <rect x="8" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 1.5"/>
+                  <line x1="9.5" y1="7" x2="11.5" y2="7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                  <line x1="10.5" y1="6" x2="10.5" y2="8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                </svg>
+              </ActionIndicator>
             </button>
 
             <!-- Delete column -->
-            <button type="button" class="tbl-btn" title="Delete column" aria-label="Delete column" @click="editorCmd('deleteColumn')">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-                <rect x="1" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
-                <rect x="8" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.35"/>
-                <line x1="9.5" y1="5.5" x2="11.5" y2="7.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-                <line x1="11.5" y1="5.5" x2="9.5" y2="7.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
-              </svg>
+            <button
+              type="button"
+              class="tbl-btn"
+              :title="tableActions.deleteColumn.label"
+              :aria-label="tableActions.deleteColumn.label"
+              :aria-busy="tableActions.deleteColumn.pending"
+              @click="editorCmd('deleteColumn')"
+            >
+              <ActionIndicator :phase="tableActions.deleteColumn.phase">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                  <rect x="1" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1"/>
+                  <rect x="8" y="1" width="5" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.35"/>
+                  <line x1="9.5" y1="5.5" x2="11.5" y2="7.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                  <line x1="11.5" y1="5.5" x2="9.5" y2="7.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+                </svg>
+              </ActionIndicator>
             </button>
 
             <div class="tbl-sep"></div>
 
             <!-- Delete table -->
-            <button type="button" class="tbl-btn tbl-btn--danger" title="Delete table" aria-label="Delete table" @click="editorCmd('deleteTable')">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-                <rect x="1" y="1" width="12" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.4"/>
-                <line x1="4" y1="4" x2="10" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-                <line x1="10" y1="4" x2="4" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-              </svg>
+            <button
+              type="button"
+              class="tbl-btn tbl-btn--danger"
+              :title="tableActions.deleteTable.label"
+              :aria-label="tableActions.deleteTable.label"
+              :aria-busy="tableActions.deleteTable.pending"
+              @click="editorCmd('deleteTable')"
+            >
+              <ActionIndicator :phase="tableActions.deleteTable.phase">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                  <rect x="1" y="1" width="12" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.4"/>
+                  <line x1="4" y1="4" x2="10" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                  <line x1="10" y1="4" x2="4" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+              </ActionIndicator>
             </button>
           </div>
         </Transition>
@@ -100,7 +162,7 @@
     </div>
 
     <!-- Upload progress — persistent live region so the toggle is announced -->
-    <div class="upload-indicator" role="status">{{ uploading ? 'Reading image…' : '' }}</div>
+    <div class="upload-indicator" role="status">{{ imageStatus }}</div>
   </div>
 </template>
 
@@ -118,7 +180,10 @@ import { Table }    from '@tiptap/extension-table'
 import TableRow     from '@tiptap/extension-table-row'
 import TableHeader  from '@tiptap/extension-table-header'
 import TableCell    from '@tiptap/extension-table-cell'
+import ActionIndicator from '../../components/ActionIndicator.vue'
 import { alertDialog } from '../../shared/dialog'
+import { useActionState } from '../../shared/action-state'
+import type { ActionState } from '../../shared/action-state'
 import type { JsonValue } from '../../types/content'
 
 const props = defineProps({
@@ -128,7 +193,26 @@ const emit = defineEmits(['update:modelValue'])
 
 // ─── File input ref ───────────────────────────────────────
 const fileInputRef = ref<HTMLInputElement | null>(null)
-const uploading = ref(false)
+
+// ─── Action states ────────────────────────────────────────
+// Built once, outside the toolbar computed, so a phase survives the rebuilds
+// that every selection change triggers.
+const imageAction = useActionState({ idle: 'Insert image', doing: 'Adding image…', done: 'Image added' })
+const ruleAction = useActionState({ idle: 'Horizontal rule', doing: 'Adding rule…', done: 'Rule added' })
+const insertTableAction = useActionState({ idle: 'Insert table', doing: 'Inserting table…', done: 'Table inserted' })
+
+const imageStatus = computed(() => {
+  if (imageAction.pending) return 'Reading image…'
+  if (imageAction.settled) return 'Image added'
+  return ''
+})
+
+/** Wraps a synchronous editor command so its button runs the doing → done cycle. */
+function withActionState(state: ActionState, command: () => void): () => void {
+  return () => {
+    void state.run(command)
+  }
+}
 
 // ─── Table toolbar state ──────────────────────────────────
 const tableToolbarVisible = ref(false)
@@ -227,24 +311,48 @@ onBeforeUnmount(() => editor.value?.destroy())
 // ─── Table command helper ─────────────────────────────────
 type TableCmd = 'addRowAfter' | 'deleteRow' | 'addColumnAfter' | 'deleteColumn' | 'deleteTable'
 
+// One state per table control: the icon becomes a check and the label goes to
+// past tense for a beat, so a click on a 26px button is never ambiguous.
+const tableActions: Record<TableCmd, ActionState> = {
+  addRowAfter:    useActionState({ idle: 'Add row below',    doing: 'Adding row…',     done: 'Row added' }),
+  deleteRow:      useActionState({ idle: 'Delete row',       doing: 'Deleting row…',    done: 'Row deleted' }),
+  addColumnAfter: useActionState({ idle: 'Add column right', doing: 'Adding column…',  done: 'Column added' }),
+  deleteColumn:   useActionState({ idle: 'Delete column',    doing: 'Deleting column…', done: 'Column deleted' }),
+  deleteTable:    useActionState({ idle: 'Delete table',     doing: 'Deleting table…',  done: 'Table deleted' }),
+}
+
 function editorCmd(cmd: TableCmd) {
   const e = editor.value
   if (!e) return
 
-  const chain = e.chain().focus()
-  if (cmd === 'addRowAfter') chain.addRowAfter().run()
-  else if (cmd === 'deleteRow') chain.deleteRow().run()
-  else if (cmd === 'addColumnAfter') chain.addColumnAfter().run()
-  else if (cmd === 'deleteColumn') chain.deleteColumn().run()
-  else if (cmd === 'deleteTable') chain.deleteTable().run()
+  void tableActions[cmd].run(() => {
+    const chain = e.chain().focus()
+    if (cmd === 'addRowAfter') chain.addRowAfter().run()
+    else if (cmd === 'deleteRow') chain.deleteRow().run()
+    else if (cmd === 'addColumnAfter') chain.addColumnAfter().run()
+    else if (cmd === 'deleteColumn') chain.deleteColumn().run()
+    else if (cmd === 'deleteTable') chain.deleteTable().run()
 
-  updateTableToolbar()
+    updateTableToolbar()
+  })
 }
 
 // ─── Image upload ─────────────────────────────────────────
 const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
 
-function onFileSelected(event: Event): void {
+function readDataURL(file: File): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result)
+      else reject(new Error('Failed to read image file.'))
+    }
+    reader.onerror = () => reject(new Error('Failed to read image file.'))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function onFileSelected(event: Event): Promise<void> {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   if (!file) return
@@ -258,27 +366,19 @@ function onFileSelected(event: Event): void {
     return
   }
 
-  uploading.value = true
-  const reader = new FileReader()
-
-  reader.onload = () => {
-    if (typeof reader.result === 'string') {
-      editor.value?.chain().focus().setImage({ src: reader.result }).run()
-    }
-    uploading.value = false
-    target.value = ''
-  }
-
-  reader.onerror = () => {
+  try {
+    await imageAction.run(async () => {
+      const src = await readDataURL(file)
+      editor.value?.chain().focus().setImage({ src }).run()
+    })
+  } catch {
     void alertDialog({
       title: 'Upload failed',
       message: 'Failed to read image file.',
     })
-    uploading.value = false
+  } finally {
     target.value = ''
   }
-
-  reader.readAsDataURL(file)
 }
 
 // ─── Toolbar ──────────────────────────────────────────────
@@ -333,7 +433,8 @@ const toolbarButtons = computed(() => {
     {
       label: '—',
       name: 'Horizontal rule',
-      action: () => e.chain().focus().setHorizontalRule().run(),
+      state: ruleAction,
+      action: withActionState(ruleAction, () => e.chain().focus().setHorizontalRule().run()),
     },
     {
       label: 'UL',
@@ -350,9 +451,18 @@ const toolbarButtons = computed(() => {
     {
       label: 'Tbl',
       name: 'Insert table',
-      action: () => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+      state: insertTableAction,
+      action: withActionState(insertTableAction, () =>
+        e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+      ),
     },
-  ] as Array<{ label: string; name: string; isActive?: () => boolean; action: () => void }>
+  ] as Array<{
+    label: string
+    name: string
+    isActive?: () => boolean
+    state?: ActionState
+    action: () => void
+  }>
 })
 </script>
 
@@ -378,6 +488,11 @@ const toolbarButtons = computed(() => {
 }
 
 .tb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Fixed minimum keeps the row from shuffling when a glyph swaps to a mark. */
+  min-width: 2.2rem;
   background: none;
   border: none;
   font-family: inherit;
@@ -390,6 +505,7 @@ const toolbarButtons = computed(() => {
 }
 .tb-btn:hover  { color: var(--text-main); }
 .tb-btn--active { color: var(--text-main); font-weight: 600; }
+.tb-btn--busy { color: var(--text-main); cursor: default; }
 
 .editor-content-wrap {
   position: relative;

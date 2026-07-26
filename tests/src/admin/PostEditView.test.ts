@@ -116,6 +116,69 @@ describe('PostEditView slug interactions', () => {
   })
 })
 
+describe('PostEditView save button states', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    routeState.params = { id: 'new' }
+  })
+
+  /** Fill in everything validationMessage() requires. */
+  async function fillValidPost(wrapper: ReturnType<typeof mount>) {
+    await wrapper.find('input.field-title').setValue('An essay on margins')
+    await wrapper.find('input.field-input').setValue('an-essay-on-margins')
+    await wrapper.find('textarea.field-textarea').setValue('A short excerpt about margins.')
+    await wrapper.findComponent({ name: 'TiptapEditor' }).vm.$emit('update:modelValue', {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Body copy.' }] }],
+    })
+    await flushPromises()
+  }
+
+  it('moves from "Saving…" to "Saved" across the request', async () => {
+    let release = (): void => {}
+    apiFetchMock.mockImplementation((path: string) => {
+      if (path.startsWith('/slug-check')) return Promise.resolve({ available: true })
+      return new Promise((resolve) => {
+        release = () => resolve({ _id: 'post-1' })
+      })
+    })
+
+    const wrapper = await mountView()
+    await fillValidPost(wrapper)
+    await wrapper.find('button.btn-save').trigger('click')
+    await flushPromises()
+
+    const busy = wrapper.find('button.btn-save')
+    expect(busy.text()).toBe('Saving…')
+    expect(busy.attributes('aria-busy')).toBe('true')
+    expect(busy.classes()).toContain('btn-save--busy')
+    expect(busy.find('.action-mark--doing').exists()).toBe(true)
+
+    release()
+    await flushPromises()
+
+    const done = wrapper.find('button.btn-save')
+    expect(done.text()).toBe('Saved')
+    expect(done.classes()).toContain('btn-save--done')
+    expect(done.find('svg.action-check').exists()).toBe(true)
+  })
+
+  it('falls back to "Save" when the request fails', async () => {
+    apiFetchMock.mockImplementation((path: string) => {
+      if (path.startsWith('/slug-check')) return Promise.resolve({ available: true })
+      return Promise.reject(new Error('Request failed'))
+    })
+
+    const wrapper = await mountView()
+    await fillValidPost(wrapper)
+    await wrapper.find('button.btn-save').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('button.btn-save').text()).toBe('Save')
+    expect(wrapper.find('.edit-error').text()).toBe('Request failed')
+  })
+})
+
 describe('PostEditView accessibility', () => {
   beforeEach(() => {
     vi.clearAllMocks()
