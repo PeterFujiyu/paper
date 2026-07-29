@@ -10,7 +10,6 @@ npm run api:dev          # local API server on :3001
 npm run typecheck && npm run lint && npm test   # validate after most changes
 npx vitest run tests/api/post.test.ts           # single file; -t "pattern" by name
 npm run build            # required when touching Vite config, deps, or deploy-sensitive code
-npm run backfill:search  # backfill search fields
 ```
 
 For auth/DB/cookie changes, also run both dev servers and exercise a real login/logout.
@@ -21,33 +20,14 @@ Setup: `cp .env.example .env`; set `MONGODB_URI`, `JWT_SECRET` (≥ 32 chars, en
 
 - `api/` — exactly four functions (`auth`, `admin`, `content`, `metrics`), each one line: `createDispatcher(<group>Routes)`. Vercel Hobby caps 12 functions, hence grouping; only add a new group here.
 - `server/routes/` — one thin route per file (method guard, auth gate, validation, shaping), default async `handler`. `index.ts` is the single route table read by both `server/dev.ts` and `api/`, so dev/prod can't drift.
-- `server/lib/` — shared server logic (new reusable server code goes here, not `api/`): `logger.ts` (`beginRequest`/`finishRequest`/`sendJson`/`readBody`/`getQueryParam`/`logError`), `vercel-auth.ts` (`requireAuth`), `auth.ts` (JWT + cookies), `validation.ts` (+ `sanitizePostContent`), `note-content.ts`/`content-text.ts`, `security.ts` (headers/CSP), `db.ts` (`connectDB`), `dispatch.ts`, throttles, `hcaptcha.ts`, `post-metrics.ts`, `regex.ts`.
-- `server/models/` — `Post`, `Note`, `User`, `AuthThrottle`, `MetricThrottle`.
-- `src/` — Vue app: `views/`, `components/`, `admin/` (`store.ts` auth store), `router/`, `shared/`, `types/`. `src/types/content.ts` = shared API payload types; update with any response-shape change.
+- `server/lib/` — shared server logic (new reusable server code goes here, not `api/`).
+- `src/` — Vue app; `admin/store.ts` is the auth store. `src/types/content.ts` = shared API payload types; update with any response-shape change.
 - `tests/` — mirrors source tree; `tests/setup.ts` sets `JWT_SECRET` before modules load.
 - `research/` — plan/audit docs (see `research-audit` skill). `vercel.json` — build/rewrites/headers. Never hand-edit `dist/`.
 
 ## API handler pattern
 
-Keep this shape. New route = file here + line in `server/routes/index.ts` + rewrite in `vercel.json` (contract test enforces pairing):
-
-```ts
-export default async function handler(req, res) {
-  const meta = beginRequest(req)
-  try {
-    // method guard → early return; requireAuth (stop on null); readBody/getQueryParam;
-    // normalize + validate before any DB write
-    await connectDB()
-    // .lean() for reads, .select(...) to limit fields
-    sendJson(res, 200, payload) // always sendJson — security headers + request id
-  } catch (err) {
-    logError('route-name', err)
-    sendJson(res, 500, { error: 'Request failed' })
-  } finally {
-    finishRequest(req, res, meta)
-  }
-}
-```
+Copy the shape from an existing file in `server/routes/`. New route = file here + line in `server/routes/index.ts` + rewrite in `vercel.json` (contract test enforces pairing).
 
 ## Security invariants
 
