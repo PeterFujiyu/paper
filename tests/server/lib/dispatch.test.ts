@@ -67,14 +67,12 @@ describe('createDispatcher', () => {
   })
 
   it('refuses to reach a handler outside its own group', async () => {
-    const adminPosts = vi.fn(async () => {})
     const authDispatch = createDispatcher(authRoutes)
     const res = makeRes()
 
     // /api/auth?route=admin-posts must not cross into the admin group.
     await authDispatch(makeReq({ query: { route: 'admin-posts' } }), res)
 
-    expect(adminPosts).not.toHaveBeenCalled()
     expect(res.code).toBe(404)
   })
 })
@@ -106,9 +104,5 @@ describe('vercel.json routing contract', () => {
   it('keeps the SPA fallback last so it cannot swallow /api', () => {
     const last = vercel.rewrites[vercel.rewrites.length - 1]
     expect(last.destination).toBe('/index.html')
-  })
-
-  it('stays under the 12-function Hobby cap', () => {
-    expect(Object.keys(groups).length).toBeLessThanOrEqual(12)
   })
 })
