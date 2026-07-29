@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
@@ -6,6 +6,9 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     include: ['tests/**/*.test.ts'],
+    // The agent-benchmark suite spawns real Git/CLI subprocesses and must run
+    // serially — `npm run benchmark:test` owns it via --no-file-parallelism.
+    exclude: [...configDefaults.exclude, 'tests/agent-benchmark/**'],
     setupFiles: ['tests/setup.ts'],
     coverage: {
       provider: 'v8',
