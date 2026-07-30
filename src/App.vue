@@ -55,7 +55,23 @@
 
     <!-- ─── Page content ─── -->
     <div class="page-wrap">
-      <RouterView />
+      <!-- Height is reserved only mid-swap: `out-in` empties the flow between
+           views, which would otherwise pull the footer up into the viewport. -->
+      <div :class="{ 'route-view--swapping': swapping }">
+        <RouterView v-slot="{ Component }">
+          <Transition
+            name="page"
+            mode="out-in"
+            appear
+            @before-leave="swapping = true"
+            @after-enter="swapping = false"
+            @leave-cancelled="swapping = false"
+            @enter-cancelled="swapping = false"
+          >
+            <component :is="Component" />
+          </Transition>
+        </RouterView>
+      </div>
 
       <!-- ─── Footer ─── -->
       <footer class="site-footer">
@@ -105,6 +121,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import AppDialog from './shared/AppDialog.vue'
+
+// ─── Route transition ───
+// True from the moment the outgoing view starts leaving until the incoming one
+// has settled; drives the placeholder height that keeps the footer in place.
+const swapping = ref(false)
 
 // ─── Dark mode ───
 const isDark = ref(false)
@@ -208,6 +229,10 @@ onUnmounted(() => {
   max-width: var(--measure);
   margin: 0 auto;
   padding: clamp(5rem, 10vh, 7rem) 1.5rem clamp(2rem, 5vh, 4rem);
+}
+
+.route-view--swapping {
+  min-height: 100vh;
 }
 
 /* ─── Header ─── */

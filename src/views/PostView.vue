@@ -1,17 +1,21 @@
 <template>
   <main id="main" tabindex="-1">
 
-    <!-- Reading progress — goal-gradient feedback toward the finish -->
-    <div
-      v-if="post"
-      class="read-progress"
-      :style="{ transform: `scaleX(${readProgress})` }"
-      role="progressbar"
-      aria-label="Reading progress"
-      :aria-valuenow="readPercent"
-      aria-valuemin="0"
-      aria-valuemax="100"
-    />
+    <!-- Reading progress — goal-gradient feedback toward the finish. Teleported
+         out of the view: the route transition puts a transform on an ancestor,
+         which would otherwise become this fixed bar's containing block. -->
+    <Teleport to="body">
+      <div
+        v-if="post"
+        class="read-progress"
+        :style="{ transform: `scaleX(${readProgress})` }"
+        role="progressbar"
+        aria-label="Reading progress"
+        :aria-valuenow="readPercent"
+        aria-valuemin="0"
+        aria-valuemax="100"
+      />
+    </Teleport>
 
     <!-- Persistent live region: announces load state + the 404 to screen
          readers. The visible 404 block below keeps its link outside the region. -->

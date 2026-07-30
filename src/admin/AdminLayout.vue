@@ -6,7 +6,13 @@
     tabindex="-1"
     style="min-height: 100vh; background-color: var(--bg); color: var(--text-main);"
   >
-    <RouterView />
+    <!-- Nested swaps (list ↔ editor) animate too. No `appear`: when the admin
+         area is first entered, the outer transition in App.vue already runs. -->
+    <RouterView v-slot="{ Component }">
+      <Transition name="page" mode="out-in">
+        <component :is="Component" />
+      </Transition>
+    </RouterView>
   </main>
 </template>
 

@@ -1,3 +1,5 @@
+import { prefersReducedMotion } from './motion'
+
 /** Breathing room between the fixed header and the section it reveals. */
 const HEADER_GAP = 24
 
@@ -8,7 +10,7 @@ export function headerOffset(): number {
 }
 
 export function scrollMotion(): ScrollBehavior {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+  return prefersReducedMotion() ? 'auto' : 'smooth'
 }
 
 /** Scroll a `#id` target clear of the fixed header. No-op when the target is absent. */
