@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { createDispatcher, resolveRouteName } from '../../../server/lib/dispatch.js'
-import { adminRoutes, allRoutes, authRoutes, contentRoutes, metricRoutes } from '../../../server/routes/index.js'
+import { adminRoutes, allRoutes, authRoutes, contentRoutes, metricRoutes, shellRoutes } from '../../../server/routes/index.js'
 import type { ApiRequest, ApiResponse } from '../../../server/lib/logger.js'
 
 function makeReq(overrides: Partial<ApiRequest> = {}): ApiRequest {
@@ -18,6 +18,9 @@ function makeRes(): ApiResponse & { code: number; body: unknown } {
       return res
     },
     json(body: unknown) {
+      res.body = body
+    },
+    send(body: string) {
       res.body = body
     },
     setHeader() {},
@@ -79,7 +82,11 @@ describe('createDispatcher', () => {
 
 describe('vercel.json routing contract', () => {
   const vercel = JSON.parse(readFileSync(resolve(process.cwd(), 'vercel.json'), 'utf8')) as {
-    rewrites: { source: string; destination: string }[]
+    rewrites: {
+      source: string
+      destination: string
+      has?: { type: string; key: string; value: string }[]
+    }[]
   }
 
   const groups: Record<string, typeof allRoutes> = {
@@ -87,6 +94,7 @@ describe('vercel.json routing contract', () => {
     admin: adminRoutes,
     content: contentRoutes,
     metrics: metricRoutes,
+    shell: shellRoutes,
   }
 
   it('rewrites every route onto the group that actually owns it', () => {
@@ -104,5 +112,41 @@ describe('vercel.json routing contract', () => {
   it('keeps the SPA fallback last so it cannot swallow /api', () => {
     const last = vercel.rewrites[vercel.rewrites.length - 1]
     expect(last.destination).toBe('/index.html')
+  })
+
+  describe('the essay link-preview rewrite', () => {
+    const essayRewrite = vercel.rewrites.find(r => r.source.startsWith('/writing/'))
+
+    it('sends /writing/:slug to the shell route with its slug', () => {
+      expect(essayRewrite, 'missing the /writing/:slug rewrite').toBeDefined()
+      expect(essayRewrite!.source).toBe('/writing/:slug')
+      expect(essayRewrite!.destination).toBe('/api/shell?route=post-shell&slug=:slug')
+    })
+
+    // Without the condition every reader would be served the bare preview
+    // document instead of the app.
+    it('only diverts crawlers, by user-agent', () => {
+      const has = essayRewrite!.has ?? []
+      expect(has).toHaveLength(1)
+      expect(has[0].type).toBe('header')
+      expect(has[0].key).toBe('user-agent')
+      for (const agent of ['facebookexternalhit', 'Twitterbot', 'Slackbot', 'WhatsApp', 'Discordbot']) {
+        expect(new RegExp(has[0].value).test(`Mozilla/5.0 (compatible; ${agent}/1.1)`)).toBe(true)
+      }
+    })
+
+    it('leaves an ordinary browser on the SPA fallback', () => {
+      const pattern = new RegExp(essayRewrite!.has![0].value)
+      const chrome =
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'
+      expect(pattern.test(chrome)).toBe(false)
+      expect(pattern.test('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1')).toBe(false)
+    })
+
+    it('comes before the SPA fallback, or it would never be reached', () => {
+      const essayIndex = vercel.rewrites.indexOf(essayRewrite!)
+      expect(essayIndex).toBeGreaterThan(-1)
+      expect(essayIndex).toBeLessThan(vercel.rewrites.length - 1)
+    })
   })
 })

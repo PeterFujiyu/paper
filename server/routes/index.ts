@@ -10,6 +10,7 @@ import noteHandler from './note.js'
 import notesHandler from './notes.js'
 import postCompletionHandler from './post-completion.js'
 import postHandler from './post.js'
+import postShellHandler from './post-shell.js'
 import postViewHandler from './post-view.js'
 import postsHandler from './posts.js'
 import slugCheckHandler from './slug-check.js'
@@ -46,10 +47,17 @@ export const metricRoutes: RouteTable = {
   'post-view': postViewHandler,
 }
 
+// Answers with HTML, not JSON: the per-essay link-preview document. Its own group
+// because vercel.json routes crawler traffic on /writing/:slug straight here.
+export const shellRoutes: RouteTable = {
+  'post-shell': postShellHandler,
+}
+
 /** Every route, keyed by the public path segment under /api. */
 export const allRoutes: RouteTable = {
   ...authRoutes,
   ...adminRoutes,
   ...contentRoutes,
   ...metricRoutes,
+  ...shellRoutes,
 }

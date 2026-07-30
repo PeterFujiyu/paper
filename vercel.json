@@ -56,6 +56,20 @@
     { "source": "/api/post-completion", "destination": "/api/metrics?route=post-completion" },
     { "source": "/api/post-view", "destination": "/api/metrics?route=post-view" },
 
+    { "source": "/api/post-shell", "destination": "/api/shell?route=post-shell" },
+
+    {
+      "source": "/writing/:slug",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|Slackbot|Slack-ImgProxy|LinkedInBot|WhatsApp|TelegramBot|Discordbot|Pinterest|redditbot|Applebot|Embedly|Iframely|SkypeUriPreview|vkShare|Mastodon).*"
+        }
+      ],
+      "destination": "/api/shell?route=post-shell&slug=:slug"
+    },
+
     { "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }
   ]
 }

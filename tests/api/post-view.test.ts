@@ -55,6 +55,7 @@ function makeRes(): ApiResponse {
       return this
     },
     json: vi.fn(),
+    send: vi.fn(),
     setHeader: vi.fn(),
   }
 }

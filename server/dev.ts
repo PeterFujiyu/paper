@@ -55,6 +55,10 @@ createServer(async (req, res) => {
       }
       res.end(JSON.stringify(body))
     },
+    // Mirrors Vercel's res.send for the HTML route; the caller sets Content-Type.
+    send(body: string) {
+      res.end(body)
+    },
     setHeader(name: string, value: string) {
       res.setHeader(name, value)
     },

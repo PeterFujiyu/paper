@@ -11,6 +11,9 @@ export type ApiRequest = {
 export type ApiResponse = {
   status(code: number): ApiResponse
   json(body: unknown): void
+  // Raw body, for the one route that answers with HTML rather than JSON.
+  // Vercel's response helpers provide this; server/dev.ts implements it.
+  send(body: string): void
   setHeader(name: string, value: string): void
   statusCode?: number
 }
@@ -62,6 +65,15 @@ export function sendJson(res: ApiResponse, status: number, body: unknown, meta?:
     res.setHeader('x-request-id', meta.requestId)
   }
   res.status(status).json(body)
+}
+
+export function sendHtml(res: ApiResponse, status: number, html: string, meta?: RequestMeta): void {
+  applySecurityHeaders(res)
+  if (meta) {
+    res.setHeader('x-request-id', meta.requestId)
+  }
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.status(status).send(html)
 }
 
 export function readBody<T>(req: ApiRequest): T {

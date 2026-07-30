@@ -82,7 +82,7 @@ describe('cache policy by route', () => {
   it('keeps the public policy to the routes that were reviewed for it', () => {
     // A whitelist so reaching for it somewhere new has to be a deliberate edit.
     const users = routeFiles.filter((f) => routeSource(f).includes('setPublicReadCache'))
-    expect(users.sort()).toEqual(['notes.ts', 'post.ts', 'posts.ts'])
+    expect(users.sort()).toEqual(['notes.ts', 'post-shell.ts', 'post.ts', 'posts.ts'])
   })
 
   it.each(['note.ts', 'post-view.ts', 'post-completion.ts'])('%s stays no-store', (file) => {

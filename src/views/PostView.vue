@@ -99,6 +99,9 @@ let scrollFrame: number | null = null
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
+/** Matches <title> in index.html, so leaving an essay restores it. */
+const SITE_TITLE = 'Paper'
+
 type MetricError = {
   requiresHCaptcha?: boolean
 }
@@ -109,6 +112,14 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopScrollTracking()
+  document.title = SITE_TITLE
+})
+
+// The served HTML carries one static title for the whole SPA, so without this a
+// bookmark, tab or history entry for any essay just reads "Paper". Link previews
+// are handled separately — crawlers get server-rendered tags from post-shell.
+watch(post, (current) => {
+  document.title = current ? `${current.title} — ${SITE_TITLE}` : SITE_TITLE
 })
 
 watch(() => props.slug, () => {
