@@ -31,6 +31,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         sendJson(res, 404, { error: 'Not found' }, meta)
         return
       }
+      // no-store, not the shared-cache policy: this read sits behind requireAuth,
+      // so a CDN copy would answer a later request without re-authorizing it, and
+      // would hand the editor stale content right after a save.
       res.setHeader('Cache-Control', 'no-store')
       sendJson(res, 200, { _id: note._id, content: note.content ?? null, createdAt: note.createdAt, updatedAt: note.updatedAt }, meta)
       return

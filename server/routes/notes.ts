@@ -1,4 +1,5 @@
 import { connectDB } from '../lib/db.js'
+import { setPublicReadCache } from '../lib/cache.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
 import { escapeRegExp } from '../lib/regex.js'
 import { prepareNoteContent, sanitizeStoredNoteContent } from '../lib/note-content.js'
@@ -49,7 +50,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
           .select(FIELDS)
           .limit(20)
           .lean()
-        res.setHeader('Cache-Control', 'no-store')
+        setPublicReadCache(res)
         sendJson(res, 200, forRead(results as StoredNote[]), meta)
         return
       }
@@ -59,7 +60,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         .select(FIELDS)
         .limit(30)
         .lean()
-      res.setHeader('Cache-Control', 'no-store')
+      setPublicReadCache(res)
       sendJson(res, 200, forRead(notes as StoredNote[]), meta)
       return
     }

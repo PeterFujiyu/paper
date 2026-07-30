@@ -1,4 +1,5 @@
 import { connectDB } from '../lib/db.js'
+import { setPublicReadCache } from '../lib/cache.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
 import { extractPlainText } from '../lib/content-text.js'
 import { withPostMetrics } from '../lib/post-metrics.js'
@@ -56,7 +57,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
           .select(fields)
           .limit(20)
           .lean()
-        res.setHeader('Cache-Control', 'no-store')
+        setPublicReadCache(res)
         sendJson(res, 200, results.map(withPostMetrics), meta)
         return
       }
@@ -65,7 +66,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         .sort({ createdAt: -1 })
         .select(fields)
         .lean()
-      res.setHeader('Cache-Control', 'no-store')
+      setPublicReadCache(res)
       sendJson(res, 200, posts.map(withPostMetrics), meta)
       return
     }

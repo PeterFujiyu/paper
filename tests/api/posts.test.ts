@@ -23,6 +23,7 @@ vi.mock('../../server/models/Post.js', () => ({
 }))
 
 import handler from '../../server/routes/posts.js'
+import { PUBLIC_READ_CACHE_CONTROL } from '../../server/lib/cache.js'
 import type { ApiRequest, ApiResponse } from '../../server/lib/logger.js'
 import { WORDS_PER_MINUTE } from '../../src/shared/reading-time.js'
 
@@ -90,7 +91,7 @@ describe('api/posts', () => {
     vi.clearAllMocks()
   })
 
-  it('returns fresh public post metrics without edge caching', async () => {
+  it('lets the CDN hold the public post listing', async () => {
     stubFind([
       {
         _id: 'post-1',
@@ -107,7 +108,7 @@ describe('api/posts', () => {
     await handler(makeReq(), res)
 
     expect(mockFind).toHaveBeenCalledWith({ published: true })
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store')
+    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', PUBLIC_READ_CACHE_CONTROL)
     expect(res.statusCode).toBe(200)
     expect(res.json).toHaveBeenCalledWith([
       {

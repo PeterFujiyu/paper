@@ -21,6 +21,7 @@ vi.mock('../../server/models/Note.js', () => ({
 }))
 
 import handler from '../../server/routes/notes.js'
+import { PUBLIC_READ_CACHE_CONTROL } from '../../server/lib/cache.js'
 import type { ApiRequest, ApiResponse } from '../../server/lib/logger.js'
 
 const helloDoc = {
@@ -64,7 +65,7 @@ describe('api/notes', () => {
     mockRequireAuth.mockResolvedValue({ id: 'user-1' })
   })
 
-  it('returns the note list publicly without edge caching', async () => {
+  it('returns the note list publicly, cacheable at the CDN', async () => {
     const notes = [{ _id: 'note-1', content: helloDoc, createdAt: '2026-06-01T00:00:00.000Z' }]
     stubFind(notes)
     const res = makeRes()
@@ -73,7 +74,7 @@ describe('api/notes', () => {
 
     expect(mockRequireAuth).not.toHaveBeenCalled()
     expect(mockFind).toHaveBeenCalledWith({})
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store')
+    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', PUBLIC_READ_CACHE_CONTROL)
     expect(res.statusCode).toBe(200)
     expect(res.json).toHaveBeenCalledWith(notes)
   })

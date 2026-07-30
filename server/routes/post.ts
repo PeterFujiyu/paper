@@ -1,4 +1,5 @@
 import { connectDB } from '../lib/db.js'
+import { setPublicReadCache } from '../lib/cache.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
 import { extractPlainText } from '../lib/content-text.js'
 import { withPostMetrics } from '../lib/post-metrics.js'
@@ -44,7 +45,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       }
 
       const contentResult = sanitizePostContent(post.content)
-      res.setHeader('Cache-Control', 'no-store')
+      setPublicReadCache(res)
       const postWithMetrics = withPostMetrics(post)
       if (!contentResult.ok) {
         sendJson(res, 200, { ...postWithMetrics, content: null }, meta)

@@ -21,6 +21,7 @@ vi.mock('../../server/models/Post.js', () => ({
 }))
 
 import handler from '../../server/routes/post.js'
+import { PUBLIC_READ_CACHE_CONTROL } from '../../server/lib/cache.js'
 import type { ApiRequest, ApiResponse } from '../../server/lib/logger.js'
 
 function makeReq(options: {
@@ -84,7 +85,7 @@ describe('api/post', () => {
     await handler(makeReq({ method: 'GET', query: { slug: 'Hello-World' } }), res)
 
     expect(mockFindOne).toHaveBeenCalledWith({ slug: 'hello-world', published: true })
-    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store')
+    expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', PUBLIC_READ_CACHE_CONTROL)
     expect(res.statusCode).toBe(200)
     expect(res.json).toHaveBeenCalledWith({
       ...post,
