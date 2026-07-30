@@ -1,5 +1,5 @@
 <template>
-  <div :class="{ dark: isDark }" style="min-height: 100vh; background-color: var(--bg); color: var(--text-main); transition: background-color 0.3s ease, color 0.3s ease;">
+  <div :class="{ dark: isDark, 'high-contrast': highContrast }" style="min-height: 100vh; background-color: var(--bg); color: var(--text-main); transition: background-color 0.3s ease, color 0.3s ease;">
 
     <!-- Keyboard skip target — the only element hidden until :focus-visible -->
     <a class="skip-link" href="#main" @click.prevent="skipToMain">Skip to content</a>
@@ -128,7 +128,7 @@
         <transition name="eth-fade">
           <span v-if="showSettings" id="footer-settings" class="settings-panel">
             <label class="settings-row">
-              <input type="checkbox" :checked="themedCursor" @change="toggleCursor" />
+              <input id="setting-themed-cursor" type="checkbox" :checked="themedCursor" @change="toggleCursor" />
               <span>Use this site's cursor</span>
             </label>
             <span class="settings-row">
@@ -153,6 +153,13 @@
                 </template>
               </span>
             </span>
+            <!-- Contrast sits beside the cursor rather than in the header next to
+                 the dark-mode toggle: both are accommodations a visitor sets once,
+                 while light/dark is a mood switch pressed often. -->
+            <label class="settings-row">
+              <input id="setting-high-contrast" type="checkbox" :checked="highContrast" @change="toggleContrast" />
+              <span>Higher contrast</span>
+            </label>
             <!-- Bibata is GPL-3.0, so the credit travels with the art. The panel is
                  collapsed by default, so this costs the footer nothing at rest. -->
             <span class="settings-credit">Cursor: Bibata Modern Ice · GPL-3.0</span>
@@ -179,6 +186,7 @@ import {
   setNativeCursor,
   storedCursorSize,
 } from './shared/cursor'
+import { prefersDarkTheme, prefersHighContrast, setDarkTheme, setHighContrast } from './shared/theme'
 
 // ─── Route transition ───
 // True from the moment the outgoing view starts leaving until the incoming one
@@ -186,18 +194,14 @@ import {
 const swapping = ref(false)
 
 // ─── Dark mode ───
-const isDark = ref(false)
-
-onMounted(() => {
-  const stored = localStorage.getItem('theme')
-  isDark.value = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
-  document.documentElement.classList.toggle('dark', isDark.value)
-})
+// src/main.ts has already applied the stored preference to <html> before mount,
+// so this only mirrors it into the toggle. Resolving it here rather than in
+// onMounted is what keeps the first frame from painting light and then flipping.
+const isDark = ref(prefersDarkTheme())
 
 function toggleDark() {
   isDark.value = !isDark.value
-  document.documentElement.classList.toggle('dark', isDark.value)
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  setDarkTheme(isDark.value)
 }
 
 // ─── Footer settings ───
@@ -219,6 +223,16 @@ function toggleCursor(): void {
 function changeCursorSize(size: CursorSize): void {
   cursorSize.value = size
   setCursorSize(size)
+}
+
+// Also already applied to <html> by src/main.ts, and mirrored here for the same
+// reason as dark mode: resolving it during setup keeps the default palette from
+// painting for a frame before the stronger one replaces it.
+const highContrast = ref(prefersHighContrast())
+
+function toggleContrast(): void {
+  highContrast.value = !highContrast.value
+  setHighContrast(highContrast.value)
 }
 
 // ─── Current year ───
@@ -598,6 +612,26 @@ onUnmounted(() => {
   font-size: 0.72rem;
   opacity: 0.55;
   font-style: italic;
+}
+
+/* High contrast: the footer builds its hierarchy out of opacity, which no colour
+   token can reach. Each dim is lifted just far enough to be legible while keeping
+   the ordering — separators still recede, a disabled segment still reads disabled. */
+:root.high-contrast .footer-sep {
+  opacity: 0.75;
+}
+
+:root.high-contrast .eth-toggle,
+:root.high-contrast .settings-toggle {
+  opacity: 1;
+}
+
+:root.high-contrast .settings-credit {
+  opacity: 0.9;
+}
+
+:root.high-contrast .size-choice input:disabled + .size-option {
+  opacity: 0.65;
 }
 
 .eth-fade-enter-active,

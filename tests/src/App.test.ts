@@ -37,6 +37,7 @@ describe('App shell accessibility', () => {
   afterEach(() => {
     localStorage.clear()
     document.documentElement.classList.remove('native-cursor')
+    document.documentElement.classList.remove('dark')
   })
 
   it('renders the skip link as the first anchor pointing at #main', () => {
@@ -61,6 +62,50 @@ describe('App shell accessibility', () => {
 
     expect(writeText).toHaveBeenCalledWith('0x590aef1cb9d2c66f2543cbeaa64f603e07fd1679')
     expect(wrapper.find('span.sr-only[role="status"]').text()).toBe('Ethereum address copied')
+  })
+})
+
+describe('dark mode', () => {
+  afterEach(() => {
+    localStorage.clear()
+    document.documentElement.classList.remove('dark')
+  })
+
+  // The whole point of resolving the preference during setup rather than in
+  // onMounted: the very first render must already be dark, or the visitor
+  // watches the light palette paint and then flip.
+  it('renders dark on the first frame when dark is stored', () => {
+    localStorage.setItem('theme', 'dark')
+
+    const wrapper = mount(App)
+
+    expect(wrapper.find('div').classes()).toContain('dark')
+    expect(wrapper.find('.theme-toggle').attributes('aria-label')).toBe('Switch to light mode')
+  })
+
+  it('renders light on the first frame when light is stored', () => {
+    localStorage.setItem('theme', 'light')
+
+    const wrapper = mount(App)
+
+    expect(wrapper.find('div').classes()).not.toContain('dark')
+    expect(wrapper.find('.theme-toggle').attributes('aria-label')).toBe('Switch to dark mode')
+  })
+
+  it('toggling sets the class on <html> and persists the choice', async () => {
+    localStorage.setItem('theme', 'light')
+    const wrapper = mount(App)
+
+    await wrapper.find('.theme-toggle').trigger('click')
+
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(localStorage.getItem('theme')).toBe('dark')
+    expect(wrapper.find('div').classes()).toContain('dark')
+
+    await wrapper.find('.theme-toggle').trigger('click')
+
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
+    expect(localStorage.getItem('theme')).toBe('light')
   })
 })
 
@@ -227,5 +272,73 @@ describe('footer cursor setting', () => {
     await wrapper.find('.settings-row input[type="checkbox"]').trigger('change')
 
     expect(sizeRadios(wrapper).every((radio) => radio.element.disabled)).toBe(true)
+  })
+})
+
+describe('footer contrast setting', () => {
+  afterEach(() => {
+    localStorage.clear()
+    document.documentElement.classList.remove('high-contrast')
+    document.documentElement.classList.remove('dark')
+  })
+
+  it('defaults to the standard palette when nothing is stored', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    expect(wrapper.find<HTMLInputElement>('#setting-high-contrast').element.checked).toBe(false)
+    expect(document.documentElement.classList.contains('high-contrast')).toBe(false)
+  })
+
+  it('opting in sets the class and persists the choice', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    await wrapper.find('#setting-high-contrast').trigger('change')
+
+    expect(document.documentElement.classList.contains('high-contrast')).toBe(true)
+    expect(localStorage.getItem('contrast')).toBe('more')
+  })
+
+  it('opting back out clears the class and persists that too', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    const checkbox = wrapper.find('#setting-high-contrast')
+    await checkbox.trigger('change')
+    await checkbox.trigger('change')
+
+    expect(document.documentElement.classList.contains('high-contrast')).toBe(false)
+    expect(localStorage.getItem('contrast')).toBe('normal')
+  })
+
+  // Same reasoning as dark mode: the first render must already carry the class,
+  // or the visitor watches the weaker palette paint and then flip.
+  it('renders high contrast on the first frame when it is stored', () => {
+    localStorage.setItem('contrast', 'more')
+
+    const wrapper = mount(App)
+
+    expect(wrapper.find('div').classes()).toContain('high-contrast')
+  })
+
+  it('reflects a stored opt-in into the checkbox on mount', async () => {
+    localStorage.setItem('contrast', 'more')
+
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    expect(wrapper.find<HTMLInputElement>('#setting-high-contrast').element.checked).toBe(true)
+  })
+
+  it('composes with dark mode rather than replacing it', async () => {
+    localStorage.setItem('theme', 'dark')
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    await wrapper.find('#setting-high-contrast').trigger('change')
+
+    expect(wrapper.find('div').classes()).toContain('dark')
+    expect(wrapper.find('div').classes()).toContain('high-contrast')
   })
 })

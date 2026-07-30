@@ -8,6 +8,11 @@
   <link rel="apple-touch-icon" href="/icon-light.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Appearance bootstrap. Deliberately synchronous (no defer, no module) and
+       ahead of every stylesheet: it puts the stored dark / high-contrast / cursor
+       classes on <html> before the first paint, which the deferred app bundle in
+       <body> is far too late to do. See public/theme-init.js. -->
+  <script src="/theme-init.js"></script>
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Noto+Sans+SC:wght@100..900&family=WDXL+Lubrifont+SC&display=swap" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />

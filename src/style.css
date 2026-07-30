@@ -60,6 +60,36 @@
   --accent-ink: #E8916F;
 }
 
+/* High-contrast token overrides — opt-in from the footer settings, defaulting to
+   the OS `prefers-contrast: more`. Muted text is why this exists: #666 on the
+   ivory ground clears WCAG AA (5.4:1) but not AAA, and most of the site's
+   secondary copy lives there. Only the distance between the greys and the ground
+   changes; type, spacing and layout are untouched, so the editorial voice holds.
+   Declared after :root.dark and matched by the combined rule below, since the two
+   classes carry equal specificity and would otherwise be settled by source order. */
+:root.high-contrast {
+  --text-main:    #000000;
+  --text-muted:   #444440;  /* ~9:1 on --bg — AAA, still clearly secondary */
+  --border:       #8A8880;  /* ~3.3:1, so a hairline still reads as a boundary */
+  --bg-subtle:    #ECEBE5;
+  --selection-bg: #CFCEC4;
+  /* Terracotta darkened one step each: decoration to AA, link text to AAA. */
+  --accent:     #B85333;
+  --accent-ink: #8F3A1C;
+}
+
+:root.dark.high-contrast {
+  --bg:           #0A0A09;
+  --bg-subtle:    #1A1A17;
+  --text-main:    #FFFFFF;
+  --text-muted:   #B4B3AB;  /* ~9:1 on --bg (was ~5.2:1) */
+  --border:       #6F6E67;
+  --selection-bg: #4A4A42;
+  /* Lightened rather than darkened — the same one-step move, other direction. */
+  --accent:     #E8916F;
+  --accent-ink: #F2A183;
+}
+
 ::selection {
   background: var(--selection-bg);
   color: var(--text-main);
