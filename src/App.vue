@@ -108,6 +108,56 @@
         </transition>
         <!-- Persistent live region — the fading button above can't announce reliably -->
         <span class="sr-only" role="status">{{ copiedEth ? 'Ethereum address copied' : '' }}</span>
+
+        <span class="footer-sep">·</span>
+        <button
+          class="settings-toggle"
+          type="button"
+          @click="showSettings = !showSettings"
+          :aria-expanded="showSettings"
+          aria-controls="footer-settings"
+          aria-label="Site settings"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="settings-icon">
+            <path d="M20 7h-9" />
+            <path d="M14 17H5" />
+            <circle cx="17" cy="17" r="3" />
+            <circle cx="7" cy="7" r="3" />
+          </svg>
+        </button>
+        <transition name="eth-fade">
+          <span v-if="showSettings" id="footer-settings" class="settings-panel">
+            <label class="settings-row">
+              <input type="checkbox" :checked="themedCursor" @change="toggleCursor" />
+              <span>Use this site's cursor</span>
+            </label>
+            <span class="settings-row">
+              <span id="cursor-size-label">Size</span>
+              <!-- Real radios rather than a <select>: a native dropdown renders in
+                   OS chrome, which ignores the site's type and its cursors. Hiding
+                   the inputs instead keeps arrow-key navigation and the checked
+                   state that assistive tech announces. -->
+              <span class="size-choice" role="radiogroup" aria-labelledby="cursor-size-label">
+                <template v-for="option in CURSOR_SIZE_OPTIONS" :key="option.value">
+                  <input
+                    :id="`cursor-size-${option.value}`"
+                    class="sr-only"
+                    type="radio"
+                    name="cursor-size"
+                    :value="option.value"
+                    :checked="cursorSize === option.value"
+                    :disabled="!themedCursor"
+                    @change="changeCursorSize(option.value)"
+                  />
+                  <label :for="`cursor-size-${option.value}`" class="size-option">{{ option.label }}</label>
+                </template>
+              </span>
+            </span>
+            <!-- Bibata is GPL-3.0, so the credit travels with the art. The panel is
+                 collapsed by default, so this costs the footer nothing at rest. -->
+            <span class="settings-credit">Cursor: Bibata Modern Ice · GPL-3.0</span>
+          </span>
+        </transition>
       </footer>
     </div>
 
@@ -121,6 +171,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import AppDialog from './shared/AppDialog.vue'
+import type { CursorSize } from './shared/cursor'
+import {
+  CURSOR_SIZE_OPTIONS,
+  prefersNativeCursor,
+  setCursorSize,
+  setNativeCursor,
+  storedCursorSize,
+} from './shared/cursor'
 
 // ─── Route transition ───
 // True from the moment the outgoing view starts leaving until the incoming one
@@ -140,6 +198,27 @@ function toggleDark() {
   isDark.value = !isDark.value
   document.documentElement.classList.toggle('dark', isDark.value)
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+}
+
+// ─── Footer settings ───
+// src/main.ts has already applied the stored preference to <html>, so this only
+// mirrors it into the checkbox. Opting out hands every cursor back to the OS,
+// which matters for anyone relying on an enlarged system pointer — there is no
+// media query that would let CSS detect that on its own.
+const showSettings = ref(false)
+const themedCursor = ref(!prefersNativeCursor())
+const cursorSize = ref<CursorSize>(storedCursorSize())
+
+function toggleCursor(): void {
+  themedCursor.value = !themedCursor.value
+  setNativeCursor(!themedCursor.value)
+}
+
+// The size only means anything while the theme is on, so the choices are disabled
+// alongside it rather than silently doing nothing.
+function changeCursorSize(size: CursorSize): void {
+  cursorSize.value = size
+  setCursorSize(size)
 }
 
 // ─── Current year ───
@@ -334,7 +413,7 @@ onUnmounted(() => {
 .theme-toggle {
   background: none;
   border: none;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   padding: 0;
   line-height: 1;
   color: var(--text-muted);
@@ -361,6 +440,10 @@ onUnmounted(() => {
   display: flex;
   gap: 0.6rem;
   align-items: center;
+  /* The settings panel claims a full row of its own via flex-basis, and wrapping
+     also keeps the row from overflowing once the ETH address is revealed. */
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
 }
 
 .footer-sep {
@@ -378,7 +461,7 @@ onUnmounted(() => {
   background: none;
   color: var(--text-muted);
   opacity: 0.62;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: opacity 0.2s ease, color 0.2s ease;
 }
 
@@ -400,12 +483,121 @@ onUnmounted(() => {
   letter-spacing: 0.01em;
   color: var(--text-muted);
   word-break: break-all;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: color 0.2s ease, opacity 0.2s ease;
 }
 
 .eth-address:hover {
   color: var(--text-main);
+}
+
+/* Settings disclosure — same icon-button and reveal idiom as .eth-toggle above,
+   so the footer keeps one behaviour rather than two. */
+.settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  opacity: 0.62;
+  cursor: var(--cursor-pointer);
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.settings-toggle:hover {
+  opacity: 1;
+  color: var(--text-main);
+}
+
+.settings-icon {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.settings-panel {
+  /* Its own row inside the wrapping footer flex line. */
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.15rem;
+}
+
+.settings-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  cursor: var(--cursor-pointer);
+}
+
+.settings-row input {
+  /* A native checkbox keeps the keyboard and screen-reader behaviour for free;
+     accent-color is enough to bring it into the palette. */
+  accent-color: var(--accent);
+  width: 0.8rem;
+  height: 0.8rem;
+  margin: 0;
+  cursor: var(--cursor-pointer);
+}
+
+/* Segmented choice card. The inputs are .sr-only, so every visual state below
+   hangs off the real radio's :checked / :disabled / :focus-visible. */
+.size-choice {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+
+.size-option {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  padding: 0.12rem 0.45rem;
+  color: var(--text-muted);
+  cursor: var(--cursor-pointer);
+  transition: color 0.2s ease, background-color 0.2s ease;
+  /* "Extra large" otherwise breaks across two lines and doubles the card height. */
+  white-space: nowrap;
+}
+
+/* Dividers between segments, rather than a border on every one. */
+.size-option:not(:first-of-type) {
+  border-left: 1px solid var(--border);
+}
+
+.size-option:hover {
+  color: var(--text-main);
+}
+
+/* Selected: the reserved accent plus a filled ground, so selection reads without
+   relying on hue alone. */
+.size-choice input:checked + .size-option {
+  color: var(--accent-ink);
+  background: var(--bg-subtle);
+  box-shadow: inset 0 -1.5px 0 var(--accent);
+}
+
+/* The input is visually hidden, so the focus ring has to live on the label. */
+.size-choice input:focus-visible + .size-option {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.size-choice input:disabled + .size-option {
+  opacity: 0.4;
+  cursor: var(--cursor-not-allowed);
+}
+
+.settings-credit {
+  font-size: 0.72rem;
+  opacity: 0.55;
+  font-style: italic;
 }
 
 .eth-fade-enter-active,

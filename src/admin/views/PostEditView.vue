@@ -297,7 +297,7 @@ async function remove() {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 .publish-toggle input { accent-color: var(--text-main); }
 
@@ -308,11 +308,11 @@ async function remove() {
   color: var(--bg);
   border: none;
   padding: 0.45rem 1.1rem;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: opacity 0.2s;
 }
 .btn-save:hover:not(:disabled) { opacity: 0.75; }
-.btn-save:disabled { cursor: not-allowed; }
+.btn-save:disabled { cursor: var(--cursor-not-allowed); }
 
 .btn-save--saving,
 .btn-save--saving:hover {
@@ -325,7 +325,7 @@ async function remove() {
   background: none;
   border: none;
   color: #c0392b;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   padding: 0;
   text-decoration: underline;
   text-underline-offset: 3px;

@@ -197,12 +197,12 @@ async function submit() {
   font-family: inherit;
   font-size: 0.875rem;
   letter-spacing: 0.04em;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: opacity 0.2s ease;
 }
 
 .auth-btn:hover:not(:disabled) { opacity: 0.8; }
-.auth-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.auth-btn:disabled { opacity: 0.4; cursor: var(--cursor-not-allowed); }
 
 .auth-toggle {
   margin-top: 1.5rem;
@@ -216,7 +216,7 @@ async function submit() {
   font-family: inherit;
   font-size: inherit;
   color: var(--text-main);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   text-decoration: underline;
   text-underline-offset: 3px;
   padding: 0;

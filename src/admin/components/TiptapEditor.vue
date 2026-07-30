@@ -383,7 +383,7 @@ const toolbarButtons = computed(() => {
   font-family: inherit;
   font-size: 0.8rem;
   padding: 0.3rem 0.55rem;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   color: var(--text-muted);
   transition: color 0.15s;
   line-height: 1;
@@ -431,7 +431,7 @@ const toolbarButtons = computed(() => {
   background: none;
   border: none;
   border-radius: 3px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   color: var(--text-muted, #888);
   transition: color 0.12s, background 0.12s;
   padding: 0;
@@ -539,7 +539,7 @@ const toolbarButtons = computed(() => {
 }
 
 .editor-content .ProseMirror.resize-cursor {
-  cursor: col-resize;
+  cursor: var(--cursor-col-resize);
 }
 
 .editor-content .ProseMirror.resize-cursor th,

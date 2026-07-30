@@ -141,11 +141,11 @@ async function remove() {
   color: var(--bg);
   border: none;
   padding: 0.45rem 1.2rem;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: opacity 0.2s;
 }
 .btn-save:hover { opacity: 0.75; }
-.btn-save:disabled { opacity: 0.4; cursor: default; }
+.btn-save:disabled { opacity: 0.4; cursor: var(--cursor-default); }
 .btn-save--saving { opacity: 0.6; }
 
 .btn-delete {
@@ -154,7 +154,7 @@ async function remove() {
   background: none;
   border: none;
   color: var(--accent-ink);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   padding: 0;
   transition: opacity 0.2s;
 }
