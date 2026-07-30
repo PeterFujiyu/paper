@@ -27,12 +27,16 @@ export interface PostSummary extends PostMetrics {
   published?: boolean
   coverImage?: string
   tags?: string[]
+  /** Minutes to read, derived on write. 0 or absent means no estimate to show. */
+  readingMinutes?: number
 }
 
 export interface PostDocument extends PostSummary {
   content: JsonValue | null
   author?: string
   updatedAt?: string
+  /** The author's deliberate figure, if any. Admin reads only; 0 means none. */
+  readingMinutesOverride?: number
 }
 
 export interface NoteSummary {
@@ -53,4 +57,6 @@ export interface PostForm {
   published: boolean
   coverImage: string
   tags: string[]
+  /** Author override; null hands the estimate back to the server. */
+  readingMinutesOverride: number | null
 }

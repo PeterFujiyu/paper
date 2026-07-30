@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "api:dev": "tsx server/dev.ts",
+    "backfill:reading-time": "tsx server/scripts/backfill-reading-time.ts",
     "backfill:search": "tsx server/scripts/backfill-search.ts",
     "benchmark": "node agent-benchmark/cli.mjs",
     "benchmark:test": "vitest run --config vitest.benchmark.config.ts",

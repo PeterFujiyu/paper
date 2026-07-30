@@ -68,6 +68,24 @@
         <label for="post-tags">Tags</label>
         <input id="post-tags" v-model="tagsInput" class="field-input" placeholder="design, typography (comma separated, up to 6)" />
       </div>
+      <div class="field-group">
+        <label for="post-reading">Reading time</label>
+        <input
+          id="post-reading"
+          v-model="readingInput"
+          class="field-input field-input--narrow"
+          type="number"
+          min="1"
+          :max="MAX_READING_MINUTES"
+          step="1"
+          inputmode="numeric"
+          placeholder="Auto"
+          aria-describedby="post-reading-help"
+        />
+        <p id="post-reading-help" class="field-help" :class="readingError ? 'field-help--error' : 'field-help--muted'">
+          {{ readingError || readingHelp }}
+        </p>
+      </div>
     </div>
 
     <!-- Body editor -->
@@ -88,6 +106,7 @@ import {
   slugify,
   SLUG_VALIDATION_MESSAGE,
 } from '../../shared/slug'
+import { formatReadingTime, MAX_READING_MINUTES } from '../../shared/reading-time'
 import type { PostDocument, PostForm, PostMetrics } from '../../types/content'
 
 const route  = useRoute()
@@ -96,7 +115,9 @@ const router = useRouter()
 const isEdit = computed(() => !!route.params.id && route.params.id !== 'new')
 const postId = computed(() => String(route.params.id ?? ''))
 
-const form = reactive<PostForm>({
+// Everything but the reading override, which lives in `readingInput` so the
+// field can hold what the author typed even when it isn't a usable number.
+const form = reactive<Omit<PostForm, 'readingMinutesOverride'>>({
   title:      '',
   slug:       '',
   excerpt:    '',
@@ -114,6 +135,43 @@ const tagsInput = computed({
       .map(tag => tag.trim())
       .filter(Boolean)
   },
+})
+
+// The field as typed. Only a blank field means "let the server estimate from the
+// body" — 0, 4.5 and 1000 are mistakes to report, not values to quietly rewrite
+// into a figure the author never asked for. v-model on a number input hands back
+// a number when the text parses and the raw string when it does not, so both
+// arrive here.
+const readingInput = ref<string | number>('')
+
+// The override as it would be sent: null for a blank field, otherwise whatever
+// the text parses to — `readingError` is what keeps a bad one from being saved.
+const readingOverride = computed<number | null>(() => {
+  const raw = typeof readingInput.value === 'number' ? readingInput.value : readingInput.value.trim()
+  return raw === '' ? null : Number(raw)
+})
+
+// Mirrors the bounds validatePostBody enforces, so the author sees the problem
+// at the field instead of getting a 400 back.
+const readingError = computed(() => {
+  const minutes = readingOverride.value
+  if (minutes == null) return ''
+  if (!Number.isFinite(minutes)) return 'Reading time must be a number.'
+  if (!Number.isInteger(minutes)) return 'Reading time must be a whole number of minutes.'
+  if (minutes < 1) return 'Reading time must be at least 1 minute.'
+  if (minutes > MAX_READING_MINUTES) return `Reading time must be ${MAX_READING_MINUTES} minutes or fewer.`
+  return ''
+})
+
+// The estimate as last stored, so the author can see what "Auto" resolved to.
+const savedReadingMinutes = ref(0)
+
+const readingHelp = computed(() => {
+  if (readingOverride.value != null) return 'Overrides the estimate from the body.'
+  if (savedReadingMinutes.value > 0) {
+    return `Estimated from the body — ${formatReadingTime(savedReadingMinutes.value)}. Re-estimated on save.`
+  }
+  return 'Leave blank to estimate from the body.'
 })
 
 const metrics = reactive<PostMetrics>({
@@ -138,6 +196,7 @@ const validationMessage = computed(() => {
   if (!form.excerpt.trim()) return 'Excerpt is required.'
   if (form.excerpt.trim().length < 12) return 'Excerpt should be at least 12 characters.'
   if (!form.content) return 'Body content is required.'
+  if (readingError.value) return readingError.value
   return ''
 })
 
@@ -198,6 +257,10 @@ onMounted(async () => {
     coverImage: post.coverImage ?? '',
     tags:       post.tags ?? [],
   })
+  // Only a real override prefills the field; an estimate must stay "Auto" or the
+  // next save would freeze it as the body goes on changing.
+  readingInput.value = post.readingMinutesOverride || ''
+  savedReadingMinutes.value = post.readingMinutes ?? 0
   setMetrics(post)
   setSlugState(true, '')
 })
@@ -226,17 +289,24 @@ async function save() {
   saving.value = true
   error.value  = ''
   try {
+    const payload: PostForm = { ...form, readingMinutesOverride: readingOverride.value }
+
     if (isEdit.value) {
       const post = await apiFetch<PostDocument>(`/post?id=${encodeURIComponent(postId.value)}`, {
         method: 'PUT',
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       })
       setMetrics(post)
+      savedReadingMinutes.value = post.readingMinutes ?? 0
     } else {
       const post = await apiFetch<PostDocument>('/posts', {
         method: 'POST',
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       })
+      // The router reuses this component for the /posts/:id route, so onMounted
+      // won't run again — take the estimate from the response or the help text
+      // would claim there is none until a reload.
+      savedReadingMinutes.value = post.readingMinutes ?? 0
       router.replace(`/admin/posts/${post._id}`)
     }
   } catch (e: unknown) {
@@ -422,6 +492,11 @@ async function remove() {
 }
 .field-input:focus { border-bottom-color: var(--text-main); }
 
+/* A minute count needs a few characters, not the full column width. */
+.field-input--narrow {
+  width: 6rem;
+}
+
 .field-help {
   margin: 0.45rem 0 0;
   font-size: 0.8rem;
@@ -440,6 +515,10 @@ async function remove() {
 
 .field-help--error {
   color: #c0392b;
+}
+
+.field-help--muted {
+  color: var(--text-muted);
 }
 
 .field-textarea {

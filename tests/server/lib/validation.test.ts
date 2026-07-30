@@ -2,12 +2,15 @@ import { describe, it, expect } from 'vitest'
 import {
   normalizeSlug,
   normalizeCoverImage,
+  normalizeReadingOverride,
   normalizeTags,
+  resolveReadingMinutes,
   validateLoginBody,
   validateRegisterBody,
   validatePostBody,
   sanitizePostContent,
 } from '../../../server/lib/validation.js'
+import { MAX_READING_MINUTES, WORDS_PER_MINUTE } from '../../../src/shared/reading-time.js'
 
 // ---------------------------------------------------------------------------
 // normalizeSlug
@@ -578,5 +581,88 @@ describe('sanitizePostContent', () => {
     if (!result.ok) {
       expect(result.error).toMatch(/Unsupported field/)
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Reading time
+// ---------------------------------------------------------------------------
+describe('validatePostBody reading-time override', () => {
+  const valid = {
+    title: 'My Post Title',
+    slug: 'my-post-title',
+    excerpt: 'A brief excerpt for the post.',
+    content: { type: 'doc', content: [] },
+  }
+
+  it('accepts an absent or null override — that is the auto case', () => {
+    expect(validatePostBody(valid)).toBeNull()
+    expect(validatePostBody({ ...valid, readingMinutesOverride: null })).toBeNull()
+  })
+
+  it('accepts a whole number of minutes', () => {
+    expect(validatePostBody({ ...valid, readingMinutesOverride: 1 })).toBeNull()
+    expect(validatePostBody({ ...valid, readingMinutesOverride: MAX_READING_MINUTES })).toBeNull()
+  })
+
+  it('rejects a non-number', () => {
+    expect(validatePostBody({ ...valid, readingMinutesOverride: '8' as unknown as number }))
+      .toMatch(/must be a number/)
+  })
+
+  it('rejects a fraction of a minute', () => {
+    expect(validatePostBody({ ...valid, readingMinutesOverride: 8.5 })).toMatch(/whole number/)
+  })
+
+  it('rejects zero, negatives and NaN', () => {
+    expect(validatePostBody({ ...valid, readingMinutesOverride: 0 })).toMatch(/at least 1 minute/)
+    expect(validatePostBody({ ...valid, readingMinutesOverride: -3 })).toMatch(/at least 1 minute/)
+    expect(validatePostBody({ ...valid, readingMinutesOverride: Number.NaN })).toMatch(/must be a number/)
+  })
+
+  it('rejects an override past the ceiling', () => {
+    expect(validatePostBody({ ...valid, readingMinutesOverride: MAX_READING_MINUTES + 1 }))
+      .toMatch(/or fewer/)
+  })
+})
+
+describe('normalizeReadingOverride', () => {
+  it('keeps a valid override', () => {
+    expect(normalizeReadingOverride(8)).toBe(8)
+  })
+
+  it('collapses everything unusable to 0, meaning "no override"', () => {
+    expect(normalizeReadingOverride(null)).toBe(0)
+    expect(normalizeReadingOverride(undefined)).toBe(0)
+    expect(normalizeReadingOverride(0)).toBe(0)
+    expect(normalizeReadingOverride(-5)).toBe(0)
+    expect(normalizeReadingOverride(2.5)).toBe(0)
+    expect(normalizeReadingOverride('8')).toBe(0)
+  })
+
+  it('clamps to the ceiling', () => {
+    expect(normalizeReadingOverride(MAX_READING_MINUTES + 100)).toBe(MAX_READING_MINUTES)
+  })
+})
+
+describe('resolveReadingMinutes', () => {
+  const body = Array.from({ length: WORDS_PER_MINUTE * 6 }, () => 'word').join(' ')
+
+  it('prefers the author override over the derived estimate', () => {
+    expect(resolveReadingMinutes(20, body)).toBe(20)
+  })
+
+  it('derives from the body when there is no override', () => {
+    expect(resolveReadingMinutes(null, body)).toBe(6)
+    expect(resolveReadingMinutes(undefined, body)).toBe(6)
+  })
+
+  it('derives from the body when the override is unusable', () => {
+    expect(resolveReadingMinutes(0, body)).toBe(6)
+    expect(resolveReadingMinutes('nonsense', body)).toBe(6)
+  })
+
+  it('is 0 when there is neither an override nor any text', () => {
+    expect(resolveReadingMinutes(null, '')).toBe(0)
   })
 })

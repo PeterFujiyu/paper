@@ -44,6 +44,7 @@
           <RouterLink :to="{ name: 'post', params: { slug: post.slug } }" class="article-link">
             <div class="article-meta">
               <span>{{ formatDate(post.createdAt) }}</span>
+              <span v-if="post.readingMinutes">{{ formatReadingTime(post.readingMinutes) }}</span>
               <span>{{ formatViews(post.viewCount) }}</span>
             </div>
             <h3 class="article-title">{{ post.title }}</h3>
@@ -122,6 +123,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { renderContentHTML } from '../shared/tiptap-extensions'
+import { formatReadingTime } from '../shared/reading-time'
 import { scrollToHash } from '../shared/scroll'
 import LoadingIndicator from '../components/LoadingIndicator.vue'
 import type { PostSummary, NoteSummary } from '../types/content'

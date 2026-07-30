@@ -129,6 +129,9 @@ describe('api/post', () => {
           tags: [],
           content: { type: 'doc', content: [] },
           contentText: '',
+          // An empty body has nothing to estimate from, and no override was sent.
+          readingMinutes: 0,
+          readingMinutesOverride: 0,
           published: true,
         },
       },

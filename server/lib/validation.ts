@@ -1,5 +1,7 @@
 import type { JSONContent } from '@tiptap/core'
 
+import { estimateReadingMinutes, MAX_READING_MINUTES } from '../../src/shared/reading-time.js'
+
 export type AuthBody = {
   email?: string
   password?: string
@@ -15,6 +17,9 @@ export type PostBody = {
   published?: boolean
   coverImage?: string
   tags?: string[]
+  // Author override for the reading estimate. Null or absent means "derive it
+  // from the body" — see resolveReadingMinutes.
+  readingMinutesOverride?: number | null
 }
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -121,6 +126,18 @@ export function validatePostBody(body: PostBody): string | null {
   const tagsError = validateTags(body.tags)
   if (tagsError) return tagsError
 
+  const readingError = validateReadingMinutes(body.readingMinutesOverride)
+  if (readingError) return readingError
+
+  return null
+}
+
+function validateReadingMinutes(value: unknown): string | null {
+  if (value == null) return null
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 'Reading time must be a number.'
+  if (!Number.isInteger(value)) return 'Reading time must be a whole number of minutes.'
+  if (value < 1) return 'Reading time must be at least 1 minute.'
+  if (value > MAX_READING_MINUTES) return `Reading time must be ${MAX_READING_MINUTES} minutes or fewer.`
   return null
 }
 
@@ -155,6 +172,23 @@ function validateTags(value: unknown): string | null {
 
 export function normalizeCoverImage(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+/**
+ * The author's override, as stored: a whole number of minutes, or 0 for "none".
+ * Assumes the value already passed validatePostBody.
+ */
+export function normalizeReadingOverride(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) return 0
+  return Math.min(value, MAX_READING_MINUTES)
+}
+
+/**
+ * The reading estimate the views show: the author's override when they gave one,
+ * otherwise derived from the essay's own text.
+ */
+export function resolveReadingMinutes(override: unknown, plainText: string): number {
+  return normalizeReadingOverride(override) || estimateReadingMinutes(plainText)
 }
 
 export function normalizeTags(value: unknown): string[] {

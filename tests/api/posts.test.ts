@@ -24,6 +24,7 @@ vi.mock('../../server/models/Post.js', () => ({
 
 import handler from '../../server/routes/posts.js'
 import type { ApiRequest, ApiResponse } from '../../server/lib/logger.js'
+import { WORDS_PER_MINUTE } from '../../src/shared/reading-time.js'
 
 function makeReq(method = 'GET'): ApiRequest {
   return {
@@ -50,6 +51,29 @@ function stubFind(result: unknown[]): void {
   const select = vi.fn().mockReturnValue({ lean })
   const sort = vi.fn().mockReturnValue({ select })
   mockFind.mockReturnValue({ sort })
+}
+
+function stubSlugFree(): void {
+  const lean = vi.fn().mockResolvedValue(null)
+  const select = vi.fn().mockReturnValue({ lean })
+  mockFindOne.mockReturnValue({ select })
+}
+
+function makePostReq(body: Record<string, unknown>): ApiRequest {
+  return { method: 'POST', url: '/api/posts', headers: {}, body }
+}
+
+/** A body of `count` words, as Tiptap JSON. */
+function bodyOfWords(count: number): unknown {
+  return {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: Array.from({ length: count }, () => 'word').join(' ') }],
+      },
+    ],
+  }
 }
 
 function stubSearchFind(result: unknown[]): { sort: ReturnType<typeof vi.fn> } {
@@ -135,5 +159,74 @@ describe('api/posts', () => {
         readCompletionRate: 50,
       },
     ])
+  })
+})
+
+describe('api/posts reading time', () => {
+  const base = {
+    title: 'On Craft',
+    slug: 'on-craft',
+    excerpt: 'An essay about the overlooked details.',
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockRequireAuth.mockResolvedValue({ id: 'user-1' })
+    stubSlugFree()
+    mockCreate.mockImplementation(async (doc: Record<string, unknown>) => ({
+      toObject: () => ({ _id: 'post-1', ...doc, viewCount: 0, readCompletionCount: 0 }),
+    }))
+  })
+
+  it('derives the estimate from the body when no override is given', async () => {
+    const res = makeRes()
+
+    await handler(makePostReq({ ...base, content: bodyOfWords(WORDS_PER_MINUTE * 7) }), res)
+
+    expect(res.statusCode).toBe(201)
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ readingMinutes: 7, readingMinutesOverride: 0 })
+    )
+  })
+
+  it('stores the author override as both the shown figure and the recorded intent', async () => {
+    const res = makeRes()
+
+    await handler(
+      makePostReq({
+        ...base,
+        content: bodyOfWords(WORDS_PER_MINUTE * 7),
+        readingMinutesOverride: 20,
+      }),
+      res
+    )
+
+    expect(res.statusCode).toBe(201)
+    // Both, so a later re-derive can tell a deliberate figure from an estimate.
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ readingMinutes: 20, readingMinutesOverride: 20 })
+    )
+  })
+
+  it('rejects an override that is not a whole number of minutes', async () => {
+    const res = makeRes()
+
+    await handler(
+      makePostReq({ ...base, content: bodyOfWords(100), readingMinutesOverride: 4.5 }),
+      res
+    )
+
+    expect(res.statusCode).toBe(400)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it('ships the estimate in the public listing projection', async () => {
+    stubFind([])
+    const res = makeRes()
+
+    await handler(makeReq(), res)
+
+    const select = mockFind.mock.results[0].value.sort.mock.results[0].value.select
+    expect(select).toHaveBeenCalledWith(expect.stringContaining('readingMinutes'))
   })
 })

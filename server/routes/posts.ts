@@ -4,7 +4,7 @@ import { extractPlainText } from '../lib/content-text.js'
 import { withPostMetrics } from '../lib/post-metrics.js'
 import { requireAuth } from '../lib/vercel-auth.js'
 import { escapeRegExp } from '../lib/regex.js'
-import { validatePostBody, type PostBody, normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent } from '../lib/validation.js'
+import { validatePostBody, type PostBody, normalizeSlug, normalizeCoverImage, normalizeReadingOverride, normalizeTags, resolveReadingMinutes, sanitizePostContent } from '../lib/validation.js'
 import Post from '../models/Post.js'
 
 // Upper bound on the search query; a literal substring match needs nothing longer.
@@ -35,7 +35,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     await connectDB()
 
     if (req.method === 'GET') {
-      const fields = 'slug title excerpt coverImage tags createdAt viewCount readCompletionCount'
+      const fields = 'slug title excerpt coverImage tags readingMinutes createdAt viewCount readCompletionCount'
       // Cap the query length before it's compiled to a regex — search is a
       // literal substring match, so nothing useful lives past this bound.
       const q = getQueryParam(req, 'q').trim().slice(0, MAX_SEARCH_LENGTH)
@@ -96,6 +96,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       // Set fields explicitly rather than spreading `body`, so a caller can't
       // slip in server-owned fields (viewCount, readCompletionCount, author,
       // _id, createdAt) alongside the ones we validate.
+      const contentText = extractPlainText(contentResult.value)
       const post = await Post.create({
         title: body.title!.trim(),
         slug,
@@ -103,7 +104,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         coverImage: normalizeCoverImage(body.coverImage),
         tags: normalizeTags(body.tags),
         content: contentResult.value,
-        contentText: extractPlainText(contentResult.value),
+        contentText,
+        readingMinutes: resolveReadingMinutes(body.readingMinutesOverride, contentText),
+        readingMinutesOverride: normalizeReadingOverride(body.readingMinutesOverride),
         published: body.published === true,
         author: user.id,
       })

@@ -76,3 +76,34 @@ describe('HomeView live regions', () => {
     expect(wrapper.findAll('[role="status"]')[0].text()).toContain('Searching…')
   })
 })
+
+describe('HomeView reading time', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('shows the estimate in the card meta when the post carries one', async () => {
+    vi.stubGlobal('fetch', stubFetch([{ ...samplePost(), readingMinutes: 8 }], []))
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    expect(wrapper.find('.article-meta').text()).toContain('8 min read')
+  })
+
+  // Posts written before the field existed have nothing to show; an empty span
+  // or "0 min read" would be worse than no span at all.
+  it('omits it entirely when the post has none', async () => {
+    vi.stubGlobal('fetch', stubFetch([samplePost()], []))
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    expect(wrapper.find('.article-meta').text()).not.toContain('min read')
+    expect(wrapper.findAll('.article-meta span')).toHaveLength(2)
+  })
+
+  it('omits it for an explicit zero', async () => {
+    vi.stubGlobal('fetch', stubFetch([{ ...samplePost(), readingMinutes: 0 }], []))
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    expect(wrapper.find('.article-meta').text()).not.toContain('min read')
+  })
+})

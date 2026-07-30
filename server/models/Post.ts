@@ -14,6 +14,13 @@ const postSchema = new Schema(
     // (case-insensitive regex) for full-essay lookups; excluded from normal
     // reads (`select: false`) so it never ships to the client or bloats lists.
     contentText: { type: String, default: '', select: false },
+    // Minutes to read. `readingMinutes` is the figure the views show, refreshed
+    // on every write; it is stored rather than computed per request so the
+    // listing page can show it without loading every essay's body.
+    // `readingMinutesOverride` records a deliberate author figure separately, so
+    // re-deriving the estimate can never silently discard it. 0 means "none".
+    readingMinutes: { type: Number, default: 0, min: 0 },
+    readingMinutesOverride: { type: Number, default: 0, min: 0 },
     published: { type: Boolean, default: false },
     viewCount: { type: Number, default: 0, min: 0 },
     readCompletionCount: { type: Number, default: 0, min: 0 },

@@ -165,3 +165,128 @@ describe('PostEditView accessibility', () => {
     expect(err.attributes('role')).toBe('alert')
   })
 })
+
+describe('PostEditView reading time', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    routeState.params = { id: 'new' }
+  })
+
+  const loadedPost = (extra: Record<string, unknown>) => ({
+    _id: 'post-1',
+    title: 'Existing title',
+    slug: 'existing-title',
+    excerpt: 'A brief excerpt for the post.',
+    content: { type: 'doc', content: [] },
+    published: false,
+    ...extra,
+  })
+
+  const readingField = (wrapper: ReturnType<typeof mount>) =>
+    wrapper.find<HTMLInputElement>('#post-reading')
+
+  it('offers an empty field meaning "estimate it" on a new post', async () => {
+    const wrapper = await mountView()
+
+    expect(readingField(wrapper).element.value).toBe('')
+    expect(readingField(wrapper).attributes('placeholder')).toBe('Auto')
+    expect(wrapper.find('#post-reading-help').text()).toBe('Leave blank to estimate from the body.')
+  })
+
+  // The crux of the two-field model: an estimate must not prefill the input, or
+  // saving again would freeze it while the body goes on changing.
+  it('leaves the field on Auto when the stored figure is a derived estimate', async () => {
+    apiFetchMock.mockResolvedValueOnce(
+      loadedPost({ readingMinutes: 7, readingMinutesOverride: 0 })
+    )
+
+    const wrapper = await mountView({ id: 'post-1' })
+
+    expect(readingField(wrapper).element.value).toBe('')
+    expect(wrapper.find('#post-reading-help').text()).toContain('7 min read')
+  })
+
+  it('prefills the field when the author previously overrode the estimate', async () => {
+    apiFetchMock.mockResolvedValueOnce(
+      loadedPost({ readingMinutes: 20, readingMinutesOverride: 20 })
+    )
+
+    const wrapper = await mountView({ id: 'post-1' })
+
+    expect(readingField(wrapper).element.value).toBe('20')
+    expect(wrapper.find('#post-reading-help').text()).toBe('Overrides the estimate from the body.')
+  })
+
+  it('sends the override with the save, and null once it is cleared', async () => {
+    apiFetchMock
+      .mockResolvedValueOnce(loadedPost({ readingMinutes: 7, readingMinutesOverride: 0 }))
+      .mockResolvedValue({ available: true, readingMinutes: 20, readingMinutesOverride: 20 })
+
+    const wrapper = await mountView({ id: 'post-1' })
+
+    await readingField(wrapper).setValue('20')
+    await wrapper.find('.btn-save').trigger('click')
+    await flushPromises()
+
+    const put = apiFetchMock.mock.calls.find(([, init]) => init?.method === 'PUT')
+    expect(JSON.parse(put![1].body).readingMinutesOverride).toBe(20)
+
+    await readingField(wrapper).setValue('')
+    await wrapper.find('.btn-save').trigger('click')
+    await flushPromises()
+
+    const lastPut = apiFetchMock.mock.calls.filter(([, init]) => init?.method === 'PUT').pop()
+    expect(JSON.parse(lastPut![1].body).readingMinutesOverride).toBeNull()
+  })
+
+  // Rewriting a mistake into a different number is worse than refusing it: 0
+  // used to clear the override outright and 1000 used to become 999, both
+  // silently. Only a blank field means "estimate it".
+  it('keeps an unusable figure in the field and says why instead of rewriting it', async () => {
+    apiFetchMock.mockResolvedValueOnce(loadedPost({ readingMinutes: 7, readingMinutesOverride: 0 }))
+
+    const wrapper = await mountView({ id: 'post-1' })
+
+    await readingField(wrapper).setValue('1000')
+    expect(readingField(wrapper).element.value).toBe('1000')
+    expect(wrapper.find('#post-reading-help').text()).toBe('Reading time must be 999 minutes or fewer.')
+    expect(wrapper.find<HTMLButtonElement>('.btn-save').element.disabled).toBe(true)
+
+    await readingField(wrapper).setValue('0')
+    expect(readingField(wrapper).element.value).toBe('0')
+    expect(wrapper.find('#post-reading-help').text()).toBe('Reading time must be at least 1 minute.')
+
+    await readingField(wrapper).setValue('4.5')
+    expect(readingField(wrapper).element.value).toBe('4.5')
+    expect(wrapper.find('#post-reading-help').text()).toBe('Reading time must be a whole number of minutes.')
+
+    await wrapper.find('.btn-save').trigger('click')
+    await flushPromises()
+
+    expect(apiFetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false)
+  })
+
+  // The router reuses this component across posts/new → posts/:id, so nothing
+  // reloads the post after the first save.
+  it('shows the estimate the server returned for a newly created post', async () => {
+    apiFetchMock.mockImplementation((path: string) =>
+      path.startsWith('/slug-check')
+        ? Promise.resolve({ available: true })
+        : Promise.resolve({ _id: 'post-9', readingMinutes: 7, readingMinutesOverride: 0 })
+    )
+
+    const wrapper = await mountView()
+
+    await wrapper.find('input.field-title').setValue('A new essay')
+    await wrapper.find('input.field-input').setValue('a-new-essay')
+    await wrapper.find('#post-excerpt').setValue('A brief excerpt for the post.')
+    wrapper.findComponent({ name: 'TiptapEditor' }).vm.$emit('update:modelValue', { type: 'doc', content: [] })
+    await flushPromises()
+
+    await wrapper.find('.btn-save').trigger('click')
+    await flushPromises()
+
+    expect(routerReplaceMock).toHaveBeenCalledWith('/admin/posts/post-9')
+    expect(wrapper.find('#post-reading-help').text()).toContain('7 min read')
+  })
+})

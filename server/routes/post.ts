@@ -3,7 +3,7 @@ import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJso
 import { extractPlainText } from '../lib/content-text.js'
 import { withPostMetrics } from '../lib/post-metrics.js'
 import { requireAuth } from '../lib/vercel-auth.js'
-import { normalizeSlug, normalizeCoverImage, normalizeTags, sanitizePostContent, validatePostBody, type PostBody } from '../lib/validation.js'
+import { normalizeSlug, normalizeCoverImage, normalizeReadingOverride, normalizeTags, resolveReadingMinutes, sanitizePostContent, validatePostBody, type PostBody } from '../lib/validation.js'
 import Post from '../models/Post.js'
 
 function isDuplicateSlugError(error: unknown): boolean {
@@ -87,6 +87,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       // Set fields explicitly rather than spreading `body`, so a caller can't
       // reassign server-owned fields (author, viewCount, readCompletionCount)
       // through the update.
+      const contentText = extractPlainText(contentResult.value)
       const post = await Post.findByIdAndUpdate(
         id,
         {
@@ -97,7 +98,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
             coverImage: normalizeCoverImage(body.coverImage),
             tags: normalizeTags(body.tags),
             content: contentResult.value,
-            contentText: extractPlainText(contentResult.value),
+            contentText,
+            readingMinutes: resolveReadingMinutes(body.readingMinutesOverride, contentText),
+            readingMinutesOverride: normalizeReadingOverride(body.readingMinutesOverride),
             published: body.published === true,
           },
         },

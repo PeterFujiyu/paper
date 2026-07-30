@@ -41,6 +41,7 @@
         <h1 class="post-title">{{ post.title }}</h1>
         <div class="post-meta">
           <span>{{ formatDate(post.createdAt) }}</span>
+          <span v-if="post.readingMinutes">{{ formatReadingTime(post.readingMinutes) }}</span>
           <span>{{ formatViews(post.viewCount) }}</span>
         </div>
       </header>
@@ -78,6 +79,7 @@
 import { ref, computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { renderContentHTML } from '../shared/tiptap-extensions'
+import { formatReadingTime } from '../shared/reading-time'
 import { getHCaptchaToken } from '../shared/hcaptcha'
 import LoadingIndicator from '../components/LoadingIndicator.vue'
 import type { PostDocument, PostMetrics, PostSummary } from '../types/content'
