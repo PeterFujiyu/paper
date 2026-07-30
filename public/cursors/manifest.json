@@ -1,0 +1,691 @@
+{
+  "theme": "Bibata Modern Ice",
+  "themeVersion": 1.0,
+  "creator": "Abdulkaiz Khatri",
+  "license": "GPL-3.0-or-later",
+  "upstream": "https://github.com/ful1e5/Bibata_Cursor",
+  "generatedBy": "scripts/extract-cursors.py",
+  "cursors": [
+    {
+      "slot": "com.apple.coregraphics.Arrow",
+      "name": "arrow",
+      "hotspot": [
+        7,
+        2
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "default"
+      ],
+      "files": [
+        "arrow.png",
+        "arrow@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.coregraphics.ArrowS",
+      "name": "arrow-alt",
+      "hotspot": [
+        7,
+        2
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "arrow-alt.png",
+        "arrow-alt@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.coregraphics.ArrowCtx",
+      "name": "ctx-arrow",
+      "hotspot": [
+        7,
+        2
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "context-menu"
+      ],
+      "files": [
+        "ctx-arrow.png",
+        "ctx-arrow@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.24",
+      "name": "ctx-menu",
+      "hotspot": [
+        7,
+        2
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "ctx-menu.png",
+        "ctx-menu@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.coregraphics.Alias",
+      "name": "alias",
+      "hotspot": [
+        7,
+        2
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "alias"
+      ],
+      "files": [
+        "alias.png",
+        "alias@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.coregraphics.Copy",
+      "name": "copy",
+      "hotspot": [
+        7,
+        2
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "copy"
+      ],
+      "files": [
+        "copy.png",
+        "copy@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.5",
+      "name": "copy-drag",
+      "hotspot": [
+        7,
+        2
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "copy-drag.png",
+        "copy-drag@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.3",
+      "name": "forbidden",
+      "hotspot": [
+        7,
+        2
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "not-allowed",
+        "no-drop"
+      ],
+      "files": [
+        "forbidden.png",
+        "forbidden@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.4",
+      "name": "busy",
+      "hotspot": [
+        7,
+        2
+      ],
+      "frames": 24,
+      "frameDuration": 0.09,
+      "cssKeywords": [
+        "progress"
+      ],
+      "files": [
+        "busy.png",
+        "busy-strip.png",
+        "busy@2x.png",
+        "busy-strip@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.coregraphics.IBeam",
+      "name": "ibeam",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "text"
+      ],
+      "files": [
+        "ibeam.png",
+        "ibeam@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.coregraphics.IBeamS",
+      "name": "ibeam-alt",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "ibeam-alt.png",
+        "ibeam-alt@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.26",
+      "name": "ibeam-horizontal",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "vertical-text"
+      ],
+      "files": [
+        "ibeam-horizontal.png",
+        "ibeam-horizontal@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.2",
+      "name": "pointing-hand",
+      "hotspot": [
+        14,
+        2
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "pointer"
+      ],
+      "files": [
+        "pointing-hand.png",
+        "pointing-hand@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.13",
+      "name": "link-hand",
+      "hotspot": [
+        14,
+        2
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "link-hand.png",
+        "link-hand@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.12",
+      "name": "open-hand",
+      "hotspot": [
+        18,
+        10
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "grab"
+      ],
+      "files": [
+        "open-hand.png",
+        "open-hand@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.11",
+      "name": "closed-hand",
+      "hotspot": [
+        16,
+        8
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "grabbing"
+      ],
+      "files": [
+        "closed-hand.png",
+        "closed-hand@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.40",
+      "name": "help",
+      "hotspot": [
+        5,
+        11
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "help"
+      ],
+      "files": [
+        "help.png",
+        "help@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.7",
+      "name": "crosshair",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "crosshair"
+      ],
+      "files": [
+        "crosshair.png",
+        "crosshair@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.8",
+      "name": "crosshair-2",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "crosshair-2.png",
+        "crosshair-2@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.41",
+      "name": "cell",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "cell"
+      ],
+      "files": [
+        "cell.png",
+        "cell@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.25",
+      "name": "poof",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "poof.png",
+        "poof@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.coregraphics.Move",
+      "name": "move",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "move",
+        "all-scroll"
+      ],
+      "files": [
+        "move.png",
+        "move@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.coregraphics.Wait",
+      "name": "wait",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 24,
+      "frameDuration": 0.09,
+      "cssKeywords": [
+        "wait"
+      ],
+      "files": [
+        "wait.png",
+        "wait-strip.png",
+        "wait@2x.png",
+        "wait-strip@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.31",
+      "name": "window-n",
+      "hotspot": [
+        16,
+        3
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "n-resize"
+      ],
+      "files": [
+        "window-n.png",
+        "window-n@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.36",
+      "name": "window-s",
+      "hotspot": [
+        16,
+        29
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "s-resize"
+      ],
+      "files": [
+        "window-s.png",
+        "window-s@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.27",
+      "name": "window-e",
+      "hotspot": [
+        29,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "e-resize"
+      ],
+      "files": [
+        "window-e.png",
+        "window-e@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.38",
+      "name": "window-w",
+      "hotspot": [
+        3,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "w-resize"
+      ],
+      "files": [
+        "window-w.png",
+        "window-w@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.21",
+      "name": "resize-n",
+      "hotspot": [
+        16,
+        3
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "resize-n.png",
+        "resize-n@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.22",
+      "name": "resize-s",
+      "hotspot": [
+        16,
+        29
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "resize-s.png",
+        "resize-s@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.18",
+      "name": "resize-e",
+      "hotspot": [
+        29,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "resize-e.png",
+        "resize-e@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.17",
+      "name": "resize-w",
+      "hotspot": [
+        3,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [],
+      "files": [
+        "resize-w.png",
+        "resize-w@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.32",
+      "name": "window-ns",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "ns-resize"
+      ],
+      "files": [
+        "window-ns.png",
+        "window-ns@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.28",
+      "name": "window-ew",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "ew-resize"
+      ],
+      "files": [
+        "window-ew.png",
+        "window-ew@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.23",
+      "name": "resize-ns",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "row-resize"
+      ],
+      "files": [
+        "resize-ns.png",
+        "resize-ns@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.19",
+      "name": "resize-ew",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "col-resize"
+      ],
+      "files": [
+        "resize-ew.png",
+        "resize-ew@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.30",
+      "name": "resize-nesw",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "nesw-resize"
+      ],
+      "files": [
+        "resize-nesw.png",
+        "resize-nesw@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.34",
+      "name": "resize-nwse",
+      "hotspot": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "nwse-resize"
+      ],
+      "files": [
+        "resize-nwse.png",
+        "resize-nwse@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.29",
+      "name": "window-ne",
+      "hotspot": [
+        29,
+        3
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "ne-resize"
+      ],
+      "files": [
+        "window-ne.png",
+        "window-ne@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.33",
+      "name": "window-nw",
+      "hotspot": [
+        4,
+        3
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "nw-resize"
+      ],
+      "files": [
+        "window-nw.png",
+        "window-nw@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.35",
+      "name": "window-se",
+      "hotspot": [
+        29,
+        29
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "se-resize"
+      ],
+      "files": [
+        "window-se.png",
+        "window-se@2x.png"
+      ]
+    },
+    {
+      "slot": "com.apple.cursor.37",
+      "name": "window-sw",
+      "hotspot": [
+        3,
+        29
+      ],
+      "frames": 1,
+      "frameDuration": 1.0,
+      "cssKeywords": [
+        "sw-resize"
+      ],
+      "files": [
+        "window-sw.png",
+        "window-sw@2x.png"
+      ]
+    }
+  ]
+}
