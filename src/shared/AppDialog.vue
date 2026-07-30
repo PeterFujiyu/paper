@@ -172,7 +172,7 @@ onUnmounted(() => {
   padding: 0.45rem 1.2rem;
   border: 1px solid transparent;
   border-radius: 6px;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   transition: opacity 0.2s, background-color 0.2s;
 }
 

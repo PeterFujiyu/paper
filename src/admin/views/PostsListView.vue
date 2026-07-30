@@ -118,7 +118,7 @@ async function signOut() {
   background: none;
   border: none;
   color: var(--text-muted);
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   padding: 0;
   text-decoration: none;
   transition: color 0.2s;
