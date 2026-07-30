@@ -19,6 +19,16 @@
   /* Layout — golden reading measure (~50-75 chars; see design.html) */
   --measure: 68ch;
 
+  /* Motion — non-linear curves for route transitions. --ease-out decelerates
+     into rest (content settling), --ease-in accelerates away (content leaving).
+     PAGE_LEAVE_MS in src/shared/motion.ts mirrors --page-leave so the router
+     can hold the scroll until the outgoing view is gone. */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:     cubic-bezier(0.4, 0, 1, 1);
+  --page-enter:  250ms;
+  --page-leave:  120ms;
+  --page-appear: 160ms;
+
   /* Type voices — sans for titles/labels/UI, serif for reading (the
      "two-voice" academic-journal contrast). Montserrat is already loaded. */
   --font-serif: "Georgia", "Times New Roman", "Songti SC", "SimSun", serif;
@@ -100,6 +110,41 @@ body {
   background-color: var(--bg);
   color: var(--text-main);
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ─── Route transitions ───
+   Cross-component, so they live here rather than in a scoped block. Views rise
+   into place and drift away upward: one direction of travel, never a slide, never
+   a fade through a solid colour. Leave is roughly half the enter so navigation
+   still feels immediate under the `out-in` swap, and the first-load `appear` is
+   shorter again so a cold visit reaches readable content quickly. */
+.page-enter-active {
+  transition:
+    opacity   var(--page-enter) var(--ease-out),
+    transform var(--page-enter) var(--ease-out);
+}
+
+.page-leave-active {
+  transition:
+    opacity   var(--page-leave) var(--ease-in),
+    transform var(--page-leave) var(--ease-in);
+}
+
+.page-appear-active {
+  transition:
+    opacity   var(--page-appear) var(--ease-out),
+    transform var(--page-appear) var(--ease-out);
+}
+
+.page-enter-from,
+.page-appear-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
 /* Respect the OS "reduce motion" setting sitewide. Near-zero (not 0/none) so

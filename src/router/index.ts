@@ -1,5 +1,11 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import {
+  createRouter,
+  createWebHistory,
+  type RouteLocationNormalized,
+  type RouteRecordRaw,
+} from 'vue-router'
 import { loadSession } from '../admin/store'
+import { PAGE_LEAVE_MS, prefersReducedMotion } from '../shared/motion'
 import { headerOffset, scrollMotion } from '../shared/scroll'
 import HomeView from '../views/HomeView.vue'
 import PostView from '../views/PostView.vue'
@@ -33,13 +39,32 @@ const routes: RouteRecordRaw[] = [
   },
 ]
 
+/**
+ * Whether the `page` transition will actually run for this navigation. It only
+ * does when some level of the view tree swaps components — reusing a view
+ * (`/writing/a` → `/writing/b`, which PostView refetches in place, or a
+ * hash-only move within the home page) does not animate, so the scroll must not
+ * wait on a transition that never happens.
+ */
+function viewSwaps(to: RouteLocationNormalized, from: RouteLocationNormalized): boolean {
+  const depth = Math.max(to.matched.length, from.matched.length)
+  for (let i = 0; i < depth; i += 1) {
+    if (to.matched[i]?.components?.default !== from.matched[i]?.components?.default) return true
+  }
+  return false
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  scrollBehavior(to, _from, savedPosition) {
-    if (savedPosition) return savedPosition
-    if (to.hash) return { el: to.hash, top: headerOffset(), behavior: scrollMotion() }
-    return { top: 0 }
+  scrollBehavior(to, from, savedPosition) {
+    const target = savedPosition
+      ?? (to.hash ? { el: to.hash, top: headerOffset(), behavior: scrollMotion() } : { top: 0 })
+
+    // The route <Transition> is `out-in`, so scrolling straight away would yank
+    // the page while the outgoing view is still on screen. Land it in the gap.
+    if (prefersReducedMotion() || !viewSwaps(to, from)) return target
+    return new Promise(resolve => { window.setTimeout(() => resolve(target), PAGE_LEAVE_MS) })
   },
 })
 
