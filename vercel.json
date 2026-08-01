@@ -43,11 +43,14 @@
     { "source": "/api/auth-me", "destination": "/api/auth?route=auth-me" },
     { "source": "/api/auth-register", "destination": "/api/auth?route=auth-register" },
 
+    { "source": "/api/admin-brews", "destination": "/api/admin?route=admin-brews" },
     { "source": "/api/admin-notes", "destination": "/api/admin?route=admin-notes" },
     { "source": "/api/admin-post", "destination": "/api/admin?route=admin-post" },
     { "source": "/api/admin-posts", "destination": "/api/admin?route=admin-posts" },
     { "source": "/api/slug-check", "destination": "/api/admin?route=slug-check" },
 
+    { "source": "/api/brew", "destination": "/api/content?route=brew" },
+    { "source": "/api/brews", "destination": "/api/content?route=brews" },
     { "source": "/api/note", "destination": "/api/content?route=note" },
     { "source": "/api/notes", "destination": "/api/content?route=notes" },
     { "source": "/api/post", "destination": "/api/content?route=post" },

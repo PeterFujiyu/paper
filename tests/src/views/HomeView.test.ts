@@ -25,14 +25,16 @@ function samplePost() {
   }
 }
 
-// Route /posts vs /notes to separate payloads; both list and search share paths.
-function stubFetch(posts: unknown[], notes: unknown[]) {
-  return vi.fn((input: string) =>
-    Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(String(input).includes('/notes') ? notes : posts),
-    }),
-  )
+// Route /posts vs /notes vs /brews to separate payloads; both list and search
+// share paths. Coffee Time answers with an object, not a bare array.
+const emptyBrews = { brews: [], shelf: { cups: 0, origins: 0, topMethod: '' } }
+
+function stubFetch(posts: unknown[], notes: unknown[], brews: unknown = emptyBrews) {
+  return vi.fn((input: string) => {
+    const url = String(input)
+    const body = url.includes('/notes') ? notes : url.includes('/brews') ? brews : posts
+    return Promise.resolve({ ok: true, json: () => Promise.resolve(body) })
+  })
 }
 
 describe('HomeView live regions', () => {

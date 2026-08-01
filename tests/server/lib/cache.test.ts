@@ -82,12 +82,12 @@ describe('cache policy by route', () => {
   it('keeps the public policy to the routes that were reviewed for it', () => {
     // A whitelist so reaching for it somewhere new has to be a deliberate edit.
     const users = routeFiles.filter((f) => routeSource(f).includes('setPublicReadCache'))
-    expect(users.sort()).toEqual(['notes.ts', 'post-shell.ts', 'post.ts', 'posts.ts'])
+    expect(users.sort()).toEqual(['brews.ts', 'notes.ts', 'post-shell.ts', 'post.ts', 'posts.ts'])
   })
 
-  it.each(['note.ts', 'post-view.ts', 'post-completion.ts'])('%s stays no-store', (file) => {
-    // note.ts is auth-gated; the metric routes are writes whose counts would be
-    // dropped by any cache.
+  it.each(['brew.ts', 'note.ts', 'post-view.ts', 'post-completion.ts'])('%s stays no-store', (file) => {
+    // brew.ts and note.ts are auth-gated; the metric routes are writes whose
+    // counts would be dropped by any cache.
     const src = routeSource(file)
     expect(src).toContain("res.setHeader('Cache-Control', 'no-store')")
     expect(src).not.toContain('setPublicReadCache')

@@ -25,6 +25,10 @@
             <span>Notes</span>
             <svg class="nav-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z"/></svg>
           </RouterLink>
+          <RouterLink to="/#coffee">
+            <span>Coffee</span>
+            <svg class="nav-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z"/></svg>
+          </RouterLink>
           <RouterLink to="/#contact">
             <span>Contact</span>
             <svg class="nav-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z"/></svg>
@@ -421,6 +425,47 @@ onUnmounted(() => {
 
 .site-nav a.router-link-active {
   color: var(--text-main);
+}
+
+/* The nav carries four destinations, which is more than a phone's width holds at
+   the desktop rhythm — without this the flex row crushes the wordmark instead.
+   Tighten the gaps first, rather than dropping a section from the nav. */
+@media (max-width: 40rem) {
+  .header-right {
+    gap: 1rem;
+  }
+
+  .site-nav {
+    gap: 0.9rem;
+  }
+}
+
+@media (max-width: 30rem) {
+  .site-nav {
+    gap: 0.55rem;
+  }
+
+  .site-nav a {
+    font-size: 0.8rem;
+  }
+
+  /* The chevrons annotate a hover state a touch device never enters. */
+  .nav-chevron {
+    display: none;
+  }
+
+  /* Even tightened, four destinations plus the full wordmark do not fit a phone.
+     The wordmark yields — but to its own collapsed form rather than to clipping:
+     this is the same reduction it already performs while scrolling, so the mark
+     stays deliberate and still links home. */
+  .wordmark {
+    flex-shrink: 0;
+  }
+
+  .wm-char:not(:first-child) {
+    max-width: 0;
+    opacity: 0;
+  }
 }
 
 /* ─── Dark mode toggle ─── */
