@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto'
 import { lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 
+import { HARNESS_ROOT } from './paths.mjs'
+
 const SHA_PATTERN = /^[0-9a-f]{40}$/
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 
@@ -14,27 +16,49 @@ export function sortedCases(manifest) {
   return manifest.cases.toSorted((left, right) => left.rank - right.rank)
 }
 
-function git(repoRoot, args) {
-  return spawnSync('git', ['-C', repoRoot, ...args], {
+function git(root, args) {
+  return spawnSync('git', ['-C', root, ...args], {
     encoding: 'utf8',
     maxBuffer: 10 * 1024 * 1024,
   })
 }
 
-function gitOutput(repoRoot, args) {
-  const result = git(repoRoot, args)
+function gitOutput(root, args) {
+  const result = git(root, args)
   if (result.status !== 0) {
     throw new Error(result.stderr.trim() || `git ${args.join(' ')} failed`)
   }
   return result.stdout.trim()
 }
 
-function commitExists(repoRoot, commit) {
-  return git(repoRoot, ['cat-file', '-e', `${commit}^{commit}`]).status === 0
+function commitExists(root, commit) {
+  return git(root, ['cat-file', '-e', `${commit}^{commit}`]).status === 0
 }
 
-function fileExistsAtCommit(repoRoot, commit, file) {
-  return git(repoRoot, ['cat-file', '-e', `${commit}:${file}`]).status === 0
+function fileExistsAtCommit(root, commit, file) {
+  return git(root, ['cat-file', '-e', `${commit}:${file}`]).status === 0
+}
+
+const TAG_PATTERN = /^benchmark\/[a-z0-9][a-z0-9-]*\/(?:base|ref|oracle)$/
+
+/**
+ * Resolve a pinned tag in the subject repository and confirm it names the expected commit.
+ *
+ * Returns null when it holds, or a human-readable reason. `git clone` fetches tags by default but
+ * `--single-branch` and several CI checkout actions do not, so a missing tag is called out
+ * separately with its remediation — otherwise it surfaces as a baffling validation failure.
+ */
+function checkTag(root, tag, expectedCommit) {
+  if (!TAG_PATTERN.test(tag ?? '')) return `tag is missing or malformed in the manifest: ${tag ?? '(none)'}`
+  const resolved = git(root, ['rev-parse', '--verify', '--quiet', `${tag}^{commit}`])
+  if (resolved.status !== 0) {
+    return `tag ${tag} does not exist in the subject repository — run: git -C <subject> fetch --tags`
+  }
+  const actual = resolved.stdout.trim()
+  if (actual !== expectedCommit) {
+    return `tag ${tag} points at ${actual}, but the manifest pins ${expectedCommit}`
+  }
+  return null
 }
 
 function isSafeRelativeFile(file) {
@@ -60,28 +84,46 @@ function sha256(value) {
   return createHash('sha256').update(value).digest('hex')
 }
 
-function validateHarnessSource(repoRoot, file) {
-  if (!pathIsContained(repoRoot, file.source)) return 'harness source escapes repository'
-  const sourcePath = resolve(repoRoot, file.source)
+/**
+ * Verify one grading-rule file against the harness repository.
+ *
+ * Every check is anchored to `harnessRoot`, never to the repository under test — asking the
+ * subject repo to vouch for the rule that grades it would defeat the point. Post-extraction the
+ * manifest, the recorded checksums, and the oracle bytes all live in this one repo, which makes
+ * cross-repo skew structurally impossible.
+ */
+export function validateHarnessSource(harnessRoot, file) {
+  if (!pathIsContained(harnessRoot, file.source)) return 'harness source escapes repository'
+  const sourcePath = resolve(harnessRoot, file.source)
   try {
     const stat = lstatSync(sourcePath)
     if (!stat.isFile() || stat.isSymbolicLink()) return 'harness source must be a regular file'
-    if (!pathIsContained(repoRoot, relative(repoRoot, realpathSync(sourcePath)))) {
+    if (!pathIsContained(harnessRoot, relative(harnessRoot, realpathSync(sourcePath)))) {
       return 'harness source resolves outside repository'
     }
-    if (git(repoRoot, ['ls-files', '--error-unmatch', '--', file.source]).status !== 0) {
+    if (git(harnessRoot, ['ls-files', '--error-unmatch', '--', file.source]).status !== 0) {
       return 'harness source must be tracked by git'
     }
     if (!/^[0-9a-f]{64}$/.test(file.sha256 ?? '')) return 'invalid harness checksum'
     if (sha256(readFileSync(sourcePath)) !== file.sha256) return 'harness checksum mismatch'
+    // `ls-files` checks the index, so a tracked file with uncommitted edits would otherwise pass
+    // both guards above: edit the oracle, recompute the hash, paste it into the manifest, done.
+    // Comparing against HEAD is what makes the checksum a real anti-drift guarantee. The `./`
+    // prefix keeps the pathspec cwd-relative, so it resolves in both the nested and split layouts.
+    const committed = spawnSync('git', ['-C', harnessRoot, 'show', `HEAD:./${file.source}`], {
+      encoding: null,
+      maxBuffer: 10 * 1024 * 1024,
+    })
+    if (committed.status !== 0) return 'harness source is not committed at HEAD'
+    if (sha256(committed.stdout) !== file.sha256) return 'harness source differs from HEAD'
     return null
   } catch {
     return 'harness source file is missing'
   }
 }
 
-function readDiffStats(repoRoot, baseCommit, referenceCommit) {
-  const names = gitOutput(repoRoot, [
+function readDiffStats(root, baseCommit, referenceCommit) {
+  const names = gitOutput(root, [
     'diff',
     '--name-only',
     '-z',
@@ -89,7 +131,7 @@ function readDiffStats(repoRoot, baseCommit, referenceCommit) {
     referenceCommit,
     '--',
   ])
-  const numstat = gitOutput(repoRoot, [
+  const numstat = gitOutput(root, [
     'diff',
     '--numstat',
     baseCommit,
@@ -171,7 +213,12 @@ function validateChecks(benchmarkCase, prefix, errors) {
   }
 }
 
-export function validateManifest(manifest, repoRoot) {
+/**
+ * @param manifest       the parsed benchmarks.json
+ * @param subjectRoot    the repository under test — source of commits, diffs, and oracle content
+ * @param harnessRoot    the repository holding the grading rules; defaults to this harness
+ */
+export function validateManifest(manifest, subjectRoot, harnessRoot = HARNESS_ROOT) {
   const errors = []
   const caseResults = []
 
@@ -225,15 +272,17 @@ export function validateManifest(manifest, repoRoot) {
       : []
     const harnessDestinations = new Set()
     for (const file of harnessFiles) {
+      // Resolved against harnessRoot, so this prefix is already in its post-split form. It must
+      // change in lockstep with benchmarks.json's harnessFiles[].source values.
       const validSource = isSafeRelativeFile(file?.source)
-        && file.source.startsWith('agent-benchmark/oracles/')
+        && file.source.startsWith('oracles/')
       const validDestination = isSafeRelativeFile(file?.destination)
         && file.destination.startsWith('tests/benchmark-oracle/')
       if (!validSource || !validDestination) {
         errors.push(`${prefix}: invalid harness file mapping`)
         continue
       }
-      const sourceError = validateHarnessSource(repoRoot, file)
+      const sourceError = validateHarnessSource(harnessRoot, file)
       if (sourceError) errors.push(`${prefix}: ${sourceError}`)
       if (harnessDestinations.has(file.destination)) {
         errors.push(`${prefix}: duplicate harness destination`)
@@ -249,14 +298,14 @@ export function validateManifest(manifest, repoRoot) {
     let oracleFilesPresent = false
     let statsMatches = false
     try {
-      if (!commitExists(repoRoot, benchmarkCase.referenceCommit)) {
+      if (!commitExists(subjectRoot, benchmarkCase.referenceCommit)) {
         throw new Error('reference commit does not exist')
       }
-      if (!commitExists(repoRoot, benchmarkCase.baseCommit)) {
+      if (!commitExists(subjectRoot, benchmarkCase.baseCommit)) {
         throw new Error('base commit does not exist')
       }
 
-      const parentLine = gitOutput(repoRoot, [
+      const parentLine = gitOutput(subjectRoot, [
         'rev-list',
         '--parents',
         '-n',
@@ -267,38 +316,45 @@ export function validateManifest(manifest, repoRoot) {
       parentMatches = parents.length === 1 && parents[0] === benchmarkCase.baseCommit
       if (!parentMatches) errors.push(`${prefix}: baseCommit is not the reference commit's sole parent`)
 
-      onSourceRef = git(repoRoot, [
-        'merge-base',
-        '--is-ancestor',
+      // Tag identity, not reachability from a mutable branch. Reachability from `main` breaks the
+      // moment the subject is rebased, and does nothing to stop a force-push plus GC from making
+      // the pinned commits unreachable entirely. A tag both keeps the object alive and proves it
+      // still points where the manifest says.
+      const baseTagError = checkTag(subjectRoot, benchmarkCase.baseTag, benchmarkCase.baseCommit)
+      if (baseTagError) errors.push(`${prefix}: base ${baseTagError}`)
+
+      const referenceTagError = checkTag(
+        subjectRoot,
+        benchmarkCase.referenceTag,
         benchmarkCase.referenceCommit,
-        manifest.sourceRef,
-      ]).status === 0
-      if (!onSourceRef) errors.push(`${prefix}: reference commit is not on ${manifest.sourceRef}`)
+      )
+      if (referenceTagError) errors.push(`${prefix}: reference ${referenceTagError}`)
+      onSourceRef = !baseTagError && !referenceTagError
 
       const sourceCommit = benchmarkCase.oracleCommit ?? benchmarkCase.referenceCommit
       if (!SHA_PATTERN.test(sourceCommit)) throw new Error('oracle commit must be a full lowercase SHA')
-      if (!commitExists(repoRoot, sourceCommit)) throw new Error('oracle commit does not exist')
-      const oracleOnSourceRef = git(repoRoot, [
-        'merge-base',
-        '--is-ancestor',
-        sourceCommit,
-        manifest.sourceRef,
-      ]).status === 0
-      const oracleFollowsReference = git(repoRoot, [
+      if (!commitExists(subjectRoot, sourceCommit)) throw new Error('oracle commit does not exist')
+      if (benchmarkCase.oracleCommit) {
+        const oracleTagError = checkTag(subjectRoot, benchmarkCase.oracleTag, sourceCommit)
+        if (oracleTagError) errors.push(`${prefix}: oracle ${oracleTagError}`)
+      }
+      // Kept as-is: unlike the reachability checks this is a genuine semantic invariant — the
+      // oracle must describe the state of the world at or after the reference commit.
+      const oracleFollowsReference = git(subjectRoot, [
         'merge-base',
         '--is-ancestor',
         benchmarkCase.referenceCommit,
         sourceCommit,
       ]).status === 0
-      if (!oracleOnSourceRef || !oracleFollowsReference) {
-        throw new Error('oracle commit must follow the reference commit on sourceRef')
+      if (!oracleFollowsReference) {
+        throw new Error('oracle commit must follow the reference commit')
       }
-      oracleFilesPresent = files.every(file => fileExistsAtCommit(repoRoot, sourceCommit, file))
+      oracleFilesPresent = files.every(file => fileExistsAtCommit(subjectRoot, sourceCommit, file))
         && ['tsconfig.json', 'vite.config.ts'].every(file =>
-          fileExistsAtCommit(repoRoot, benchmarkCase.baseCommit, file))
+          fileExistsAtCommit(subjectRoot, benchmarkCase.baseCommit, file))
       if (!oracleFilesPresent) errors.push(`${prefix}: one or more oracle files are missing`)
 
-      const actualStats = readDiffStats(repoRoot, benchmarkCase.baseCommit, benchmarkCase.referenceCommit)
+      const actualStats = readDiffStats(subjectRoot, benchmarkCase.baseCommit, benchmarkCase.referenceCommit)
       statsMatches = sameStats(actualStats, benchmarkCase.stats)
       if (!statsMatches) errors.push(`${prefix}: recorded diff stats do not match git`)
     } catch (error) {

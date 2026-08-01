@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process'
-import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 5_000
@@ -8,9 +7,11 @@ const MAX_OUTPUT_BYTES = 20 * 1024 * 1024
 
 function defaultWorkerPath() {
   const url = new URL('./evaluator-worker.mjs', import.meta.url)
-  return url.protocol === 'file:'
-    ? fileURLToPath(url)
-    : resolve(process.cwd(), 'agent-benchmark', 'src', 'evaluator-worker.mjs')
+  if (url.protocol === 'file:') return fileURLToPath(url)
+  // Unreachable today (the URL is always file:), and the old fallback hardcoded the nested
+  // `agent-benchmark/src/` layout, which stops existing after the extraction. There is no correct
+  // cwd-relative guess for a non-file module URL, so fail loudly instead of guessing wrongly.
+  throw new Error(`Cannot locate the evaluator worker from a non-file module URL: ${url.href}`)
 }
 
 export class EvaluationInterruptedError extends Error {

@@ -8,7 +8,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  realpathSync,
   readdirSync,
   rmSync,
   symlinkSync,
@@ -16,6 +15,9 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+
+import { validateHarnessSource } from './catalog.mjs'
+import { HARNESS_ROOT } from './paths.mjs'
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -57,15 +59,25 @@ function containedPath(root, file) {
   return target
 }
 
-function assertSafeNewWorkspace(repoRoot, workspace) {
-  const root = resolve(repoRoot)
+/**
+ * A workspace is about to be filled by `git archive | tar -x`, so it must not land anywhere that
+ * would corrupt a real repository. Both roots are checked: the subject supplies the tree, but the
+ * harness repo is just as destructible, and once the two are separate directories `existsSync`
+ * alone would happily accept `<harnessRepo>/.git/anything`.
+ */
+function assertSafeNewWorkspace(subjectRoot, workspace, harnessRoot = HARNESS_ROOT) {
   const target = resolve(workspace)
-  const gitDirectory = join(root, '.git')
 
-  if (target === root) throw new Error('Workspace cannot be the source repository')
-  if (target === gitDirectory || target.startsWith(`${gitDirectory}${sep}`)) {
-    throw new Error('Workspace cannot be inside the source .git directory')
+  for (const [label, root] of [['source', subjectRoot], ['harness', harnessRoot]]) {
+    if (!root) continue
+    const base = resolve(root)
+    const gitDirectory = join(base, '.git')
+    if (target === base) throw new Error(`Workspace cannot be the ${label} repository`)
+    if (target === gitDirectory || target.startsWith(`${gitDirectory}${sep}`)) {
+      throw new Error(`Workspace cannot be inside the ${label} .git directory`)
+    }
   }
+
   if (existsSync(target)) throw new Error(`Workspace already exists: ${target}`)
   return target
 }
@@ -84,6 +96,7 @@ function renderTask(benchmarkCase) {
 export function prepareCase({
   benchmarkCase,
   repoRoot,
+  harnessRoot = HARNESS_ROOT,
   workspace,
   linkDependencies = false,
   promptBundle,
@@ -99,7 +112,7 @@ export function prepareCase({
     }
   }
 
-  const target = assertSafeNewWorkspace(repoRoot, workspace)
+  const target = assertSafeNewWorkspace(repoRoot, workspace, harnessRoot)
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'paper-agent-benchmark-prepare-'))
   const archive = join(temporaryRoot, 'base.tar')
   let workspaceCreated = false
@@ -187,8 +200,12 @@ export function prepareCase({
   }
 }
 
-export function defaultWorkspace(repoRoot, caseId) {
-  return join(repoRoot, '.agent-benchmark', 'workspaces', caseId)
+// Anchored to the harness's runtime root, not the subject — a candidate workspace is a full copy
+// of the repo under test, and writing those back into that repo is the pollution this split removes.
+// Takes the runtime root (which already ends in `.agent-benchmark`), matching runner.mjs's v2
+// workspace layout, so both tiers land under the same directory.
+export function defaultWorkspace(runtimeRoot, caseId) {
+  return join(runtimeRoot, 'workspaces', caseId)
 }
 
 function assertPreparedWorkspace(benchmarkCase, repoRoot, workspace) {
@@ -300,11 +317,14 @@ function harnessDestinations(benchmarkCase) {
   )
 }
 
-function sha256(value) {
-  return createHash('sha256').update(value).digest('hex')
-}
-
-function injectOracleFiles(benchmarkCase, repoRoot, evaluationRoot) {
+/**
+ * Materialize the grading rules into an evaluation copy.
+ *
+ * Oracle content comes from the *subject* repo at the pinned oracle commit; harness files come
+ * from the *harness* repo working tree. The two roots are separate arguments because after the
+ * extraction they are separate repositories.
+ */
+function injectOracleFiles(benchmarkCase, subjectRoot, harnessRoot, evaluationRoot) {
   const sourceCommit = benchmarkCase.oracleCommit ?? benchmarkCase.referenceCommit
   const harnessFiles = benchmarkCase.harnessFiles ?? []
   const harnessPaths = harnessDestinations(benchmarkCase)
@@ -322,26 +342,22 @@ function injectOracleFiles(benchmarkCase, repoRoot, evaluationRoot) {
   for (const file of oracleFiles) {
     const destination = containedPath(evaluationRoot, file)
     mkdirSync(dirname(destination), { recursive: true })
-    writeFileSync(destination, gitFile(repoRoot, sourceCommit, file))
+    writeFileSync(destination, gitFile(subjectRoot, sourceCommit, file))
   }
 
   for (const file of ['tsconfig.json', 'vite.config.ts']) {
     const destination = containedPath(evaluationRoot, file)
-    writeFileSync(destination, gitFile(repoRoot, benchmarkCase.baseCommit, file))
+    writeFileSync(destination, gitFile(subjectRoot, benchmarkCase.baseCommit, file))
   }
 
   for (const file of harnessFiles) {
+    // Share catalog's validator rather than re-implementing it. The two used to differ — this one
+    // skipped the git-tracked check — so an untracked oracle was rejected by `validate` and
+    // accepted by `evaluate`. One function means one answer.
+    const sourceError = validateHarnessSource(harnessRoot, file)
+    if (sourceError) throw new Error(`${sourceError}: ${file.source}`)
     const destination = containedPath(evaluationRoot, file.destination)
-    const sourcePath = containedPath(repoRoot, file.source)
-    const sourceStat = lstatSync(sourcePath)
-    if (!sourceStat.isFile() || sourceStat.isSymbolicLink()) {
-      throw new Error(`Harness source must be a regular file: ${file.source}`)
-    }
-    containedPath(repoRoot, realpathSync(sourcePath))
-    const source = readFileSync(sourcePath)
-    if (sha256(source) !== file.sha256) {
-      throw new Error(`Harness checksum mismatch: ${file.source}`)
-    }
+    const source = readFileSync(containedPath(harnessRoot, file.source))
     mkdirSync(dirname(destination), { recursive: true })
     writeFileSync(destination, source)
   }
@@ -354,6 +370,9 @@ function injectOracleFiles(benchmarkCase, repoRoot, evaluationRoot) {
   ]
 }
 
+// LOAD-BEARING ALLOWLIST. Check subprocesses receive only the variables named here. That is now
+// what keeps $PAPER_BENCHMARK_SUBJECT (see src/subject.mjs) out of the evaluated agent's
+// environment — the harness's first env-var config read. Do not switch this to a denylist.
 function checkEnvironment() {
   const names = [
     'PATH',
@@ -594,6 +613,7 @@ function freezeCandidateWorkspace(workspace, destination) {
 export function evaluateCase({
   benchmarkCase,
   repoRoot,
+  harnessRoot = HARNESS_ROOT,
   workspace,
   resultsDirectory,
   keepEvaluation = false,
@@ -649,7 +669,7 @@ export function evaluateCase({
       const checkRoot = join(checkParent, 'candidate')
       copyCandidateWorkspace(target, checkRoot)
       assertNoCandidateSymlinks(checkRoot)
-      const oracleFiles = injectOracleFiles(benchmarkCase, repoRoot, checkRoot)
+      const oracleFiles = injectOracleFiles(benchmarkCase, repoRoot, harnessRoot, checkRoot)
       oracleFileCount = Math.max(oracleFileCount, oracleFiles.length)
       dependencyModes.add(cloneDependencies(
         sourceDependencies,
@@ -747,6 +767,7 @@ function applyReferencePatch(benchmarkCase, repoRoot, workspace) {
 export function evaluateReferenceCase({
   benchmarkCase,
   repoRoot,
+  harnessRoot = HARNESS_ROOT,
   revealCheckOutput = false,
 }) {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'paper-agent-benchmark-gold-'))
@@ -756,6 +777,7 @@ export function evaluateReferenceCase({
     prepareCase({
       benchmarkCase,
       repoRoot,
+      harnessRoot,
       workspace,
       linkDependencies: false,
     })
@@ -763,6 +785,7 @@ export function evaluateReferenceCase({
     return evaluateCase({
       benchmarkCase,
       repoRoot,
+      harnessRoot,
       workspace,
       resultsDirectory: join(temporaryRoot, 'results'),
       revealCheckOutput,
@@ -775,6 +798,7 @@ export function evaluateReferenceCase({
 export function evaluateBaselineCase({
   benchmarkCase,
   repoRoot,
+  harnessRoot = HARNESS_ROOT,
   revealCheckOutput = false,
 }) {
   const temporaryRoot = mkdtempSync(join(tmpdir(), 'paper-agent-benchmark-baseline-'))
@@ -788,12 +812,14 @@ export function evaluateBaselineCase({
     prepareCase({
       benchmarkCase,
       repoRoot,
+      harnessRoot,
       workspace,
       linkDependencies: false,
     })
     return evaluateCase({
       benchmarkCase: behaviorCase,
       repoRoot,
+      harnessRoot,
       workspace,
       resultsDirectory: join(temporaryRoot, 'results'),
       revealCheckOutput,

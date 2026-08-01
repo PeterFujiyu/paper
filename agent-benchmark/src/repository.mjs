@@ -432,8 +432,9 @@ const MIGRATION_1 = `
   END;
 `
 
-export function defaultDatabasePath(repoRoot) {
-  return join(resolve(repoRoot), '.agent-benchmark', 'benchmark.sqlite3')
+// Callers pass the harness root, not the subject: the database is harness runtime state.
+export function defaultDatabasePath(harnessRoot) {
+  return join(resolve(harnessRoot), '.agent-benchmark', 'benchmark.sqlite3')
 }
 
 export class BenchmarkRepository {
