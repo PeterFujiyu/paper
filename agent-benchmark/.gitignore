@@ -1,0 +1,10 @@
+# Harness runtime state: SQLite database, results, recovery spools, candidate workspaces.
+# paper's root .gitignore has a `/.agent-benchmark/` rule, but that pattern is anchored to the
+# repository root and does not cover this directory. This file travels with the harness and
+# becomes the new repository's ignore file after the extraction.
+/.agent-benchmark/
+
+# Machine-specific subject path (see src/subject.mjs). Provenance lives in benchmark.config.json.
+.benchmark.local.json
+
+node_modules

@@ -23,6 +23,7 @@ import {
   verifyRunWorkspace,
 } from './engine.mjs'
 import { evaluateCaseInSubprocess } from './evaluator.mjs'
+import { cliCommand, defaultRuntimeRoot } from './paths.mjs'
 import { createPromptBundle } from './prompt.mjs'
 import {
   consumeEvaluationSpool,
@@ -175,7 +176,10 @@ export class BenchmarkRunner {
   constructor({
     manifest,
     repoRoot,
-    runtimeRoot = join(repoRoot, '.agent-benchmark'),
+    // Harness-local, not `join(repoRoot, ...)`: once repoRoot is an external checkout, deriving
+    // runtime state from it would write the SQLite database and a full repo copy per candidate
+    // back into the repository under test.
+    runtimeRoot = defaultRuntimeRoot(),
     resultsDirectory = join(runtimeRoot, 'results'),
     repository,
     terminal,
@@ -948,8 +952,8 @@ export class BenchmarkRunner {
     this.printDirectoryAndCommand(run, command)
     this.printPrompt(run)
     this.terminal.write('配置可信度：准备时探测，实际执行未验证。\n')
-    this.terminal.write(`暂停后恢复：npm run benchmark -- resume ${shortId(run.id)}\n`)
-    this.terminal.write(`快捷评价：npm run benchmark -- evaluate ${shortId(run.id)}\n`)
+    this.terminal.write(`暂停后恢复：${cliCommand()} resume ${shortId(run.id)}\n`)
+    this.terminal.write(`快捷评价：${cliCommand()} evaluate ${shortId(run.id)}\n`)
   }
 
   printDirectoryAndCommand(run, command = this.commandForRun(run)) {
@@ -1023,7 +1027,7 @@ export class BenchmarkRunner {
       ], { defaultIndex: 0 })
       const run = this.repository.getRun(runId)
       if (action === 'pause') {
-        this.terminal.write(`已暂停。恢复命令：npm run benchmark -- resume ${shortId(run.id)}\n`)
+        this.terminal.write(`已暂停。恢复命令：${cliCommand()} resume ${shortId(run.id)}\n`)
         return { action: 'pause', run }
       }
       if (action === 'prompt') {

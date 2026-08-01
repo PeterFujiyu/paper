@@ -18,13 +18,42 @@ import {
   evaluateReferenceCase,
   prepareCase,
 } from './src/engine.mjs'
+import { defaultRuntimeRoot, workspacesRootFor } from './src/paths.mjs'
 import { BenchmarkRunner } from './src/runner.mjs'
 import { buildResultComparison } from './src/results.mjs'
+import { assertUsableSubject, resolveSubjectRoot } from './src/subject.mjs'
 import { createReadlineTerminal, TerminalCancelledError } from './src/terminal.mjs'
 
 const manifestPath = fileURLToPath(new URL('./benchmarks.json', import.meta.url))
-const repoRoot = fileURLToPath(new URL('..', import.meta.url))
+// `new URL('.', import.meta.url)` is the harness repository in both layouts: today cli.mjs sits in
+// paper/agent-benchmark/, after the extraction it sits at the harness repository root.
+const harnessRoot = fileURLToPath(new URL('.', import.meta.url))
+const runtimeRoot = defaultRuntimeRoot(harnessRoot)
 const manifest = loadManifest(manifestPath)
+
+// STAGE 1 ONLY. While the harness is still nested inside paper, the subject falls back to the
+// parent directory so nothing changes yet. Stage 2 sets this to false, at which point --subject,
+// $PAPER_BENCHMARK_SUBJECT, or .benchmark.local.json becomes mandatory.
+const ALLOW_NESTED_SUBJECT_FALLBACK = true
+
+// Parsed here rather than at the dispatch site below because --subject participates in resolving
+// the subject root, which almost everything else depends on. parseGlobalArguments is a hoisted
+// function declaration, so calling it before its definition is fine.
+let globals
+try {
+  globals = parseGlobalArguments(process.argv.slice(2))
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error))
+  process.exitCode = 2
+  globals = { args: ['__invalid__'], json: false }
+}
+
+const subject = resolveSubjectRoot({
+  subjectFlag: globals.subjectPath,
+  harnessRoot,
+  allowNestedFallback: ALLOW_NESTED_SUBJECT_FALLBACK,
+})
+const repoRoot = subject.path
 
 function loadCases() {
   return sortedCases(manifest)
@@ -34,11 +63,24 @@ function findCase(id) {
   return loadCases().find(benchmarkCase => benchmarkCase.id === id)
 }
 
+function firstPinnedCommit() {
+  return loadCases()[0]?.baseCommit
+}
+
 function assertManifestValid() {
-  const validation = validateManifest(manifest, repoRoot)
+  const validation = validateManifest(manifest, repoRoot, harnessRoot)
   if (!validation.valid) {
     throw new Error(`Benchmark manifest is invalid: ${validation.errors[0]}`)
   }
+}
+
+// Fail fast with remediation. Without this, a bare clone surfaces as confusing errors inside
+// manifest validation, and a dependency-less subject as a raw message from the evaluator.
+function requireUsableSubject({ requireDependencies = true } = {}) {
+  return assertUsableSubject(repoRoot, {
+    probeCommit: firstPinnedCommit(),
+    requireDependencies,
+  })
 }
 
 function harnessOnlyCase(benchmarkCase, harnessFile) {
@@ -141,6 +183,7 @@ Usage:
 function parseGlobalArguments(argv) {
   const args = []
   const databasePaths = []
+  const subjectPaths = []
   let json = false
   let jsonl = false
   let noColor = false
@@ -151,6 +194,13 @@ function parseGlobalArguments(argv) {
       const value = argv[index + 1]
       if (!value || value.startsWith('-')) throw new Error('--db requires a value')
       databasePaths.push(resolve(process.cwd(), value))
+      index += 1
+      continue
+    }
+    if (argument === '--subject') {
+      const value = argv[index + 1]
+      if (!value || value.startsWith('-')) throw new Error('--subject requires a value')
+      subjectPaths.push(resolve(process.cwd(), value))
       index += 1
       continue
     }
@@ -171,20 +221,27 @@ function parseGlobalArguments(argv) {
   if (new Set(databasePaths).size > 1) {
     throw new Error('--db was provided with conflicting values')
   }
+  if (new Set(subjectPaths).size > 1) {
+    throw new Error('--subject was provided with conflicting values')
+  }
   if (json && jsonl) throw new Error('--json and --jsonl cannot be used together')
   if (jsonl) throw new Error('--jsonl will be available with the managed-run path; use --json for now')
   return {
     args,
     databasePath: databasePaths[0],
+    subjectPath: subjectPaths[0],
     json,
     noColor,
   }
 }
 
+// Node 24, matching the subject's .nvmrc. better-sqlite3 is a native module and the checks run the
+// subject's vitest/vue-tsc/vite through process.execPath, so a node-major skew against the tree
+// its node_modules was built with produces NODE_MODULE_VERSION errors.
 function assertV2NodeVersion() {
   const major = Number(process.versions.node.split('.')[0])
-  if (major < 22) {
-    throw new Error(`Benchmark CLI v2 需要 Node.js 22 或更高版本；当前为 ${process.version}`)
+  if (major < 24) {
+    throw new Error(`Benchmark CLI v2 需要 Node.js 24 或更高版本；当前为 ${process.version}`)
   }
 }
 
@@ -210,13 +267,17 @@ async function createRunnerResources({
   recoverSpools = true,
 }) {
   assertV2NodeVersion()
+  requireUsableSubject()
   const {
     BenchmarkRepository,
     defaultDatabasePath,
   } = await import('./src/repository.mjs')
+  const workspacesRoot = workspacesRootFor(runtimeRoot)
   const safeDatabasePath = assertSafeDatabasePath({
-    databasePath: databasePath ?? defaultDatabasePath(repoRoot),
+    databasePath: databasePath ?? defaultDatabasePath(harnessRoot),
     repoRoot,
+    harnessRoot,
+    workspacesRoot,
     candidateWorkspaces,
   })
   const repository = new BenchmarkRepository(safeDatabasePath)
@@ -224,6 +285,8 @@ async function createRunnerResources({
     assertSafeDatabasePath({
       databasePath: safeDatabasePath,
       repoRoot,
+      harnessRoot,
+      workspacesRoot,
       candidateWorkspaces: [
         ...candidateWorkspaces,
         ...repository.listRuns().map(run => run.workspace),
@@ -236,6 +299,7 @@ async function createRunnerResources({
   const runner = new BenchmarkRunner({
     manifest,
     repoRoot,
+    runtimeRoot,
     repository,
     terminal,
   })
@@ -442,14 +506,6 @@ function localDateBoundary(value, name, endOfDay = false) {
   return date.toISOString()
 }
 
-let globals
-try {
-  globals = parseGlobalArguments(process.argv.slice(2))
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error))
-  process.exitCode = 2
-  globals = { args: ['__invalid__'], json: false }
-}
 const [command, ...args] = globals.args
 const jsonOutput = globals.json
 
@@ -812,7 +868,7 @@ if (!command) {
     for (const criterion of benchmarkCase.acceptanceCriteria) console.log(`- ${criterion}`)
   }
 } else if (command === 'doctor') {
-  const diagnosis = diagnoseEnvironment(manifest, repoRoot)
+  const diagnosis = diagnoseEnvironment(manifest, repoRoot, harnessRoot)
   const agents = Object.fromEntries(
     (await probeAdapters()).map(agent => [agent.adapterId, agent]),
   )
@@ -836,7 +892,9 @@ if (!command) {
     console.log(JSON.stringify(diagnosis, null, 2))
   } else {
     console.log(`Environment: ${diagnosis.ready ? 'ready' : 'not ready'}`)
-    console.log(`Source worktree: ${diagnosis.sourceDirty ? 'dirty (safe: snapshots use git archive)' : 'clean'}`)
+    const worktreeState = dirty => (dirty === null ? 'unknown (no work tree)' : dirty ? 'dirty' : 'clean')
+    console.log(`Source worktree: ${worktreeState(diagnosis.sourceDirty)}${diagnosis.sourceDirty ? ' (safe: snapshots use git archive)' : ''}`)
+    console.log(`Harness worktree: ${worktreeState(diagnosis.harnessDirty)}${diagnosis.harnessDirty ? ' (grading rules differ from HEAD)' : ''}`)
     for (const [name, tool] of Object.entries(diagnosis.tools)) {
       console.log(`${tool.available ? 'OK' : 'MISSING'}  ${name} ${tool.version}`)
     }
@@ -850,8 +908,10 @@ if (!command) {
   }
   if (!diagnosis.ready) process.exitCode = 2
 } else if (command === 'validate') {
-  const result = validateManifest(manifest, repoRoot)
-  if (args.includes('--run-gold') && result.valid) {
+  const runGold = args.includes('--run-gold')
+  requireUsableSubject({ requireDependencies: runGold })
+  const result = validateManifest(manifest, repoRoot, harnessRoot)
+  if (runGold && result.valid) {
     const id = positionalId(args, [])
     const selectedCases = id ? [findCase(id)].filter(Boolean) : loadCases()
     if (id && selectedCases.length === 0) {
@@ -866,6 +926,7 @@ if (!command) {
           const baselineReport = evaluateBaselineCase({
             benchmarkCase,
             repoRoot,
+            harnessRoot,
             revealCheckOutput: args.includes('--reveal-check-output'),
           })
           result.baseline.push({
@@ -882,6 +943,7 @@ if (!command) {
           const report = evaluateReferenceCase({
             benchmarkCase,
             repoRoot,
+            harnessRoot,
             revealCheckOutput: args.includes('--reveal-check-output'),
           })
           result.gold.push({
@@ -900,6 +962,7 @@ if (!command) {
             const harnessBaseline = evaluateBaselineCase({
               benchmarkCase: harnessCase,
               repoRoot,
+              harnessRoot,
               revealCheckOutput: args.includes('--reveal-check-output'),
             })
             result.harnessBaseline.push({
@@ -916,6 +979,7 @@ if (!command) {
             const harnessGold = evaluateReferenceCase({
               benchmarkCase: harnessCase,
               repoRoot,
+              harnessRoot,
               revealCheckOutput: args.includes('--reveal-check-output'),
             })
             result.harnessGold.push({
@@ -950,6 +1014,7 @@ if (!command) {
   if (!result.valid) process.exitCode = 2
 } else if (command === 'prepare') {
   try {
+    requireUsableSubject({ requireDependencies: args.includes('--link-dependencies') })
     assertManifestValid()
     const id = positionalId(args, ['--workspace'])
     const benchmarkCase = id ? findCase(id) : undefined
@@ -958,10 +1023,11 @@ if (!command) {
     const requestedWorkspace = optionValue(args, '--workspace')
     const workspace = requestedWorkspace
       ? resolve(process.cwd(), requestedWorkspace)
-      : defaultWorkspace(repoRoot, benchmarkCase.id)
+      : defaultWorkspace(runtimeRoot, benchmarkCase.id)
     const prepared = prepareCase({
       benchmarkCase,
       repoRoot,
+      harnessRoot,
       workspace,
       linkDependencies: args.includes('--link-dependencies'),
     })
@@ -989,7 +1055,7 @@ if (!command) {
     const requestedResults = optionValue(args, '--results')
     const resultsDirectory = requestedResults
       ? resolve(process.cwd(), requestedResults)
-      : resolve(repoRoot, '.agent-benchmark', 'results')
+      : resolve(runtimeRoot, 'results')
     const terminal = nonInteractiveTerminal(jsonOutput ? process.stderr : process.stdout)
     const resources = await createRunnerResources({
       databasePath: globals.databasePath,
@@ -1004,7 +1070,7 @@ if (!command) {
     if (benchmarkCase) {
       const workspace = requestedWorkspace
         ? resolve(process.cwd(), requestedWorkspace)
-        : defaultWorkspace(repoRoot, benchmarkCase.id)
+        : defaultWorkspace(runtimeRoot, benchmarkCase.id)
       const evaluated = await resources.runner.evaluateAdHoc({
         benchmarkCase,
         workspace,

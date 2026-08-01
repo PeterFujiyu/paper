@@ -48,3 +48,45 @@ test('database path rejects source Git and candidate workspace equivalents', () 
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('database path rejects the harness Git directory and the real workspaces root', () => {
+  const root = mkdtempSync(join(tmpdir(), 'paper-benchmark-db-path-harness-'))
+  const source = join(root, 'source')
+  const harness = join(root, 'harness')
+  const workspacesRoot = join(harness, '.agent-benchmark', 'workspaces')
+  mkdirSync(join(source, '.git'), { recursive: true })
+  mkdirSync(join(harness, '.git'), { recursive: true })
+  mkdirSync(workspacesRoot, { recursive: true })
+
+  try {
+    // The harness repository is a separate checkout after the split; its .git must be off limits
+    // too, not just the subject's.
+    assert.throws(() => assertSafeDatabasePath({
+      databasePath: join(harness, '.git', 'benchmark.sqlite3'),
+      repoRoot: source,
+      harnessRoot: harness,
+    }), /\.git/)
+
+    // Guard 2 must fire on the directory workspaces are actually created in, before any workspace
+    // exists — that window is exactly what the prepared-workspace guard cannot cover.
+    assert.throws(() => assertSafeDatabasePath({
+      databasePath: join(workspacesRoot, 'some-case', 'benchmark.sqlite3'),
+      repoRoot: source,
+      harnessRoot: harness,
+      workspacesRoot,
+    }), /workspace/)
+
+    // Beside the workspaces directory, not inside it — still allowed.
+    assert.equal(
+      assertSafeDatabasePath({
+        databasePath: join(harness, '.agent-benchmark', 'benchmark.sqlite3'),
+        repoRoot: source,
+        harnessRoot: harness,
+        workspacesRoot,
+      }),
+      join(realpathSync(harness), '.agent-benchmark', 'benchmark.sqlite3'),
+    )
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
