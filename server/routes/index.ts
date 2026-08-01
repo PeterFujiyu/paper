@@ -1,4 +1,5 @@
 import type { ApiRequest, ApiResponse } from '../lib/logger.js'
+import adminBrewsHandler from './admin-brews.js'
 import adminNotesHandler from './admin-notes.js'
 import adminPostHandler from './admin-post.js'
 import adminPostsHandler from './admin-posts.js'
@@ -6,6 +7,8 @@ import authLoginHandler from './auth-login.js'
 import authLogoutHandler from './auth-logout.js'
 import authMeHandler from './auth-me.js'
 import authRegisterHandler from './auth-register.js'
+import brewHandler from './brew.js'
+import brewsHandler from './brews.js'
 import noteHandler from './note.js'
 import notesHandler from './notes.js'
 import postCompletionHandler from './post-completion.js'
@@ -29,6 +32,7 @@ export const authRoutes: RouteTable = {
 }
 
 export const adminRoutes: RouteTable = {
+  'admin-brews': adminBrewsHandler,
   'admin-notes': adminNotesHandler,
   'admin-post': adminPostHandler,
   'admin-posts': adminPostsHandler,
@@ -36,6 +40,8 @@ export const adminRoutes: RouteTable = {
 }
 
 export const contentRoutes: RouteTable = {
+  brew: brewHandler,
+  brews: brewsHandler,
   note: noteHandler,
   notes: notesHandler,
   post: postHandler,

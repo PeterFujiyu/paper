@@ -16,6 +16,8 @@ const PostsListView = () => import('../admin/views/PostsListView.vue')
 const PostEditView = () => import('../admin/views/PostEditView.vue')
 const NotesListView = () => import('../admin/views/NotesListView.vue')
 const NoteEditView = () => import('../admin/views/NoteEditView.vue')
+const BrewsListView = () => import('../admin/views/BrewsListView.vue')
+const BrewEditView = () => import('../admin/views/BrewEditView.vue')
 
 const routes: RouteRecordRaw[] = [
   // ─── Public ───
@@ -35,6 +37,9 @@ const routes: RouteRecordRaw[] = [
       { path: 'notes',      name: 'admin-notes', component: NotesListView },
       { path: 'notes/new',  name: 'note-new',    component: NoteEditView },
       { path: 'notes/:id',  name: 'note-edit',   component: NoteEditView },
+      { path: 'brews',      name: 'admin-brews', component: BrewsListView },
+      { path: 'brews/new',  name: 'brew-new',    component: BrewEditView },
+      { path: 'brews/:id',  name: 'brew-edit',   component: BrewEditView },
     ],
   },
 ]

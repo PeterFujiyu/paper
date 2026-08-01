@@ -93,6 +93,11 @@
 
     <hr class="divider" />
 
+    <!-- ─── Coffee Time ─── -->
+    <CoffeeTime @ready="coffeeReady" />
+
+    <hr class="divider" />
+
     <!-- ─── Contact ─── -->
     <section id="contact" class="section">
       <h2 class="section-heading">Contact</h2>
@@ -125,6 +130,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { renderContentHTML } from '../shared/tiptap-extensions'
 import { formatReadingTime } from '../shared/reading-time'
 import { scrollToHash } from '../shared/scroll'
+import CoffeeTime from '../components/CoffeeTime.vue'
 import LoadingIndicator from '../components/LoadingIndicator.vue'
 import type { PostSummary, NoteSummary } from '../types/content'
 
@@ -182,6 +188,16 @@ async function runSearch(q: string): Promise<void> {
   }
 }
 
+// CoffeeTime owns its own fetch, so the page learns that section has settled
+// from the child's `ready` event rather than duplicating the request here.
+// Assigned synchronously by the Promise executor, before any child can mount.
+let resolveCoffee = (): void => {}
+const coffeeSettled = new Promise<void>((resolve) => { resolveCoffee = resolve })
+
+function coffeeReady(): void {
+  resolveCoffee()
+}
+
 onMounted(async () => {
   const notesReady = loadNotes()
   try {
@@ -192,9 +208,9 @@ onMounted(async () => {
   }
 
   // Sections render before their lists do, so a hash arriving with the
-  // navigation anchors against a shorter page. Re-anchor once both lists exist.
+  // navigation anchors against a shorter page. Re-anchor once every list exists.
   if (route.hash) {
-    await notesReady
+    await Promise.all([notesReady, coffeeSettled])
     await nextTick()
     scrollToHash(route.hash)
   }

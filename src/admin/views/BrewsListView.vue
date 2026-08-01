@@ -1,11 +1,11 @@
 <template>
   <div class="admin-wrap">
     <header class="admin-header">
-      <h1 class="admin-title">Notes</h1>
+      <h1 class="admin-title">Coffee</h1>
       <div class="admin-header-actions">
         <RouterLink to="/admin" class="btn-ghost">Writing</RouterLink>
-        <RouterLink to="/admin/brews" class="btn-ghost">Coffee</RouterLink>
-        <RouterLink to="/admin/notes/new" class="btn-primary">New note</RouterLink>
+        <RouterLink to="/admin/notes" class="btn-ghost">Notes</RouterLink>
+        <RouterLink to="/admin/brews/new" class="btn-primary">Log a brew</RouterLink>
         <button class="btn-ghost" @click="signOut">Sign out</button>
       </div>
     </header>
@@ -13,15 +13,20 @@
     <div role="status">
       <p v-if="loading" class="state-msg">Loading…</p>
     </div>
-    <div v-if="!loading && !notes.length" class="state-msg state-msg--empty">
-      No notes yet. <RouterLink to="/admin/notes/new">Write one.</RouterLink>
+    <div v-if="!loading && !brews.length" class="state-msg state-msg--empty">
+      Nothing brewed yet. <RouterLink to="/admin/brews/new">Log one.</RouterLink>
     </div>
 
-    <ol v-if="!loading && notes.length" class="note-list">
-      <li v-for="note in notes" :key="note._id" class="note-item">
-        <RouterLink :to="`/admin/notes/${note._id}`" class="note-row">
-          <span class="note-preview">{{ preview(note.content) }}</span>
-          <span class="note-date">{{ formatDate(note.createdAt) }}</span>
+    <ol v-if="!loading && brews.length" class="brew-list">
+      <li v-for="brew in brews" :key="brew._id" class="brew-item">
+        <RouterLink :to="`/admin/brews/${brew._id}`" class="brew-row">
+          <span class="brew-name">
+            {{ brew.bean }}<span v-if="brew.origin" class="brew-origin"> · {{ brew.origin }}</span>
+          </span>
+          <span class="brew-side">
+            <span class="brew-method">{{ brew.method }}</span>
+            <span class="brew-date">{{ formatDate(brew.createdAt) }}</span>
+          </span>
         </RouterLink>
       </li>
     </ol>
@@ -32,28 +37,19 @@
 import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { apiFetch, logout } from '../store'
-import { renderContentHTML } from '../../shared/tiptap-extensions'
-import type { NoteSummary, JsonValue } from '../../types/content'
+import type { BrewSummary } from '../../types/content'
 
 const router = useRouter()
-const notes = ref<NoteSummary[]>([])
+const brews = ref<BrewSummary[]>([])
 const loading = ref(true)
 
 onMounted(async () => {
   try {
-    notes.value = await apiFetch<NoteSummary[]>('/admin-notes')
+    brews.value = await apiFetch<BrewSummary[]>('/admin-brews')
   } finally {
     loading.value = false
   }
 })
-
-// A short plain-text preview of the note body for the list row.
-function preview(content: JsonValue | null): string {
-  const html = renderContentHTML(content)
-  const text = (new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '').trim()
-  if (!text) return 'Untitled note'
-  return text.length > 120 ? `${text.slice(0, 120)}…` : text
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -126,20 +122,20 @@ async function signOut() {
   color: var(--text-main);
 }
 
-.note-list {
+.brew-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.note-item {
+.brew-item {
   border-bottom: 1px solid var(--border);
 }
-.note-item:first-child {
+.brew-item:first-child {
   border-top: 1px solid var(--border);
 }
 
-.note-row {
+.brew-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -149,7 +145,7 @@ async function signOut() {
   gap: 1.5rem;
 }
 
-.note-preview {
+.brew-name {
   font-size: 1rem;
   color: var(--text-main);
   overflow: hidden;
@@ -157,15 +153,33 @@ async function signOut() {
   white-space: nowrap;
   transition: text-decoration 0.15s;
 }
-.note-row:hover .note-preview {
+.brew-row:hover .brew-name {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
-.note-date {
+.brew-origin {
+  color: var(--text-muted);
+}
+
+.brew-side {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  white-space: nowrap;
+}
+
+.brew-method {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.brew-date {
   font-size: 0.8rem;
   color: var(--text-muted);
   font-style: italic;
-  white-space: nowrap;
 }
 </style>
