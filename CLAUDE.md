@@ -18,12 +18,12 @@ Setup: `cp .env.example .env`; set `MONGODB_URI`, `JWT_SECRET` (≥ 32 chars, en
 
 ## Layout
 
-- `api/` — exactly four functions (`auth`, `admin`, `content`, `metrics`), each one line: `createDispatcher(<group>Routes)`. Vercel Hobby caps 12 functions, hence grouping; only add a new group here.
+- `api/` — one function per route group (`auth`, `admin`, `content`, `metrics`, `shell`), each one line: `createDispatcher(<group>Routes)`. Vercel Hobby caps 12 functions, hence grouping; only add a new group here.
 - `server/routes/` — one thin route per file (method guard, auth gate, validation, shaping), default async `handler`. `index.ts` is the single route table read by both `server/dev.ts` and `api/`, so dev/prod can't drift.
 - `server/lib/` — shared server logic (new reusable server code goes here, not `api/`).
 - `src/` — Vue app; `admin/store.ts` is the auth store. `src/types/content.ts` = shared API payload types; update with any response-shape change.
 - `tests/` — mirrors source tree; `tests/setup.ts` sets `JWT_SECRET` before modules load.
-- `research/` — plan/audit docs (see `research-audit` skill). `vercel.json` — build/rewrites/headers. Never hand-edit `dist/`.
+- `research/` — plan/audit docs (see `research-audit` skill). `design-anthropic-blog/design.html` is a typographic reference, not a page — nothing builds or serves it; `src/style.css` cites it for `--measure`. `vercel.json` — build/rewrites/headers. Never hand-edit `dist/`.
 
 ## API handler pattern
 
