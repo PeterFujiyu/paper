@@ -478,7 +478,8 @@ async function reportReadCompletion(): Promise<void> {
 }
 </style>
 
-<!-- prose: render Tiptap HTML in Editorial style -->
+<!-- Rendered TipTap output in Editorial style. Deliberately unscoped: this markup arrives through
+     v-html at runtime, so it carries no data-v attribute and `scoped` rules would never match it. -->
 <style>
 .prose { font-family: var(--font-serif); }
 .prose p  { font-size: 1rem; line-height: 1.8; margin: 0 0 1.6em; color: var(--text-main); }
