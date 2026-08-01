@@ -16,7 +16,8 @@
   --accent:     #D97757;
   --accent-ink: #B85333;
 
-  /* Layout — golden reading measure (~50-75 chars; see design.html) */
+  /* Layout — golden reading measure (~50-75 chars;
+     see research/design-anthropic-blog/design.html) */
   --measure: 68ch;
 
   /* Motion — non-linear curves for route transitions. --ease-out decelerates

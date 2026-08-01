@@ -24,7 +24,8 @@
 ## 2. 布局与测量宽度（`src/App.vue`）
 
 - `.page-wrap { max-width: 81.25ch }`（`App.vue:135`），header 同为 `min(81.25ch, 100%)`（`App.vue:152`）。
-- ⚠️ **回归点**：原型 `design.html:39` 明确写 `max-width: 65ch` 并注释"黄金阅读宽度"，正文还有一段专门讲"约 65ch + 充足行高，视线换行平稳不疲劳"。**生产环境从 65ch 放宽到了 81.25ch，比设计意图宽 ~25%**，违背 A4（测量宽度）。
+- ~~⚠️ **回归点**：原型 `design.html:39` 明确写 `max-width: 65ch` 并注释"黄金阅读宽度"，正文还有一段专门讲"约 65ch + 充足行高，视线换行平稳不疲劳"。**生产环境从 65ch 放宽到了 81.25ch，比设计意图宽 ~25%**，违背 A4（测量宽度）。~~
+  **✅ 已修复（`ce3ebf4`）** —— `src/style.css` 现为 `--measure: 68ch`，`src/App.vue:322` 用 `max-width: var(--measure)`。上面 `81.25ch` 的两条描述均已过时。
 - wordmark：Montserrat 1.05rem/500，带**滚动时收起为首字母 "P"** 的逐字动画（`App.vue:101-194`）——克制而有辨识度，相当于 Paper 自己的"反斜杠"签名细节 ✅。
 - 导航：仅 Writing / Contact（`App.vue:17-18`）——符合希克定律 ✅。
 - 页脚：版权 + "All opinions are my own." + 一个**以太坊地址彩蛋**（点击展开/复制，`App.vue:36-62`）——有个性，但与"相关内容/导航型页脚"无关。
