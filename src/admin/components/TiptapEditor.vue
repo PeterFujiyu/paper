@@ -406,7 +406,8 @@ const toolbarButtons = computed(() => {
 }
 </style>
 
-<!-- Table context toolbar — global so Teleport target (body) works -->
+<!-- Table context toolbar. Deliberately unscoped: the toolbar is Teleported to <body>, so it
+     carries no data-v attribute from this component and `scoped` rules would never match it. -->
 <style>
 .table-toolbar {
   position: absolute;
