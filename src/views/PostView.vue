@@ -402,8 +402,8 @@ async function reportReadCompletion(): Promise<void> {
 }
 
 .not-found-art {
-  width: 9rem;
-  height: 9rem;
+  width: 7rem;
+  height: 7rem;
 }
 
 /* The link already carries the block's bottom spacing. */

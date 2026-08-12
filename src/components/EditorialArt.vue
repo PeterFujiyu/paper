@@ -10,29 +10,28 @@
     <template v-if="name === 'blank-page'">
       <path
         class="art-carrier"
-        d="M52 26C46 27 42 32 43 38C46 76 47 116 46 160C46 167 50 171 57 171C91 173 127 172 149 169C156 168 160 163 159 156C156 117 155 75 157 37C157 30 153 26 146 26C117 23 81 23 52 26Z"
+        d="M53 29C48 29 45 33 45 38L47 159C47 165 51 169 57 169L147 167C153 167 157 163 157 157L155 39C155 33 151 29 145 29Z"
       />
       <g class="art-ink">
-        <path d="M62 68C82 63 102 71 122 66C138 62 152 70 170 63" stroke-width="7" />
-        <path d="M62 96C74 93 84 97 94 94" stroke-width="6" />
+        <path d="M65 70C82 67 101 71 118 68C132 65 146 70 161 66" stroke-width="4.5" />
+        <path d="M65 95C77 93 87 96 97 94" stroke-width="3.6" />
       </g>
       <path
         class="art-solid"
-        d="M104 87C111 85 117 90 116 97C115 104 108 106 103 102C98 97 99 89 104 87Z"
+        d="M107 89C112 88 116 92 115 97C114 102 109 104 105 101C102 98 103 90 107 89Z"
       />
     </template>
 
-    <!-- A torn-off scrap, corner folded, three shortening lines. -->
+    <!-- A torn-off scrap, corner folded, the note still short. -->
     <template v-else-if="name === 'scrap'">
       <path
         class="art-carrier"
-        d="M44 44C38 45 35 50 36 56C40 88 41 120 39 150C39 157 43 161 50 161C74 162 98 162 118 160L161 118C164 115 165 111 164 107C162 87 161 66 162 50C162 44 158 40 152 41C116 44 78 41 44 44Z"
+        d="M46 47C41 47 38 51 38 56L40 149C40 155 44 159 50 159L117 157L159 117C162 114 163 111 163 107L161 52C161 46 157 42 151 43Z"
       />
       <g class="art-ink">
-        <path d="M118 160C121 146 126 130 131 125C137 121 148 120 161 118" stroke-width="5" />
-        <path d="M58 74C74 70 90 76 110 72" stroke-width="7" />
-        <path d="M58 96C70 93 82 97 94 94" stroke-width="6" />
-        <path d="M58 118C66 116 72 118 79 117" stroke-width="5.5" />
+        <path d="M117 157C119 145 123 131 128 126C133 122 145 121 159 117" stroke-width="3" />
+        <path d="M61 79C75 76 90 80 105 77" stroke-width="4.5" />
+        <path d="M61 100C72 98 82 101 92 99" stroke-width="3.6" />
       </g>
     </template>
 
@@ -40,16 +39,16 @@
     <template v-else-if="name === 'empty-cup'">
       <path
         class="art-carrier"
-        d="M100 30C128 28 154 44 164 70C174 96 168 126 148 145C128 164 98 170 74 160C50 150 34 126 34 100C34 72 54 46 82 34C88 31 94 30 100 30Z"
+        d="M100 34C126 34 149 49 158 72C167 94 162 120 145 138C127 155 100 161 78 152C56 143 41 120 41 97C41 63 68 34 100 34Z"
       />
       <g class="art-ink">
-        <path d="M58 76C84 69 118 69 145 77" stroke-width="7" />
+        <path d="M69 82C88 78 113 78 132 83" stroke-width="4.5" />
         <path
-          d="M64 80C66 112 73 138 87 148C98 156 114 155 124 146C136 136 140 110 140 80"
-          stroke-width="7.5"
+          d="M74 86C76 110 81 129 91 137C99 143 110 142 118 136C126 128 129 109 129 86"
+          stroke-width="4.5"
         />
-        <path d="M141 92C156 87 167 96 165 108C163 121 152 127 140 125" stroke-width="6.5" />
-        <path d="M48 166C78 173 126 173 156 165" stroke-width="6" />
+        <path d="M130 95C141 92 148 98 147 106C146 115 138 119 129 118" stroke-width="3.4" />
+        <path d="M62 150C83 155 117 155 138 149" stroke-width="3.4" />
       </g>
     </template>
 
@@ -57,17 +56,19 @@
     <template v-else-if="name === 'torn-page'">
       <path
         class="art-carrier"
-        d="M46 30C40 31 36 36 37 42C40 82 41 122 39 160C39 167 43 171 50 171L92 169L84 148L96 128L82 108L94 88L82 66L92 46L88 30Z"
+        d="M48 32C43 32 40 36 40 41L42 158C42 164 46 168 52 168L91 166L86 148L95 130L86 111L95 91L86 70L93 49L90 32Z"
       />
       <path
         class="art-carrier"
-        d="M106 40L100 54L112 74L98 94L110 114L96 134L106 154L102 178L152 176C158 176 162 171 161 165C158 126 157 84 160 48C160 42 156 38 150 38Z"
+        d="M107 43L102 57L111 75L101 94L110 113L100 132L106 152L103 175L149 173C155 173 159 169 159 163L157 50C157 44 153 40 147 40Z"
       />
       <g class="art-ink">
-        <path d="M56 68C65 65 73 69 80 66" stroke-width="6.5" />
-        <path d="M56 94C63 92 69 95 76 93" stroke-width="5.5" />
-        <path d="M120 84C130 81 140 85 150 82" stroke-width="6.5" />
-        <path d="M118 114C126 112 134 115 144 113" stroke-width="5.5" />
+        <!-- Thinner than the other three because this one is displayed at 7rem,
+             not 5rem: 3.2 here and 4.5 there both land near 1.8px on screen. -->
+        <path d="M58 70C66 68 73 71 80 68" stroke-width="3.2" />
+        <path d="M58 94C64 92 70 95 76 93" stroke-width="2.6" />
+        <path d="M120 85C129 82 138 86 147 83" stroke-width="3.2" />
+        <path d="M119 113C126 111 133 114 141 112" stroke-width="2.6" />
       </g>
     </template>
   </svg>
@@ -84,17 +85,25 @@ defineProps<{ name: ArtName }>()
    `.some-class { width: … }` in the consumer reaches this element. */
 .editorial-art {
   flex: none;
-  width: 7.5rem;
-  height: 7.5rem;
+  width: 5rem;
+  height: 5rem;
 }
 
 /* Three layers, after Anthropic's editorial illustrations: an irregular
    carrier shape separating the subject from the page, then near-black
    gestural ink on top. The reference palette (#FAF9F5 carrier, #141413 ink)
    is expressed through tokens rather than hardcoded, so the drawings invert
-   correctly in dark mode and gain contrast in the high-contrast themes. */
+   correctly in dark mode and gain contrast in the high-contrast themes.
+
+   Weights are set against this page, not against the reference. Those drawings
+   are newsroom heroes rendered near 1000px, where a stroke of 7 on a 200 unit
+   box is right; here they are 80px spots beside 0.9rem italic text, on a page
+   whose whole grammar is 1px hairlines. At 80px these strokes land near 1.4-1.8px
+   — still visibly drawn by hand, no longer three times heavier than every rule
+   around them. The carriers are held to near-true rectangles and circles for the
+   same reason: enough wobble to read as hand-made, not enough to go folksy. */
 .art-carrier {
-  fill: color-mix(in srgb, var(--accent) 12%, var(--bg-subtle));
+  fill: color-mix(in srgb, var(--accent) 9%, var(--bg-subtle));
 }
 
 .art-ink path {

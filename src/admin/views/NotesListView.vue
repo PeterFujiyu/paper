@@ -140,8 +140,8 @@ async function signOut() {
 }
 
 .empty-art {
-  width: 6.5rem;
-  height: 6.5rem;
+  width: 5rem;
+  height: 5rem;
 }
 
 .note-list {

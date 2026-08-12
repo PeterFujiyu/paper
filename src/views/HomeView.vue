@@ -405,8 +405,8 @@ async function loadNotes(): Promise<void> {
 }
 
 .empty-art {
-  width: 6.5rem;
-  height: 6.5rem;
+  width: 5rem;
+  height: 5rem;
 }
 
 .section {
