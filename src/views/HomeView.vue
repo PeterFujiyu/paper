@@ -21,7 +21,16 @@
     <!-- ─── Writing ─── -->
     <section id="writing" class="section">
       <div class="writing-head">
-        <h2 class="section-heading">Writing</h2>
+        <h2 class="section-heading">
+          <span class="head-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <!-- A nib mid-stroke, resting on the line it just drew. -->
+              <path d="M16 4a2 2 0 0 1 2.8 2.8L8.2 17.4l-3.8 1 1-3.8Z" />
+              <path d="M12.5 20h7" />
+            </svg>
+          </span>
+          Writing
+        </h2>
         <div class="search">
           <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
@@ -34,7 +43,10 @@
       <!-- Persistent live region: state changes here are announced -->
       <div role="status">
         <LoadingIndicator v-if="loading" label="Loading essays…" />
-        <p v-else-if="!posts.length" class="state-msg">No posts yet.</p>
+        <div v-else-if="!posts.length" class="empty">
+          <EditorialArt name="blank-page" class="empty-art" />
+          <p class="state-msg">No posts yet.</p>
+        </div>
         <p v-else-if="searching" class="state-msg">Searching…</p>
         <p v-else-if="isSearching && !displayPosts.length" class="state-msg">Nothing matches “{{ trimmedQuery }}”.</p>
       </div>
@@ -65,7 +77,18 @@
     <!-- ─── Notes ─── -->
     <section id="notes" class="section">
       <div class="writing-head">
-        <h2 class="section-heading">Notes</h2>
+        <h2 class="section-heading">
+          <span class="head-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <!-- A scrap with the corner turned back — echoes the empty-state drawing. -->
+              <path d="M5 4h14v9.5L13.5 20H5Z" />
+              <path d="M19 13.5h-5.5V20" />
+              <path d="M8 8.5h8" />
+              <path d="M8 12h5" />
+            </svg>
+          </span>
+          Notes
+        </h2>
         <div class="search">
           <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
@@ -80,7 +103,10 @@
         <LoadingIndicator v-if="notesLoading" label="Loading notes…" />
         <p v-else-if="noteSearching" class="state-msg">Searching…</p>
         <p v-else-if="isSearchingNotes && !displayNotes.length" class="state-msg">Nothing matches “{{ trimmedNoteQuery }}”.</p>
-        <p v-else-if="!displayNotes.length" class="state-msg">No notes yet.</p>
+        <div v-else-if="!displayNotes.length" class="empty">
+          <EditorialArt name="scrap" class="empty-art" />
+          <p class="state-msg">No notes yet.</p>
+        </div>
       </div>
 
       <ol v-if="!notesLoading && !noteSearching && displayNotes.length" class="note-list">
@@ -100,7 +126,16 @@
 
     <!-- ─── Contact ─── -->
     <section id="contact" class="section">
-      <h2 class="section-heading">Contact</h2>
+      <h2 class="section-heading">
+        <span class="head-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <!-- An open envelope, the reply already on its way out. -->
+            <path d="M3 5h18v14H3Z" />
+            <path d="m3 5.5 9 7 9-7" />
+          </svg>
+        </span>
+        Contact
+      </h2>
       <p class="contact-intro">
         I'm available for conversations about design, collaboration, or simply
         an exchange of ideas. Find me at:
@@ -131,6 +166,7 @@ import { renderContentHTML } from '../shared/tiptap-extensions'
 import { formatReadingTime } from '../shared/reading-time'
 import { scrollToHash } from '../shared/scroll'
 import CoffeeTime from '../components/CoffeeTime.vue'
+import EditorialArt from '../components/EditorialArt.vue'
 import LoadingIndicator from '../components/LoadingIndicator.vue'
 import type { PostSummary, NoteSummary } from '../types/content'
 
@@ -354,6 +390,25 @@ async function loadNotes(): Promise<void> {
   font-style: italic;
 }
 
+/* Illustrated empty state — only for the durable "there is nothing here" case.
+   Search misses stay text-only: that message flips on every keystroke, and a
+   drawing appearing and vanishing under the cursor would be pure noise. */
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 1.5rem 0;
+}
+
+.empty .state-msg {
+  margin: 0;
+}
+
+.empty-art {
+  width: 6.5rem;
+  height: 6.5rem;
+}
+
 .section {
   margin-bottom: 1rem;
 }
@@ -366,6 +421,22 @@ async function loadNotes(): Promise<void> {
   text-transform: uppercase;
   color: var(--text-muted);
   margin: 0 0 2.5rem 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Section marks, matching the cup that already leads Coffee Time: accent-tinted,
+   17px on a 24px grid. Every glyph is drawn to span y 4–20 so its ink is centred
+   on the box — otherwise `align-items: center` lines up the boxes while the
+   drawings inside them sit at different heights. The label is uppercase, so its
+   optical centre is above the line box's (no descenders to balance the caps);
+   this lifts the mark by that difference. */
+.head-mark {
+  display: inline-flex;
+  line-height: 0;
+  color: var(--accent);
+  transform: translateY(-0.5px);
 }
 
 /* ─── Search (in-place filter) ─── */

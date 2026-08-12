@@ -14,7 +14,8 @@
       <p v-if="loading" class="state-msg">Loading…</p>
     </div>
     <div v-if="!loading && !posts.length" class="state-msg state-msg--empty">
-      No posts yet. <RouterLink to="/admin/posts/new">Write one.</RouterLink>
+      <EditorialArt name="blank-page" class="empty-art" />
+      <p>No posts yet. <RouterLink to="/admin/posts/new">Write one.</RouterLink></p>
     </div>
 
     <ol v-if="!loading && posts.length" class="post-list">
@@ -42,6 +43,7 @@
 import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { apiFetch, logout } from '../store'
+import EditorialArt from '../../components/EditorialArt.vue'
 import type { PostSummary } from '../../types/content'
 
 const router = useRouter()
@@ -133,6 +135,22 @@ async function signOut() {
 }
 .state-msg a {
   color: var(--text-main);
+}
+
+.state-msg--empty {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 1.5rem 0;
+}
+
+.state-msg--empty p {
+  margin: 0;
+}
+
+.empty-art {
+  width: 6.5rem;
+  height: 6.5rem;
 }
 
 .post-list {

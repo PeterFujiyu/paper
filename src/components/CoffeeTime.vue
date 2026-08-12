@@ -3,7 +3,10 @@
     <div class="writing-head">
       <h2 class="section-heading">
         <span class="cup" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Offset viewBox, not offset paths: this glyph's ink runs y 1.8–21,
+               so it centres 0.6 high. Shifting the frame leaves the steam
+               animation's coordinates (and its fill-box origin) untouched. -->
+          <svg viewBox="0 -0.6 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <!-- Steam: three wisps, each drifting on its own delay. -->
             <path class="steam steam--1" d="M8.5 5.2c0-1 1-1.4 1-2.4" />
             <path class="steam steam--2" d="M12 4.6c0-1.2 1-1.6 1-2.8" />
@@ -48,7 +51,10 @@
       <LoadingIndicator v-if="loading" label="Loading the coffee log…" />
       <p v-else-if="searching" class="state-msg">Searching…</p>
       <p v-else-if="isSearching && !displayBrews.length" class="state-msg">Nothing matches “{{ trimmedQuery }}”.</p>
-      <p v-else-if="!displayBrews.length" class="state-msg">The pot is empty. Nothing brewed yet.</p>
+      <div v-else-if="!displayBrews.length" class="empty">
+        <EditorialArt name="empty-cup" class="empty-art" />
+        <p class="state-msg">The pot is empty. Nothing brewed yet.</p>
+      </div>
     </div>
 
     <ol v-if="!loading && !searching && displayBrews.length" class="brew-list">
@@ -110,6 +116,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { RouterLink } from 'vue-router'
+import EditorialArt from './EditorialArt.vue'
 import LoadingIndicator from './LoadingIndicator.vue'
 import {
   doseShare,
@@ -260,6 +267,24 @@ function titleFromSlug(slug: string): string {
   font-style: italic;
 }
 
+/* Illustrated only for the durable empty log — the search miss above stays
+   text-only so the drawing doesn't flicker on every keystroke. */
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 1.5rem 0;
+}
+
+.empty .state-msg {
+  margin: 0;
+}
+
+.empty-art {
+  width: 6.5rem;
+  height: 6.5rem;
+}
+
 /* ─── Search ─── */
 .search {
   display: flex;
@@ -301,9 +326,10 @@ function titleFromSlug(slug: string): string {
   display: inline-flex;
   line-height: 0;
   color: var(--accent);
-  /* The glyph is drawn on a 24px grid but sits beside 0.75rem type; nudging it
-     down aligns the cup's body with the cap height rather than the baseline. */
-  transform: translateY(1px);
+  /* Matches .head-mark in HomeView — the label is uppercase, so its optical
+     centre sits above the line box's and the mark lifts to meet it. Keep the
+     two in step; they read as one set across the page. */
+  transform: translateY(-0.5px);
 }
 
 .steam {
