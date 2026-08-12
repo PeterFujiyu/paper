@@ -14,7 +14,8 @@
       <p v-if="loading" class="state-msg">Loading…</p>
     </div>
     <div v-if="!loading && !brews.length" class="state-msg state-msg--empty">
-      Nothing brewed yet. <RouterLink to="/admin/brews/new">Log one.</RouterLink>
+      <EditorialArt name="empty-cup" class="empty-art" />
+      <p>Nothing brewed yet. <RouterLink to="/admin/brews/new">Log one.</RouterLink></p>
     </div>
 
     <ol v-if="!loading && brews.length" class="brew-list">
@@ -37,6 +38,7 @@
 import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { apiFetch, logout } from '../store'
+import EditorialArt from '../../components/EditorialArt.vue'
 import type { BrewSummary } from '../../types/content'
 
 const router = useRouter()
@@ -120,6 +122,22 @@ async function signOut() {
 }
 .state-msg a {
   color: var(--text-main);
+}
+
+.state-msg--empty {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 1.5rem 0;
+}
+
+.state-msg--empty p {
+  margin: 0;
+}
+
+.empty-art {
+  width: 6.5rem;
+  height: 6.5rem;
 }
 
 .brew-list {

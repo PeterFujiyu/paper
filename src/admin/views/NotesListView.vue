@@ -14,7 +14,8 @@
       <p v-if="loading" class="state-msg">Loading…</p>
     </div>
     <div v-if="!loading && !notes.length" class="state-msg state-msg--empty">
-      No notes yet. <RouterLink to="/admin/notes/new">Write one.</RouterLink>
+      <EditorialArt name="scrap" class="empty-art" />
+      <p>No notes yet. <RouterLink to="/admin/notes/new">Write one.</RouterLink></p>
     </div>
 
     <ol v-if="!loading && notes.length" class="note-list">
@@ -33,6 +34,7 @@ import { ref, onMounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { apiFetch, logout } from '../store'
 import { renderContentHTML } from '../../shared/tiptap-extensions'
+import EditorialArt from '../../components/EditorialArt.vue'
 import type { NoteSummary, JsonValue } from '../../types/content'
 
 const router = useRouter()
@@ -124,6 +126,22 @@ async function signOut() {
 }
 .state-msg a {
   color: var(--text-main);
+}
+
+.state-msg--empty {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 1.5rem 0;
+}
+
+.state-msg--empty p {
+  margin: 0;
+}
+
+.empty-art {
+  width: 6.5rem;
+  height: 6.5rem;
 }
 
 .note-list {

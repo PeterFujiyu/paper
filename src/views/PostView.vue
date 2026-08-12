@@ -26,9 +26,12 @@
 
     <!-- 404 -->
     <div v-if="!loading && !post" class="not-found">
-      <p class="not-found-code">404</p>
-      <p class="not-found-msg">This essay doesn't exist.</p>
-      <RouterLink to="/" class="back-link">← Back to writing</RouterLink>
+      <EditorialArt name="torn-page" class="not-found-art" />
+      <div>
+        <p class="not-found-code">404</p>
+        <p class="not-found-msg">This essay doesn't exist.</p>
+        <RouterLink to="/" class="back-link">← Back to writing</RouterLink>
+      </div>
     </div>
 
     <!-- Article -->
@@ -81,6 +84,7 @@ import { RouterLink } from 'vue-router'
 import { renderContentHTML } from '../shared/tiptap-extensions'
 import { formatReadingTime } from '../shared/reading-time'
 import { getHCaptchaToken } from '../shared/hcaptcha'
+import EditorialArt from '../components/EditorialArt.vue'
 import LoadingIndicator from '../components/LoadingIndicator.vue'
 import type { PostDocument, PostMetrics, PostSummary } from '../types/content'
 
@@ -389,7 +393,21 @@ async function reportReadCompletion(): Promise<void> {
   border-top: 1px solid var(--border);
 }
 
-.not-found { padding: 4rem 0; }
+.not-found {
+  padding: 4rem 0;
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.not-found-art {
+  width: 9rem;
+  height: 9rem;
+}
+
+/* The link already carries the block's bottom spacing. */
+.not-found .back-link { margin-bottom: 0; }
 
 .not-found-code {
   font-family: var(--font-sans);
