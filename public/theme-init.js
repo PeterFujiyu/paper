@@ -1,6 +1,6 @@
 // Pre-paint bootstrap for the visitor's stored appearance choices.
 //
-// src/main.ts applies the same four settings, but it is a module script: it does
+// src/main.ts applies the same five settings, but it is a module script: it does
 // not run until its whole dependency graph has loaded, while the stylesheet is
 // render-blocking and ready long before that. On a cold or throttled load a
 // dark-mode or high-contrast visitor could still watch the default palette paint
@@ -40,6 +40,9 @@
     'high-contrast',
     contrast ? contrast === 'more' : asks('(prefers-contrast: more)')
   )
+
+  // No OS query behind this one — see prefersLessArtwork in src/shared/theme.ts.
+  root.classList.toggle('less-artwork', stored('artwork') === 'less')
 
   root.classList.toggle('native-cursor', stored('cursor') === 'native')
 

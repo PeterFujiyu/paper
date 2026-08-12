@@ -4,7 +4,14 @@ import './styles/cursors.css'
 import App from './App.vue'
 import router from './router'
 import { applyCursorSize, applyNativeCursor, prefersNativeCursor, storedCursorSize } from './shared/cursor'
-import { applyDarkTheme, applyHighContrast, prefersDarkTheme, prefersHighContrast } from './shared/theme'
+import {
+  applyDarkTheme,
+  applyHighContrast,
+  applyLessArtwork,
+  prefersDarkTheme,
+  prefersHighContrast,
+  prefersLessArtwork,
+} from './shared/theme'
 
 // public/theme-init.js has normally already done this, synchronously and ahead of
 // the stylesheet — that, and not this, is what keeps the default palette from
@@ -16,5 +23,6 @@ applyNativeCursor(prefersNativeCursor())
 applyCursorSize(storedCursorSize())
 applyDarkTheme(prefersDarkTheme())
 applyHighContrast(prefersHighContrast())
+applyLessArtwork(prefersLessArtwork())
 
 createApp(App).use(router).mount('#app')

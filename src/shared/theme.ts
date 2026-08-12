@@ -20,6 +20,11 @@ const MORE = 'more'
 const NORMAL = 'normal'
 const CONTRAST_CLASS = 'high-contrast'
 
+const ARTWORK_KEY = 'artwork'
+const LESS = 'less'
+const FULL = 'full'
+const ARTWORK_CLASS = 'less-artwork'
+
 /** The visitor's stored choice, falling back to the OS preference. */
 export function prefersDarkTheme(): boolean {
   try {
@@ -72,6 +77,38 @@ export function setHighContrast(high: boolean): void {
   applyHighContrast(high)
   try {
     localStorage.setItem(CONTRAST_KEY, high ? MORE : NORMAL)
+  } catch {
+    // The choice just will not survive the session.
+  }
+}
+
+/**
+ * Whether to drop the decorative drawings — the empty-state illustrations, the
+ * section marks, the loading figure. Unlike the two palette choices this has no
+ * OS preference behind it: `prefers-reduced-motion` asks about movement and the
+ * artwork is static, `prefers-reduced-data` about bytes and it is inline SVG
+ * measured in hundreds of them. Neither is the question being asked, so the
+ * default is simply to draw, and only an explicit choice turns it off.
+ */
+export function prefersLessArtwork(): boolean {
+  try {
+    return localStorage.getItem(ARTWORK_KEY) === LESS
+  } catch {
+    // Storage throws when the visitor has blocked it; draw as normal.
+    return false
+  }
+}
+
+/** Reflects the artwork choice onto <html> without persisting it. */
+export function applyLessArtwork(less: boolean): void {
+  document.documentElement.classList.toggle(ARTWORK_CLASS, less)
+}
+
+/** Records the artwork choice and reflects it onto <html>. */
+export function setLessArtwork(less: boolean): void {
+  applyLessArtwork(less)
+  try {
+    localStorage.setItem(ARTWORK_KEY, less ? LESS : FULL)
   } catch {
     // The choice just will not survive the session.
   }

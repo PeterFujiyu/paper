@@ -143,6 +143,24 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* ─── Less artwork ───
+   The footer opt-out. Removes the drawings that decorate rather than inform:
+   the empty-state illustrations, the marks leading each section heading, and
+   the figure in the loading indicator. Deliberately narrow — icons that carry
+   an affordance (search, the article arrow, the footer's own controls) and
+   reader content (cover images) stay. This is about ornament, not imagery.
+
+   Cross-component by nature, so it lives here rather than in any one scoped
+   block; a plain selector still reaches elements that carry a scope attribute.
+   Unlike the palette classes this has no OS preference behind it — see
+   prefersLessArtwork in src/shared/theme.ts. */
+:root.less-artwork .editorial-art,
+:root.less-artwork .head-mark,
+:root.less-artwork .cup,
+:root.less-artwork .loading-mark {
+  display: none;
+}
+
 /* ─── Route transitions ───
    Cross-component, so they live here rather than in a scoped block. Views rise
    into place and drift away upward: one direction of travel, never a slide, never
