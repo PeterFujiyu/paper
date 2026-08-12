@@ -1,5 +1,5 @@
 <template>
-  <div :class="{ dark: isDark, 'high-contrast': highContrast }" style="min-height: 100vh; background-color: var(--bg); color: var(--text-main); transition: background-color 0.3s ease, color 0.3s ease;">
+  <div :class="{ dark: isDark, 'high-contrast': highContrast, 'less-artwork': lessArtwork }" style="min-height: 100vh; background-color: var(--bg); color: var(--text-main); transition: background-color 0.3s ease, color 0.3s ease;">
 
     <!-- Keyboard skip target — the only element hidden until :focus-visible -->
     <a class="skip-link" href="#main" @click.prevent="skipToMain">Skip to content</a>
@@ -164,6 +164,13 @@
               <input id="setting-high-contrast" type="checkbox" :checked="highContrast" @change="toggleContrast" />
               <span>Higher contrast</span>
             </label>
+            <!-- Drops the decorative drawings — empty-state illustrations, section
+                 marks, the loading figure — and keeps every icon that is an
+                 affordance rather than ornament. -->
+            <label class="settings-row">
+              <input id="setting-less-artwork" type="checkbox" :checked="lessArtwork" @change="toggleArtwork" />
+              <span>Less artwork</span>
+            </label>
             <!-- Bibata is GPL-3.0, so the credit travels with the art. The panel is
                  collapsed by default, so this costs the footer nothing at rest. -->
             <span class="settings-credit">Cursor: Bibata Modern Ice · GPL-3.0</span>
@@ -190,7 +197,14 @@ import {
   setNativeCursor,
   storedCursorSize,
 } from './shared/cursor'
-import { prefersDarkTheme, prefersHighContrast, setDarkTheme, setHighContrast } from './shared/theme'
+import {
+  prefersDarkTheme,
+  prefersHighContrast,
+  prefersLessArtwork,
+  setDarkTheme,
+  setHighContrast,
+  setLessArtwork,
+} from './shared/theme'
 
 // ─── Route transition ───
 // True from the moment the outgoing view starts leaving until the incoming one
@@ -237,6 +251,13 @@ const highContrast = ref(prefersHighContrast())
 function toggleContrast(): void {
   highContrast.value = !highContrast.value
   setHighContrast(highContrast.value)
+}
+
+const lessArtwork = ref(prefersLessArtwork())
+
+function toggleArtwork(): void {
+  lessArtwork.value = !lessArtwork.value
+  setLessArtwork(lessArtwork.value)
 }
 
 // ─── Current year ───
