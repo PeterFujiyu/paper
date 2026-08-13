@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { createDispatcher, resolveRouteName } from '../../../server/lib/dispatch.js'
@@ -112,6 +112,18 @@ describe('vercel.json routing contract', () => {
   it('keeps the SPA fallback last so it cannot swallow /api', () => {
     const last = vercel.rewrites[vercel.rewrites.length - 1]
     expect(last.destination).toBe('/index.html')
+  })
+
+  it('keeps MCP as a standalone function within the Hobby function budget', () => {
+    const apiFiles = readdirSync(resolve(process.cwd(), 'api'))
+      .filter((name) => name.endsWith('.ts'))
+
+    expect(apiFiles).toContain('mcp.ts')
+    expect(apiFiles.length).toBeLessThanOrEqual(12)
+    expect(allRoutes).not.toHaveProperty('mcp')
+    expect(vercel.rewrites).not.toContainEqual(
+      expect.objectContaining({ source: '/api/mcp' }),
+    )
   })
 
   describe('the essay link-preview rewrite', () => {

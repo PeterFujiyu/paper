@@ -1,15 +1,13 @@
 import { connectDB } from '../lib/db.js'
 import { setPublicReadCache } from '../lib/cache.js'
+import { listNotes, MAX_CONTENT_SEARCH_LENGTH, type NoteLean } from '../lib/content-queries.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
-import { escapeRegExp } from '../lib/regex.js'
 import { prepareNoteContent, sanitizeStoredNoteContent } from '../lib/note-content.js'
 import { requireAuth } from '../lib/vercel-auth.js'
 import Note from '../models/Note.js'
 
-type StoredNote = { _id: unknown; content?: unknown; createdAt?: Date }
-
 // Re-sanitize each note's content before it ships to a public reader.
-function forRead(notes: StoredNote[]): Array<{ _id: unknown; content: unknown; createdAt?: Date }> {
+function forRead(notes: NoteLean[]): Array<{ _id: unknown; content: unknown; createdAt?: Date | string }> {
   return notes.map((note) => ({
     _id: note._id,
     content: sanitizeStoredNoteContent(note.content),
@@ -21,14 +19,6 @@ type NoteBody = {
   content?: unknown
 }
 
-// Only the fields needed to render a note inline. `contentText` stays server-side
-// (`select: false`); `content` is returned (unlike post lists) because notes are
-// rendered in place rather than linked to a detail page.
-const FIELDS = 'content createdAt'
-
-// Upper bound on the search query; a literal substring match needs nothing longer.
-const MAX_SEARCH_LENGTH = 100
-
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   const meta = beginRequest(req)
 
@@ -37,31 +27,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
     // Reading notes is public; authoring them is admin-only.
     if (req.method === 'GET') {
-      const q = getQueryParam(req, 'q').trim().slice(0, MAX_SEARCH_LENGTH)
+      const q = getQueryParam(req, 'q').trim().slice(0, MAX_CONTENT_SEARCH_LENGTH)
+      const notes = await listNotes({ q: q || undefined, limit: q ? 20 : 30 })
 
-      if (q) {
-        // Case-insensitive substring search over the plain-text body. The query is
-        // escaped to a literal so special characters can't break the pattern or
-        // trigger ReDoS. Regex (not $text) because MongoDB text indexes are
-        // rejected under this connection's Stable API `apiStrict`.
-        const rx = new RegExp(escapeRegExp(q), 'i')
-        const results = await Note.find({ contentText: rx })
-          .sort({ createdAt: -1 })
-          .select(FIELDS)
-          .limit(20)
-          .lean()
-        setPublicReadCache(res)
-        sendJson(res, 200, forRead(results as StoredNote[]), meta)
-        return
-      }
-
-      const notes = await Note.find({})
-        .sort({ createdAt: -1 })
-        .select(FIELDS)
-        .limit(30)
-        .lean()
       setPublicReadCache(res)
-      sendJson(res, 200, forRead(notes as StoredNote[]), meta)
+      sendJson(res, 200, forRead(notes), meta)
       return
     }
 

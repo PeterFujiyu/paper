@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "api:dev": "tsx server/dev.ts",
+    "mcp:stdio": "tsx server/mcp/stdio.ts",
     "backfill:reading-time": "tsx server/scripts/backfill-reading-time.ts",
     "backfill:search": "tsx server/scripts/backfill-search.ts",
     "benchmark": "node agent-benchmark/cli.mjs",
@@ -23,6 +24,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",
+    "@modelcontextprotocol/server": "2.0.0",
     "@tiptap/extension-blockquote": "^3.20.1",
     "@tiptap/extension-image": "^3.20.1",
     "@tiptap/extension-link": "^3.20.1",
@@ -42,7 +44,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.2.4",
     "vue": "^3.5.25",
-    "vue-router": "^4.6.4"
+    "vue-router": "^4.6.4",
+    "zod": "4.2.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",

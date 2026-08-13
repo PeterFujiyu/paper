@@ -2,28 +2,12 @@ import { connectDB } from '../lib/db.js'
 import { setPublicReadCache } from '../lib/cache.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
 import { extractPlainText } from '../lib/content-text.js'
+import { findPublishedPost } from '../lib/content-queries.js'
 import { withPostMetrics } from '../lib/post-metrics.js'
+import { isDuplicateSlugError, slugExists } from '../lib/post-slugs.js'
 import { requireAuth } from '../lib/vercel-auth.js'
 import { normalizeSlug, normalizeCoverImage, normalizeReadingOverride, normalizeTags, resolveReadingMinutes, sanitizePostContent, validatePostBody, type PostBody } from '../lib/validation.js'
 import Post from '../models/Post.js'
-
-function isDuplicateSlugError(error: unknown): boolean {
-  return Boolean(
-    error &&
-    typeof error === 'object' &&
-    'code' in error &&
-    (error as { code?: number }).code === 11000 &&
-    'keyPattern' in error &&
-    (error as { keyPattern?: Record<string, unknown> }).keyPattern?.slug
-  )
-}
-
-async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
-  const query: Record<string, unknown> = { slug }
-  if (excludeId) query._id = { $ne: excludeId }
-  const existing = await Post.findOne(query).select('_id').lean()
-  return !!existing
-}
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   const meta = beginRequest(req)
@@ -38,7 +22,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
-      const post = await Post.findOne({ slug, published: true }).lean()
+      const post = await findPublishedPost(slug)
       if (!post) {
         sendJson(res, 404, { error: 'Not found' }, meta)
         return

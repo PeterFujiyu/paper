@@ -24,7 +24,7 @@ export async function connectDB(): Promise<Mongoose> {
   }
 
   if (!cached.promise) {
-    console.log('[db] connecting to MongoDB')
+    console.error('[db] connecting to MongoDB')
     cached.promise = mongoose.connect(uri, {
       bufferCommands: false,
       serverApi: { version: '1', strict: true, deprecationErrors: true },
@@ -40,6 +40,6 @@ export async function connectDB(): Promise<Mongoose> {
   }
 
   cached.conn = await cached.promise
-  console.log('[db] connected')
+  console.error('[db] connected')
   return cached.conn
 }
