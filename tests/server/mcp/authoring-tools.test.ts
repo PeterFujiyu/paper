@@ -183,11 +183,16 @@ describe('stdio MCP authoring tools', () => {
       { readOnlyHint: false },
       { readOnlyHint: false },
       { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
-      { readOnlyHint: false, destructiveHint: true },
+      { readOnlyHint: false },
       { readOnlyHint: false },
     ])
+    // Nothing this surface writes reaches the site on its own; publish_essay
+    // is the only tool that changes what a reader can see.
     expect(tools.find((tool) => tool.name === 'add_note')?.description).toContain(
-      'publishes immediately',
+      'unpublished draft',
+    )
+    expect(tools.find((tool) => tool.name === 'update_essay')?.description).toContain(
+      'allowPublished',
     )
   })
 
@@ -280,6 +285,43 @@ describe('stdio MCP authoring tools', () => {
     })
   })
 
+  it('refuses to edit a published essay unless the caller allows it', async () => {
+    mockPostFindOne.mockReturnValueOnce(queryResult({ _id: 'post-1', published: true }))
+
+    const refused = await client.callTool('update_essay', { slug: 'on-craft', ...essayArgs })
+
+    expect(refused).toMatchObject({
+      isError: true,
+      content: [{
+        type: 'text',
+        text: 'That essay is published. Pass allowPublished: true to edit live content.',
+      }],
+    })
+    expect(mockPostFindByIdAndUpdate).not.toHaveBeenCalled()
+
+    // The same call with the flag goes through, and leaves it published.
+    mockPostFindOne
+      .mockReturnValueOnce(queryResult({ _id: 'post-1', published: true }))
+      .mockReturnValueOnce(queryResult(null))
+    mockPostFindByIdAndUpdate.mockReturnValueOnce(updateResult({
+      _id: 'post-1',
+      slug: 'on-craft',
+      title: 'On Craft',
+      excerpt: 'A long enough excerpt.',
+      published: true,
+    }))
+
+    const allowed = await client.callTool('update_essay', {
+      slug: 'on-craft',
+      allowPublished: true,
+      ...essayArgs,
+    })
+
+    expect(allowed.isError).toBeUndefined()
+    expect(allowed.structuredContent).toMatchObject({ published: true })
+    expect(mockPostFindByIdAndUpdate).toHaveBeenCalledTimes(1)
+  })
+
   it('fully replaces editable essay fields without changing publication state', async () => {
     mockPostFindOne
       .mockReturnValueOnce(queryResult({ _id: 'post-1' }))
@@ -358,11 +400,12 @@ describe('stdio MCP authoring tools', () => {
     })
   })
 
-  it('adds a sanitized note that publishes immediately and returns plain text', async () => {
+  it('adds a sanitized note as a draft rather than publishing it', async () => {
     mockNoteCreate.mockResolvedValueOnce(documentResult({
       _id: 'note-1',
       content: essayContent,
       contentText: 'hello world',
+      published: false,
       createdAt: new Date('2026-08-04T00:00:00.000Z'),
     }))
 
@@ -371,12 +414,15 @@ describe('stdio MCP authoring tools', () => {
     expect(mockNoteCreate).toHaveBeenCalledWith({
       content: essayContent,
       contentText: 'hello world',
+      published: false,
     })
     expect(result.structuredContent).toEqual({
       id: 'note-1',
       text: 'hello world',
       createdAt: '2026-08-04T00:00:00.000Z',
+      published: false,
     })
+    expect(result.content[0].text).toContain('Note drafted')
   })
 
   it('logs a normalized brew without leaking its id or search projection', async () => {

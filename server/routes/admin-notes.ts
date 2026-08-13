@@ -18,9 +18,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     if (!user) return
 
     await connectDB()
+    // Drafts included, and flagged, so the list is where unpublished notes
+    // surface — nothing else shows them.
     const notes = await Note.find()
       .sort({ createdAt: -1 })
-      .select('content createdAt')
+      .select('content createdAt published')
       .lean()
 
     res.setHeader('Cache-Control', 'no-store')

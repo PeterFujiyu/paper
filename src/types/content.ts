@@ -45,6 +45,8 @@ export interface NoteSummary {
   _id: string
   content: JsonValue | null
   createdAt: string
+  /** Admin reads only; the public list is published notes by definition. */
+  published?: boolean
 }
 
 export interface NoteDocument extends NoteSummary {

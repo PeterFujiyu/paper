@@ -74,7 +74,9 @@ describe('api/notes', () => {
     await handler(makeReq(), res)
 
     expect(mockRequireAuth).not.toHaveBeenCalled()
-    expect(mockFind).toHaveBeenCalledWith({})
+    // `$ne: false`, not `true`: notes written before the draft flag existed
+    // carry no value and must stay public.
+    expect(mockFind).toHaveBeenCalledWith({ published: { $ne: false } })
     expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', PUBLIC_READ_CACHE_CONTROL)
     expect(res.statusCode).toBe(200)
     expect(res.json).toHaveBeenCalledWith(notes)
@@ -101,7 +103,7 @@ describe('api/notes', () => {
 
     await handler(makeReq({ url: '/api/notes?q=craft', query: { q: 'craft' } }), res)
 
-    expect(mockFind).toHaveBeenCalledWith({ contentText: /craft/i })
+    expect(mockFind).toHaveBeenCalledWith({ published: { $ne: false }, contentText: /craft/i })
     expect(sort).toHaveBeenCalledWith({ createdAt: -1 })
     expect(res.statusCode).toBe(200)
   })
@@ -120,7 +122,12 @@ describe('api/notes', () => {
     await handler(makeReq({ method: 'POST', body: { content: helloDoc } }), res)
 
     expect(mockRequireAuth).toHaveBeenCalled()
-    expect(mockCreate).toHaveBeenCalledWith({ content: helloDoc, contentText: 'hello world' })
+    // A note written by hand in the admin goes live on save; only MCP drafts.
+    expect(mockCreate).toHaveBeenCalledWith({
+      content: helloDoc,
+      contentText: 'hello world',
+      published: true,
+    })
     expect(res.statusCode).toBe(201)
     expect(res.json).toHaveBeenCalledWith({
       _id: 'note-1',

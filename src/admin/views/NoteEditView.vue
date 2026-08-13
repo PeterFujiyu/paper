@@ -4,6 +4,12 @@
     <header class="edit-header">
       <RouterLink to="/admin/notes" class="back-link">← Notes</RouterLink>
       <div class="edit-actions">
+        <!-- A draft note is one an agent wrote through MCP; this is where it
+             goes live, and the only place that state is visible. -->
+        <label v-if="isEdit" class="publish-toggle">
+          <input type="checkbox" v-model="form.published" />
+          <span>{{ form.published ? 'Live' : 'Draft' }}</span>
+        </label>
         <button class="btn-save" :class="{ 'btn-save--saving': saving }" @click="save" :disabled="saving || !!validationMessage">
           {{ saving ? 'Saving…' : 'Save' }}
         </button>
@@ -35,7 +41,12 @@ const router = useRouter()
 const isEdit = computed(() => !!route.params.id && route.params.id !== 'new')
 const noteId = computed(() => String(route.params.id ?? ''))
 
-const form = reactive<{ content: JsonValue | null }>({ content: null })
+// A new note publishes on save, as it always has; only an existing note can be
+// a draft, and only the checkbox above changes that.
+const form = reactive<{ content: JsonValue | null; published: boolean }>({
+  content: null,
+  published: true,
+})
 
 const loading = ref(false)
 const saving = ref(false)
@@ -61,6 +72,7 @@ onMounted(async () => {
   try {
     const note = await apiFetch<NoteDocument>(`/note?id=${encodeURIComponent(noteId.value)}`)
     form.content = note.content ?? null
+    form.published = note.published !== false
   } catch (e: unknown) {
     error.value = getErrorMessage(e)
   } finally {
@@ -77,7 +89,7 @@ async function save() {
     if (isEdit.value) {
       await apiFetch<NoteDocument>(`/note?id=${encodeURIComponent(noteId.value)}`, {
         method: 'PUT',
-        body: JSON.stringify({ content: form.content }),
+        body: JSON.stringify({ content: form.content, published: form.published }),
       })
     } else {
       const note = await apiFetch<NoteDocument>('/notes', {
@@ -133,6 +145,19 @@ async function remove() {
   gap: 1rem;
   align-items: center;
 }
+
+/* Same control as the essay editor's, so publication reads the same in both. */
+.publish-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: var(--cursor-pointer);
+}
+.publish-toggle input { accent-color: var(--text-main); }
 
 .btn-save {
   font-family: inherit;

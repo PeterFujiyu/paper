@@ -22,7 +22,7 @@ Setup: `cp .env.example .env`; set `MONGODB_URI`, `JWT_SECRET` (≥ 32 chars, en
 - `api/` — one function per route group (`auth`, `admin`, `content`, `metrics`, `shell`), each one line: `createDispatcher(<group>Routes)`. `mcp.ts` is the sole standalone fetch-handler exception and intentionally has no `allRoutes` or rewrite entry. Vercel Hobby caps 12 functions, hence grouping; only add a new group here.
 - `server/routes/` — one thin route per file (method guard, auth gate, validation, shaping), default async `handler`. `index.ts` is the single route table read by both `server/dev.ts` and `api/`, so dev/prod can't drift.
 - `server/lib/` — shared server logic (new reusable server code goes here, not `api/`).
-- `server/mcp/` — shared MCP factory/tools; remote `/api/mcp` is public read-only, while local stdio alone registers authoring tools.
+- `server/mcp/` — shared MCP factory/tools; remote `/api/mcp` is public read-only (origin-checked, rate-limited), while local stdio alone registers authoring tools. Everything MCP writes stays a draft: `publish_essay` and the admin UI are the only ways content goes live.
 - `src/` — Vue app; `admin/store.ts` is the auth store. `src/types/content.ts` = shared API payload types; update with any response-shape change.
 - `tests/` — mirrors source tree; `tests/setup.ts` sets `JWT_SECRET` before modules load.
 - `research/` — plan/audit docs (see `research-audit` skill). `design-anthropic-blog/design.html` is a typographic reference, not a page — nothing builds or serves it; `src/style.css` cites it for `--measure`. `vercel.json` — build/rewrites/headers. Never hand-edit `dist/`.
