@@ -368,7 +368,14 @@ const toolbarButtons = computed(() => {
   border-color: var(--accent);
 }
 
+/* Sticky rather than scrolling away with the top of the shell: a long post is
+   the case where the formatting controls are most wanted, and the least
+   reachable. Parked just under the fixed site header, it stops at the bottom of
+   the shell like any other in-flow element. */
 .toolbar {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 20;
   display: flex;
   flex-wrap: wrap;
   gap: 0;

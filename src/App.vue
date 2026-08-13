@@ -368,7 +368,7 @@ onUnmounted(() => {
   width: min(var(--measure), 100%);
   margin-left: auto;
   margin-right: auto;
-  padding: clamp(1.2rem, 3vh, 1.8rem) 1.5rem;
+  padding: var(--header-pad-y) 1.5rem;
   transition:
     background-color 0.3s ease,
     border-color     0.3s ease;

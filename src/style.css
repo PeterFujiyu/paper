@@ -20,6 +20,12 @@
      see research/design-anthropic-blog/design.html) */
   --measure: 68ch;
 
+  /* Header metrics — the fixed header's vertical padding, and the height that
+     follows from it (padding + the wordmark's 1.05rem/1.4 line box + the 1px
+     rule). Sticky elements offset by --header-h to park just beneath it. */
+  --header-pad-y: clamp(1.2rem, 3vh, 1.8rem);
+  --header-h: calc(var(--header-pad-y) * 2 + 1.47rem + 1px);
+
   /* Motion — non-linear curves for route transitions. --ease-out decelerates
      into rest (content settling), --ease-in accelerates away (content leaving).
      PAGE_LEAVE_MS in src/shared/motion.ts mirrors --page-leave so the router
