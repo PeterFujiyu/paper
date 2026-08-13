@@ -151,10 +151,43 @@ export async function listBrews(opts: {
       .select(BREW_FIELDS)
       .limit(opts.limit)
       .lean(),
-    readShelf(),
+    cachedShelf(),
   ])
 
   return { brews: brews as unknown as BrewLean[], shelf }
+}
+
+/**
+ * The shelf groups the whole brews collection, and every caller gets the same
+ * answer, so it is held for a minute instead of re-aggregating per request.
+ * The window matches the CDN's `s-maxage` on the public read, so the site is no
+ * staler than before; MCP is the reason this exists at all, being POST-only and
+ * therefore never cached in front of the function.
+ *
+ * Caching the promise rather than the value also collapses concurrent misses
+ * into one aggregation.
+ */
+const SHELF_TTL_MS = 60_000
+
+let shelfCache: { promise: Promise<Shelf>; expiresAt: number } | null = null
+
+function cachedShelf(): Promise<Shelf> {
+  const now = Date.now()
+  if (shelfCache && shelfCache.expiresAt > now) return shelfCache.promise
+
+  const promise = readShelf()
+  shelfCache = { promise, expiresAt: now + SHELF_TTL_MS }
+  // A failed aggregation must not be served for the rest of the window.
+  void promise.catch(() => {
+    if (shelfCache?.promise === promise) shelfCache = null
+  })
+
+  return promise
+}
+
+/** Drop the memoized shelf — called after a write so the author sees their cup. */
+export function invalidateShelfCache(): void {
+  shelfCache = null
 }
 
 /** Standing shelf facts, intentionally computed over every brew. */

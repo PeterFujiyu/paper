@@ -1,6 +1,6 @@
 import { setPublicReadCache } from '../lib/cache.js'
 import { connectDB } from '../lib/db.js'
-import { BREW_FIELDS, listBrews, MAX_CONTENT_SEARCH_LENGTH } from '../lib/content-queries.js'
+import { BREW_FIELDS, invalidateShelfCache, listBrews, MAX_CONTENT_SEARCH_LENGTH } from '../lib/content-queries.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
 import { prepareBrew, type BrewBody } from '../lib/brew-entry.js'
 import Brew from '../models/Brew.js'
@@ -40,6 +40,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       }
 
       const brew = await Brew.create(prepared.value)
+      // The shelf counts this cup now, rather than when the memo expires.
+      invalidateShelfCache()
       const created = brew.toObject()
       sendJson(res, 201, { ...forRead(created), _id: created._id }, meta)
       return
