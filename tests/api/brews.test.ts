@@ -24,6 +24,7 @@ vi.mock('../../server/models/Brew.js', () => ({
 
 import handler from '../../server/routes/brews.js'
 import { PUBLIC_READ_CACHE_CONTROL } from '../../server/lib/cache.js'
+import { invalidateShelfCache } from '../../server/lib/content-queries.js'
 import type { ApiRequest, ApiResponse } from '../../server/lib/logger.js'
 
 const storedBrew = {
@@ -92,6 +93,8 @@ describe('api/brews', () => {
     vi.clearAllMocks()
     mockRequireAuth.mockResolvedValue({ id: 'user-1' })
     mockAggregate.mockResolvedValue([])
+    // The shelf tally is memoized per instance; each case needs its own.
+    invalidateShelfCache()
   })
 
   it('returns the brew list publicly, cacheable at the CDN', async () => {

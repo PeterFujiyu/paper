@@ -21,6 +21,7 @@ vi.mock('../../../server/lib/content-queries.js', () => ({
   searchPublishedPosts: mockSearchPublishedPosts,
 }))
 
+import { resetRateLimits } from '../../../server/lib/rate-limit.js'
 import { paperMcpFetch } from '../../../server/mcp/server.js'
 
 const clientMeta = {
@@ -76,6 +77,7 @@ function toolPayload(body: RpcResponse): Record<string, unknown> {
 describe('remote Paper MCP server', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    resetRateLimits()
     mockListPublishedPosts.mockResolvedValue([])
     mockSearchPublishedPosts.mockResolvedValue([])
     mockFindPublishedPost.mockResolvedValue(null)
@@ -360,6 +362,53 @@ describe('remote Paper MCP server', () => {
 
     expect(response.status).toBe(403)
     expect(mockConnectDB).not.toHaveBeenCalled()
+  })
+
+  it('rejects a localhost Origin unless the machine opts in', async () => {
+    const previous = process.env.MCP_ALLOW_LOCALHOST_ORIGIN
+    delete process.env.MCP_ALLOW_LOCALHOST_ORIGIN
+
+    try {
+      const closed = await requestMcp('tools/list', {}, {
+        headers: { Origin: 'http://localhost:5173' },
+      })
+      expect(closed.response.status).toBe(403)
+
+      process.env.MCP_ALLOW_LOCALHOST_ORIGIN = 'true'
+      const opened = await requestMcp('tools/list', {}, {
+        headers: { Origin: 'http://localhost:5173' },
+      })
+      expect(opened.response.status).toBe(200)
+    } finally {
+      if (previous === undefined) delete process.env.MCP_ALLOW_LOCALHOST_ORIGIN
+      else process.env.MCP_ALLOW_LOCALHOST_ORIGIN = previous
+    }
+  })
+
+  it('meters one caller and answers 429 with a Retry-After, without touching the DB', async () => {
+    const headers = { 'x-forwarded-for': '203.0.113.7' }
+
+    // The burst is 30; the 31st call must not reach a query.
+    for (let i = 0; i < 30; i += 1) {
+      const { response } = await requestMcp('tools/list', {}, { headers })
+      expect(response.status).toBe(200)
+    }
+
+    const limited = await requestMcp('tools/call', { name: 'list_essays', arguments: {} }, {
+      name: 'list_essays',
+      headers,
+    })
+
+    expect(limited.response.status).toBe(429)
+    expect(Number(limited.response.headers.get('Retry-After'))).toBeGreaterThan(0)
+    expect(limited.body.error).toMatchObject({ code: -32000, message: 'Too many requests' })
+    expect(mockListPublishedPosts).not.toHaveBeenCalled()
+
+    // A different caller is unaffected.
+    const other = await requestMcp('tools/list', {}, {
+      headers: { 'x-forwarded-for': '198.51.100.4' },
+    })
+    expect(other.response.status).toBe(200)
   })
 
   it('rejects Mcp-Name mismatches with the protocol cross-check error', async () => {

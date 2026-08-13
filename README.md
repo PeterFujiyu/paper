@@ -33,6 +33,7 @@ A personal website and blog built with Vue 3, Vite, and a serverless API backend
      Generate with: `node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"`
    - Set `MCP_AUTHOR_ID` to the MongoDB `_id` of the author when using the local MCP authoring server.
    - Set `SITE_ORIGIN` to the canonical public origin when browser-originated MCP connections should be allowed.
+   - Set `MCP_ALLOW_LOCALHOST_ORIGIN=true` only on your own machine, to also accept browser MCP requests from localhost.
    - Keep `VITE_API_BASE=/api` unless intentionally pointing the frontend elsewhere.
 
 ## Running the Application
