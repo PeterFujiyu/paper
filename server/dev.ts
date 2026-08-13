@@ -4,6 +4,7 @@ import { parse as parseUrl } from 'node:url'
 import type { ApiRequest, ApiResponse } from './lib/logger.js'
 import { allRoutes, type RouteHandler } from './routes/index.js'
 import { applySecurityHeaders } from './lib/security.js'
+import { paperMcpFetch } from './mcp/server.js'
 
 // Same table the api/ dispatchers serve, so dev and prod cannot drift apart.
 const routes: Record<string, RouteHandler> = Object.fromEntries(
@@ -12,6 +13,34 @@ const routes: Record<string, RouteHandler> = Object.fromEntries(
 
 createServer(async (req, res) => {
   const url = parseUrl(req.url ?? '', true)
+
+  // MCP owns its request body and uses the web-standard Request/Response
+  // contract. Mount it before the normal API parser drains the Node stream.
+  if (url.pathname === '/api/mcp') {
+    const headers = new Headers()
+    for (const [name, value] of Object.entries(req.headers)) {
+      for (const item of Array.isArray(value) ? value : [value]) {
+        if (typeof item === 'string') headers.append(name, item)
+      }
+    }
+
+    let rawBody = ''
+    for await (const chunk of req) rawBody += chunk
+
+    const method = req.method ?? 'GET'
+    const request = new Request(new URL(req.url ?? '/api/mcp', 'http://localhost:3001'), {
+      method,
+      headers,
+      ...(rawBody && method !== 'GET' && method !== 'HEAD' ? { body: rawBody } : {}),
+    })
+    const response = await paperMcpFetch(request)
+
+    res.statusCode = response.status
+    response.headers.forEach((value, name) => res.setHeader(name, value))
+    res.end(Buffer.from(await response.arrayBuffer()))
+    return
+  }
+
   const handler = routes[url.pathname ?? '']
 
   if (!handler) {

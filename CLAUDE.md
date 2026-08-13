@@ -7,6 +7,7 @@ Paper — personal essay/blog platform. Vue 3 + Vite frontend, Vercel-style serv
 ```bash
 npm run dev              # Vite frontend (proxies /api → :3001)
 npm run api:dev          # local API server on :3001
+npm run mcp:stdio        # local MCP server; requires MCP_AUTHOR_ID
 npm run typecheck && npm run lint && npm test   # validate after most changes
 npx vitest run tests/api/post.test.ts           # single file; -t "pattern" by name
 npm run build            # required when touching Vite config, deps, or deploy-sensitive code
@@ -14,20 +15,21 @@ npm run build            # required when touching Vite config, deps, or deploy-s
 
 For auth/DB/cookie changes, also run both dev servers and exercise a real login/logout.
 
-Setup: `cp .env.example .env`; set `MONGODB_URI`, `JWT_SECRET` (≥ 32 chars, enforced). `INVITE_CODE` unset disables registration. Keep `VITE_API_BASE=/api`.
+Setup: `cp .env.example .env`; set `MONGODB_URI`, `JWT_SECRET` (≥ 32 chars, enforced). `INVITE_CODE` unset disables registration. `MCP_AUTHOR_ID` is required only for local MCP authoring. Keep `VITE_API_BASE=/api`.
 
 ## Layout
 
-- `api/` — one function per route group (`auth`, `admin`, `content`, `metrics`, `shell`), each one line: `createDispatcher(<group>Routes)`. Vercel Hobby caps 12 functions, hence grouping; only add a new group here.
+- `api/` — one function per route group (`auth`, `admin`, `content`, `metrics`, `shell`), each one line: `createDispatcher(<group>Routes)`. `mcp.ts` is the sole standalone fetch-handler exception and intentionally has no `allRoutes` or rewrite entry. Vercel Hobby caps 12 functions, hence grouping; only add a new group here.
 - `server/routes/` — one thin route per file (method guard, auth gate, validation, shaping), default async `handler`. `index.ts` is the single route table read by both `server/dev.ts` and `api/`, so dev/prod can't drift.
 - `server/lib/` — shared server logic (new reusable server code goes here, not `api/`).
+- `server/mcp/` — shared MCP factory/tools; remote `/api/mcp` is public read-only, while local stdio alone registers authoring tools.
 - `src/` — Vue app; `admin/store.ts` is the auth store. `src/types/content.ts` = shared API payload types; update with any response-shape change.
 - `tests/` — mirrors source tree; `tests/setup.ts` sets `JWT_SECRET` before modules load.
 - `research/` — plan/audit docs (see `research-audit` skill). `design-anthropic-blog/design.html` is a typographic reference, not a page — nothing builds or serves it; `src/style.css` cites it for `--measure`. `vercel.json` — build/rewrites/headers. Never hand-edit `dist/`.
 
 ## API handler pattern
 
-Copy the shape from an existing file in `server/routes/`. New route = file here + line in `server/routes/index.ts` + rewrite in `vercel.json` (contract test enforces pairing).
+For route-table APIs, copy an existing file in `server/routes/`: new route = file here + line in `server/routes/index.ts` + rewrite in `vercel.json` (contract test enforces pairing). The standalone MCP fetch handler is the documented exception and must stay outside that route table.
 
 ## Security invariants
 

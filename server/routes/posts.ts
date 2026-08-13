@@ -2,32 +2,12 @@ import { connectDB } from '../lib/db.js'
 import { setPublicReadCache } from '../lib/cache.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
 import { extractPlainText } from '../lib/content-text.js'
+import { listPublishedPosts, MAX_CONTENT_SEARCH_LENGTH, searchPublishedPosts } from '../lib/content-queries.js'
 import { withPostMetrics } from '../lib/post-metrics.js'
+import { isDuplicateSlugError, slugExists } from '../lib/post-slugs.js'
 import { requireAuth } from '../lib/vercel-auth.js'
-import { escapeRegExp } from '../lib/regex.js'
 import { validatePostBody, type PostBody, normalizeSlug, normalizeCoverImage, normalizeReadingOverride, normalizeTags, resolveReadingMinutes, sanitizePostContent } from '../lib/validation.js'
 import Post from '../models/Post.js'
-
-// Upper bound on the search query; a literal substring match needs nothing longer.
-const MAX_SEARCH_LENGTH = 100
-
-function isDuplicateSlugError(error: unknown): boolean {
-  return Boolean(
-    error &&
-    typeof error === 'object' &&
-    'code' in error &&
-    (error as { code?: number }).code === 11000 &&
-    'keyPattern' in error &&
-    (error as { keyPattern?: Record<string, unknown> }).keyPattern?.slug
-  )
-}
-
-async function slugExists(slug: string, excludeId?: string): Promise<boolean> {
-  const query: Record<string, unknown> = { slug }
-  if (excludeId) query._id = { $ne: excludeId }
-  const existing = await Post.findOne(query).select('_id').lean()
-  return !!existing
-}
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   const meta = beginRequest(req)
@@ -36,36 +16,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     await connectDB()
 
     if (req.method === 'GET') {
-      const fields = 'slug title excerpt coverImage tags readingMinutes createdAt viewCount readCompletionCount'
       // Cap the query length before it's compiled to a regex — search is a
       // literal substring match, so nothing useful lives past this bound.
-      const q = getQueryParam(req, 'q').trim().slice(0, MAX_SEARCH_LENGTH)
+      const q = getQueryParam(req, 'q').trim().slice(0, MAX_CONTENT_SEARCH_LENGTH)
+      const posts = q
+        ? await searchPublishedPosts(q, 20)
+        // The HTTP listing is historically unbounded. MCP callers always pass
+        // a positive, schema-bounded limit; 0 preserves the public API contract.
+        : await listPublishedPosts({ limit: 0 })
 
-      if (q) {
-        // Case-insensitive substring search across title, excerpt, tags and the
-        // full essay body (contentText). The query is escaped to a literal so
-        // special characters can't break the pattern or trigger ReDoS. Uses
-        // regex (not $text) because MongoDB text indexes/queries are rejected
-        // under this connection's Stable API `apiStrict`. The heavy contentText
-        // field stays server-side (`select: false`); only summary fields ship.
-        const rx = new RegExp(escapeRegExp(q), 'i')
-        const results = await Post.find({
-          published: true,
-          $or: [{ title: rx }, { excerpt: rx }, { tags: rx }, { contentText: rx }],
-        })
-          .sort({ createdAt: -1 })
-          .select(fields)
-          .limit(20)
-          .lean()
-        setPublicReadCache(res)
-        sendJson(res, 200, results.map(withPostMetrics), meta)
-        return
-      }
-
-      const posts = await Post.find({ published: true })
-        .sort({ createdAt: -1 })
-        .select(fields)
-        .lean()
       setPublicReadCache(res)
       sendJson(res, 200, posts.map(withPostMetrics), meta)
       return
