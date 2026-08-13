@@ -21,7 +21,12 @@
     <ol v-if="!loading && notes.length" class="note-list">
       <li v-for="note in notes" :key="note._id" class="note-item">
         <RouterLink :to="`/admin/notes/${note._id}`" class="note-row">
-          <span class="note-preview">{{ preview(note.content) }}</span>
+          <span class="note-info">
+            <!-- Only drafts are marked: a published note is the ordinary case,
+                 and the essay list's Live badge is there to pair with Draft. -->
+            <span v-if="note.published === false" class="note-status">Draft</span>
+            <span class="note-preview">{{ preview(note.content) }}</span>
+          </span>
           <span class="note-date">{{ formatDate(note.createdAt) }}</span>
         </RouterLink>
       </li>
@@ -165,6 +170,24 @@ async function signOut() {
   text-decoration: none;
   color: inherit;
   gap: 1.5rem;
+}
+
+.note-info {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+/* Matches the essay list's status chip. */
+.note-status {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid currentColor;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .note-preview {

@@ -49,6 +49,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       const note = await Note.create({
         content: prepared.content,
         contentText: prepared.contentText,
+        // A person writing in the admin and pressing Save means it. Only the
+        // MCP authoring tool leaves a note as a draft.
+        published: true,
       })
 
       const created = note.toObject()

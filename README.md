@@ -64,7 +64,15 @@ For local authoring, configure `MCP_AUTHOR_ID` and run:
 npm run mcp:stdio
 ```
 
-The stdio server adds tools to create drafts, replace or publish essays, add notes, and log brews. It talks directly to the configured MongoDB and intentionally has no delete tool. A client can register it by running the equivalent of:
+The stdio server adds tools to create drafts, replace or publish essays, add notes, and log brews. It talks directly to the configured MongoDB and intentionally has no delete tool.
+
+Everything it writes starts as a draft, so an agent cannot change the site on its own:
+
+- `create_draft` and `add_note` produce unpublished content. Notes are published from the admin Notes view.
+- `update_essay` edits drafts freely, but refuses a published essay unless the call passes `allowPublished: true`.
+- `publish_essay` is the one tool that changes what a reader sees.
+
+A client can register it by running the equivalent of:
 
 ```bash
 claude mcp add paper-author -- npm run mcp:stdio

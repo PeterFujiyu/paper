@@ -6,6 +6,13 @@ import Note from '../models/Note.js'
 
 type NoteBody = {
   content?: unknown
+  published?: unknown
+}
+
+// Legacy notes carry no flag at all and are public, which is what `$ne: false`
+// means in the query layer; report them the same way here.
+function isPublished(value: unknown): boolean {
+  return value !== false
 }
 
 // Single-note operations for the admin editor: load one for editing, update, or
@@ -35,7 +42,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       // so a CDN copy would answer a later request without re-authorizing it, and
       // would hand the editor stale content right after a save.
       res.setHeader('Cache-Control', 'no-store')
-      sendJson(res, 200, { _id: note._id, content: note.content ?? null, createdAt: note.createdAt, updatedAt: note.updatedAt }, meta)
+      sendJson(res, 200, { _id: note._id, content: note.content ?? null, createdAt: note.createdAt, updatedAt: note.updatedAt, published: isPublished(note.published) }, meta)
       return
     }
 
@@ -47,10 +54,23 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
+      if (typeof body.published !== 'undefined' && typeof body.published !== 'boolean') {
+        sendJson(res, 400, { error: 'Published must be a boolean.' }, meta)
+        return
+      }
+
+      // Publication is only touched when the editor sends it, so a plain
+      // content save can never take a note off the site by omission.
       const note = await Note.findByIdAndUpdate(
         id,
-        { $set: { content: prepared.content, contentText: prepared.contentText } },
-        { new: true }
+        {
+          $set: {
+            content: prepared.content,
+            contentText: prepared.contentText,
+            ...(typeof body.published === 'boolean' ? { published: body.published } : {}),
+          },
+        },
+        { new: true, runValidators: true }
       ).lean()
 
       if (!note) {
@@ -58,7 +78,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
-      sendJson(res, 200, { _id: note._id, content: note.content ?? null, createdAt: note.createdAt, updatedAt: note.updatedAt }, meta)
+      sendJson(res, 200, { _id: note._id, content: note.content ?? null, createdAt: note.createdAt, updatedAt: note.updatedAt, published: isPublished(note.published) }, meta)
       return
     }
 

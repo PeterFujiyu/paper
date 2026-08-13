@@ -98,6 +98,8 @@ describe('api/note', () => {
       content: helloDoc,
       createdAt: '2026-07-01T00:00:00.000Z',
       updatedAt: '2026-07-02T00:00:00.000Z',
+      // A note stored before the draft flag existed reads as published.
+      published: true,
     })
   })
 
@@ -117,9 +119,36 @@ describe('api/note', () => {
     expect(mockFindByIdAndUpdate).toHaveBeenCalledWith(
       'note-1',
       { $set: { content: helloDoc, contentText: 'hello world' } },
-      { new: true }
+      { new: true, runValidators: true }
     )
     expect(res.statusCode).toBe(200)
+  })
+
+  it('publishes a draft note only when the editor sends the flag', async () => {
+    const lean = vi.fn().mockResolvedValue({
+      _id: 'note-1',
+      content: helloDoc,
+      createdAt: '2026-07-01T00:00:00.000Z',
+      published: true,
+    })
+    mockFindByIdAndUpdate.mockReturnValue({ lean })
+
+    await handler(makeReq({ method: 'PUT', body: { content: helloDoc, published: true } }), makeRes())
+
+    expect(mockFindByIdAndUpdate).toHaveBeenCalledWith(
+      'note-1',
+      { $set: { content: helloDoc, contentText: 'hello world', published: true } },
+      { new: true, runValidators: true }
+    )
+  })
+
+  it('rejects a non-boolean published flag before writing', async () => {
+    const res = makeRes()
+
+    await handler(makeReq({ method: 'PUT', body: { content: helloDoc, published: 'yes' } }), res)
+
+    expect(mockFindByIdAndUpdate).not.toHaveBeenCalled()
+    expect(res.statusCode).toBe(400)
   })
 
   it('rejects an update with unsafe content', async () => {

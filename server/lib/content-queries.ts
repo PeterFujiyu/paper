@@ -42,7 +42,14 @@ export type NoteLean = {
   _id: unknown
   content?: unknown
   createdAt?: StoredDate
+  published?: boolean
 }
+
+/**
+ * Public notes. Matches `$ne: false` rather than `true` so every note written
+ * before the draft flag existed stays on the site without a migration.
+ */
+const PUBLISHED_NOTE = { published: { $ne: false } } as const
 
 export type BrewLean = {
   _id?: unknown
@@ -121,11 +128,16 @@ export async function findPublishedPost(
   return post as unknown as PostLean | null
 }
 
-/** List recent notes, optionally searching their server-only text projection. */
+/**
+ * List recent published notes, optionally searching their server-only text
+ * projection. Drafts are excluded here rather than at the callers, because
+ * every caller of this function serves the public (the admin list reads the
+ * collection directly).
+ */
 export async function listNotes(opts: { q?: string; limit: number }): Promise<NoteLean[]> {
   const filter = opts.q
-    ? { contentText: new RegExp(escapeRegExp(opts.q), 'i') }
-    : {}
+    ? { ...PUBLISHED_NOTE, contentText: new RegExp(escapeRegExp(opts.q), 'i') }
+    : { ...PUBLISHED_NOTE }
 
   const notes = await Note.find(filter)
     .sort({ createdAt: -1 })

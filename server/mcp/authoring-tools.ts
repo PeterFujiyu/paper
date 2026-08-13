@@ -37,7 +37,7 @@ import User from '../models/User.js'
 import {
   authorEssaySchema,
   brewSchema,
-  noteSchema,
+  draftNoteSchema,
   requiredUnknownSchema,
   serializeDate,
   shapeAuthorEssay,
@@ -46,7 +46,7 @@ import {
   slugSchema,
   toRecord,
   type BrewSummary,
-  type NoteSummary,
+  type DraftNote,
 } from './content-contracts.js'
 
 const essayFieldsSchema = {
@@ -67,6 +67,9 @@ const updateEssayInputSchema = z.object({
   slug: slugSchema,
   ...essayFieldsSchema,
   newSlug: slugSchema.optional(),
+  // Editing a draft is free; rewriting what readers can already see is a
+  // deliberate act, so it takes a second sentence from the caller.
+  allowPublished: z.boolean().default(false),
 })
 
 const publishEssayOutputSchema = z.object({
@@ -123,15 +126,21 @@ export function registerAuthoringTools(server: McpServer, authorId: string): voi
   server.registerTool(
     'update_essay',
     {
-      description: 'Replace every editable field of an essay addressed by slug.',
+      description:
+        'Replace every editable field of a draft essay addressed by slug. '
+        + 'Editing a published essay requires allowPublished: true.',
       inputSchema: updateEssayInputSchema,
       outputSchema: authorEssaySchema,
       annotations: { readOnlyHint: false },
     },
     async (args) => runAuthoringTool(async () => {
       const currentSlug = normalizeSlug(args.slug)
-      const existing = await Post.findOne({ slug: currentSlug }).select('_id').lean()
+      const existing = await Post.findOne({ slug: currentSlug }).select('_id published').lean()
       if (!existing) return toolError('Not found')
+
+      if (existing.published === true && !args.allowPublished) {
+        return toolError('That essay is published. Pass allowPublished: true to edit live content.')
+      }
 
       const id = String(existing._id)
       const slug = normalizeSlug(args.newSlug ?? currentSlug)
@@ -193,10 +202,12 @@ export function registerAuthoringTools(server: McpServer, authorId: string): voi
   server.registerTool(
     'add_note',
     {
-      description: 'Add a public note from TipTap JSON. The note publishes immediately.',
+      description:
+        'Add a note from TipTap JSON as an unpublished draft. '
+        + 'It stays off the site until it is published from the admin Notes view.',
       inputSchema: z.object({ content: requiredUnknownSchema }),
-      outputSchema: noteSchema,
-      annotations: { readOnlyHint: false, destructiveHint: true },
+      outputSchema: draftNoteSchema,
+      annotations: { readOnlyHint: false },
     },
     async ({ content }) => runAuthoringTool(async () => {
       const prepared = prepareNoteContent(content)
@@ -205,13 +216,17 @@ export function registerAuthoringTools(server: McpServer, authorId: string): voi
       const note = await Note.create({
         content: prepared.content,
         contentText: prepared.contentText,
+        published: false,
       })
       const record = toRecord(note)
-      const output: NoteSummary = shapeNote({
-        _id: record._id,
-        createdAt: serializeDate(record.createdAt),
-      }, prepared.contentText)
-      return toolSuccess(`Note published: ${output.text}`, output)
+      const output: DraftNote = {
+        ...shapeNote({
+          _id: record._id,
+          createdAt: serializeDate(record.createdAt),
+        }, prepared.contentText),
+        published: false,
+      }
+      return toolSuccess(`Note drafted: ${output.text}`, output)
     }),
   )
 

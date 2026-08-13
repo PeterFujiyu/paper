@@ -55,6 +55,11 @@ export const noteSchema = z.object({
   createdAt: z.string(),
 })
 
+/** A note as the authoring tool returns it, where publication is the point. */
+export const draftNoteSchema = noteSchema.extend({
+  published: z.boolean(),
+})
+
 export const brewSchema = z.object({
   bean: z.string(),
   origin: z.string(),
@@ -74,6 +79,7 @@ export type EssaySummary = z.infer<typeof essaySummarySchema>
 export type Essay = z.infer<typeof essaySchema>
 export type AuthorEssay = z.infer<typeof authorEssaySchema>
 export type NoteSummary = z.infer<typeof noteSchema>
+export type DraftNote = z.infer<typeof draftNoteSchema>
 export type BrewSummary = z.infer<typeof brewSchema>
 
 export function serializeDate(value: unknown): string {
