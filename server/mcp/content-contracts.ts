@@ -37,7 +37,11 @@ export const essaySummarySchema = z.object({
 
 export const essayListSchema = z.object({
   essays: z.array(essaySummarySchema),
-  total: z.number().int().nonnegative(),
+  // How many came back, not how many exist — `total` read as the archive size
+  // to a caller that had no way to ask for the rest. `hasMore` infers from a
+  // full page, which is the honest signal available without a second count.
+  returned: z.number().int().nonnegative(),
+  hasMore: z.boolean(),
 })
 
 export const essaySchema = essaySummarySchema.extend({

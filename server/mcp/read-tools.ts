@@ -55,9 +55,13 @@ async function runReadTool(operation: () => Promise<CallToolResult>): Promise<Ca
   }
 }
 
-function essayListResult(posts: PostSummaryLean[]): CallToolResult {
+function essayListResult(posts: PostSummaryLean[], limit: number): CallToolResult {
   const essays = posts.map(shapeEssaySummary)
-  const structuredContent = { essays, total: essays.length }
+  const structuredContent = {
+    essays,
+    returned: essays.length,
+    hasMore: essays.length >= limit,
+  }
   const text = essays
     .map((essay) => (
       `${essay.slug} — ${essay.title} (${essay.readingMinutes} min, ${essay.createdAt}): ${essay.excerpt}`
@@ -86,7 +90,7 @@ export function registerReadTools(
       annotations: READ_ANNOTATIONS,
     },
     async ({ tag, limit }) => runReadTool(async () => (
-      essayListResult(await listPublishedPosts({ tag, limit }))
+      essayListResult(await listPublishedPosts({ tag, limit }), limit)
     )),
   )
 
@@ -102,7 +106,7 @@ export function registerReadTools(
       annotations: READ_ANNOTATIONS,
     },
     async ({ q, limit }) => runReadTool(async () => (
-      essayListResult(await searchPublishedPosts(q, limit))
+      essayListResult(await searchPublishedPosts(q, limit), limit)
     )),
   )
 

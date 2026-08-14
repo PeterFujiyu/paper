@@ -167,7 +167,9 @@ describe('remote Paper MCP server', () => {
         readCompletionCount: 5,
         readCompletionRate: 50,
       }],
-      total: 1,
+      // A short page: one essay back against a limit of ten, so there is no more.
+      returned: 1,
+      hasMore: false,
     })
     expect(JSON.stringify(toolPayload(body))).not.toMatch(
       /post-internal-id|user-secret|coverImage|readingMinutesOverride|contentText/,
@@ -178,6 +180,26 @@ describe('remote Paper MCP server', () => {
     await callTool('search_essays', { q: '  typography  ', limit: 3 })
 
     expect(mockSearchPublishedPosts).toHaveBeenCalledWith('typography', 3)
+  })
+
+  it('reports a full page as having more, so a caller knows it is not the archive', async () => {
+    const essay = {
+      slug: 'on-craft',
+      title: 'On Craft',
+      excerpt: 'An essay about overlooked details.',
+      tags: [],
+      readingMinutes: 7,
+      createdAt: '2026-06-01T00:00:00.000Z',
+      viewCount: 0,
+      readCompletionCount: 0,
+    }
+    mockListPublishedPosts.mockResolvedValue([essay, { ...essay, slug: 'second' }])
+
+    const full = await callTool('list_essays', { limit: 2 })
+    expect(toolPayload(full.body).structuredContent).toMatchObject({ returned: 2, hasMore: true })
+
+    const partial = await callTool('list_essays', { limit: 5 })
+    expect(toolPayload(partial.body).structuredContent).toMatchObject({ returned: 2, hasMore: false })
   })
 
   it('rejects schema-invalid arguments before a query runs', async () => {
