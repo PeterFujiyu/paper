@@ -37,7 +37,7 @@ For route-table APIs, copy an existing file in `server/routes/`: new route = fil
 - Cookies only via `server/lib/auth.ts` helpers — never hand-rolled strings.
 - Keep CSP/headers aligned between `server/lib/security.ts` and `vercel.json`.
 - Never expose stack traces, raw JWT errors, or DB internals — return `Unauthorized`, `Not found`, `Request failed`.
-- Keep `runValidators: true` on every `findByIdAndUpdate`/`findOneAndUpdate`; preserve duplicate-slug handling in post routes.
+- Keep `runValidators: true` on any `findByIdAndUpdate`/`findOneAndUpdate` writing user content or publication state (posts, notes, brews). Counter and throttle updates (`$inc` on views, completions, `tokenVersion`; the throttle upserts) deliberately skip it. Preserve duplicate-slug handling in post routes.
 
 ## Code style
 
