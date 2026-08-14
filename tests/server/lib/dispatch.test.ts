@@ -126,6 +126,16 @@ describe('vercel.json routing contract', () => {
     )
   })
 
+  // The runtime calls `default.fetch` with an untouched Request. Nothing else
+  // imports this file — dev.ts reaches paperMcpFetch directly — so without this
+  // the export shape would only ever be exercised by a deployment.
+  it('exports the MCP fetch web handler the runtime expects', async () => {
+    const mcp = await import('../../../api/mcp.js')
+
+    expect(typeof mcp.default.fetch).toBe('function')
+    expect(mcp.default.fetch.length).toBe(1)
+  })
+
   describe('the essay link-preview rewrite', () => {
     const essayRewrite = vercel.rewrites.find(r => r.source.startsWith('/writing/'))
 
