@@ -5,15 +5,15 @@ Paper — personal essay/blog platform. Vue 3 + Vite frontend, Vercel-style serv
 ## Commands
 
 ```bash
-npm run dev              # Vite frontend (proxies /api → :3001)
-npm run api:dev          # local API server on :3001
-npm run mcp:stdio        # local MCP server; requires MCP_AUTHOR_ID
 npm run typecheck && npm run lint && npm test   # validate after most changes
 npx vitest run tests/api/post.test.ts           # single file; -t "pattern" by name
 npm run build            # required when touching Vite config, deps, or deploy-sensitive code
+npm run dev              # Vite frontend (proxies /api → :3001) — user runs this
+npm run api:dev          # local API server on :3001 — user runs this
+npm run mcp:stdio        # local MCP server; requires MCP_AUTHOR_ID
 ```
 
-For auth/DB/cookie changes, also run both dev servers and exercise a real login/logout.
+Verify with the typecheck/lint/test command above — that is the whole verification loop. Do not start dev servers, open the browser preview, or drive the app in a browser; `npm run dev` and `npm run api:dev` are for the user. When a change really needs eyes in a browser (auth/DB/cookie flows, visual polish), finish the code and tests, then say what the user should exercise.
 
 Setup: `cp .env.example .env`; set `MONGODB_URI`, `JWT_SECRET` (≥ 32 chars, enforced). `INVITE_CODE` unset disables registration. `MCP_AUTHOR_ID` is required only for local MCP authoring. Keep `VITE_API_BASE=/api`.
 
