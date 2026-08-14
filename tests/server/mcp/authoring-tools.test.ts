@@ -257,6 +257,38 @@ describe('stdio MCP authoring tools', () => {
     )
   })
 
+  it('asks for a slug when the title cannot produce one', async () => {
+    const cjk = await client.callTool('create_draft', { ...essayArgs, title: '论手艺' })
+
+    expect(cjk).toMatchObject({
+      isError: true,
+      content: [{
+        type: 'text',
+        text: 'Could not derive a usable slug from that title. Pass slug explicitly.',
+      }],
+    })
+    expect(mockPostFindOne).not.toHaveBeenCalled()
+    expect(mockPostCreate).not.toHaveBeenCalled()
+
+    // The same title with a slug supplied goes through.
+    mockPostFindOne.mockReturnValueOnce(queryResult(null))
+    mockPostCreate.mockResolvedValueOnce(documentResult({
+      _id: 'post-1',
+      slug: 'on-craft',
+      title: '论手艺',
+      excerpt: 'A long enough excerpt.',
+    }))
+
+    const withSlug = await client.callTool('create_draft', {
+      ...essayArgs,
+      title: '论手艺',
+      slug: 'on-craft',
+    })
+
+    expect(withSlug.isError).toBeUndefined()
+    expect(mockPostCreate).toHaveBeenCalledWith(expect.objectContaining({ slug: 'on-craft' }))
+  })
+
   it('rejects missing content before an authoring handler or mutation runs', async () => {
     const draft = await client.callTool('create_draft', {
       title: essayArgs.title,

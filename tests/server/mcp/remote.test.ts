@@ -343,6 +343,17 @@ describe('remote Paper MCP server', () => {
     expect(missing.body.error).toMatchObject({ code: -32602 })
   })
 
+  it('turns away a malformed resource slug without reaching the database', async () => {
+    const { body } = await requestMcp(
+      'resources/read',
+      { uri: 'paper://essay/Not A Slug' },
+      { name: 'paper://essay/Not A Slug' },
+    )
+
+    expect(body.error).toMatchObject({ code: -32602 })
+    expect(mockFindPublishedPost).not.toHaveBeenCalled()
+  })
+
   it('masks unexpected infrastructure failures', async () => {
     mockListPublishedPosts.mockRejectedValue(new Error('mongodb://secret-host'))
 
