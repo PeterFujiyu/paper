@@ -71,13 +71,15 @@ export interface BrewSummary {
   /** Slug of the essay this cup was brewed alongside; empty when none. */
   pairedSlug: string
   createdAt: string
+  /** Admin reads only; the public log is published cups by definition. */
+  published?: boolean
 }
 
 export interface BrewDocument extends BrewSummary {
   updatedAt?: string
 }
 
-/** Standing totals across every brew, not just the page being served. */
+/** Standing totals across every published brew, not just the page being served. */
 export interface BrewShelf {
   cups: number
   origins: number

@@ -25,6 +25,8 @@
             {{ brew.bean }}<span v-if="brew.origin" class="brew-origin"> · {{ brew.origin }}</span>
           </span>
           <span class="brew-side">
+            <!-- Only drafts are marked; a cup on the log is the ordinary case. -->
+            <span v-if="brew.published === false" class="brew-status">Draft</span>
             <span class="brew-method">{{ brew.method }}</span>
             <span class="brew-date">{{ formatDate(brew.createdAt) }}</span>
           </span>
@@ -161,6 +163,17 @@ async function signOut() {
   text-decoration: none;
   color: inherit;
   gap: 1.5rem;
+}
+
+/* Matches the essay and note lists' status chip. */
+.brew-status {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid currentColor;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .brew-name {

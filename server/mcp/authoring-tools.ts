@@ -36,7 +36,7 @@ import Post from '../models/Post.js'
 import User from '../models/User.js'
 import {
   authorEssaySchema,
-  brewSchema,
+  draftBrewSchema,
   draftNoteSchema,
   requiredUnknownSchema,
   serializeDate,
@@ -45,7 +45,7 @@ import {
   shapeNote,
   slugSchema,
   toRecord,
-  type BrewSummary,
+  type DraftBrew,
   type DraftNote,
 } from './content-contracts.js'
 
@@ -241,7 +241,10 @@ export function registerAuthoringTools(server: McpServer, authorId: string): voi
   server.registerTool(
     'log_brew',
     {
-      description: 'Log one coffee brew.',
+      description:
+        'Log one coffee brew as an unpublished draft. '
+        + 'It stays off the coffee log and its shelf totals until it is '
+        + 'published from the admin Coffee view.',
       inputSchema: z.object({
         bean: z.string().max(MAX_BEAN_LENGTH),
         method: z.enum(BREW_METHODS),
@@ -255,20 +258,24 @@ export function registerAuthoringTools(server: McpServer, authorId: string): voi
         rating: z.number().int().min(0).max(MAX_RATING).optional(),
         pairedSlug: slugSchema.optional(),
       }),
-      outputSchema: brewSchema,
+      outputSchema: draftBrewSchema,
       annotations: { readOnlyHint: false },
     },
     async (args) => runAuthoringTool(async () => {
       const prepared = prepareBrew(args)
       if (!prepared.ok) return toolError(prepared.error)
 
-      const brew = await Brew.create(prepared.value)
+      // A draft is off the shelf by definition, so the memo stays valid.
+      const brew = await Brew.create({ ...prepared.value, published: false })
       const record = toRecord(brew)
-      const output: BrewSummary = shapeBrew({
-        ...prepared.value,
-        createdAt: serializeDate(record.createdAt),
-      })
-      return toolSuccess(`Brew logged: ${output.bean} — ${output.method}`, output)
+      const output: DraftBrew = {
+        ...shapeBrew({
+          ...prepared.value,
+          createdAt: serializeDate(record.createdAt),
+        }),
+        published: false,
+      }
+      return toolSuccess(`Brew drafted: ${output.bean} — ${output.method}`, output)
     }),
   )
 }

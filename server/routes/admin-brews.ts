@@ -18,9 +18,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     if (!user) return
 
     await connectDB()
+    // Drafts included, and flagged: this list is where a cup logged over MCP
+    // surfaces, since the public log filters them out.
     const brews = await Brew.find()
       .sort({ createdAt: -1 })
-      .select('bean origin method rating createdAt')
+      .select('bean origin method rating published createdAt')
       .lean()
 
     res.setHeader('Cache-Control', 'no-store')

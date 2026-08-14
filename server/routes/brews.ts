@@ -39,8 +39,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
-      const brew = await Brew.create(prepared.value)
-      // The shelf counts this cup now, rather than when the memo expires.
+      const brew = await Brew.create({
+        ...prepared.value,
+        // A person logging a cup in the admin means it. Only the MCP tool
+        // leaves a brew as a draft.
+        published: true,
+      })
+      // This instance's shelf counts the cup now rather than at the next
+      // expiry; other instances catch up when their own memo times out.
       invalidateShelfCache()
       const created = brew.toObject()
       sendJson(res, 201, { ...forRead(created), _id: created._id }, meta)

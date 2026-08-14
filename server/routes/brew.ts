@@ -1,11 +1,12 @@
 import { connectDB } from '../lib/db.js'
+import { invalidateShelfCache, isPublishedUnlessFalse } from '../lib/content-queries.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
 import { prepareBrew, type BrewBody } from '../lib/brew-entry.js'
 import Brew from '../models/Brew.js'
 import { requireAuth } from '../lib/vercel-auth.js'
 
 const FIELDS =
-  'bean origin roaster method dose water temperature brewSeconds rating tastingNote pairedSlug createdAt updatedAt'
+  'bean origin roaster method dose water temperature brewSeconds rating tastingNote pairedSlug published createdAt updatedAt'
 
 // Single-brew operations for the admin editor: load one for editing, update, or
 // delete. All require authentication — guests never reach this handler.
@@ -34,20 +35,33 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       // so a CDN copy would answer a later request without re-authorizing it, and
       // would hand the editor stale content right after a save.
       res.setHeader('Cache-Control', 'no-store')
-      sendJson(res, 200, brew, meta)
+      sendJson(res, 200, { ...brew, published: isPublishedUnlessFalse(brew.published) }, meta)
       return
     }
 
     if (req.method === 'PUT') {
-      const prepared = prepareBrew(readBody<BrewBody>(req))
+      const body = readBody<BrewBody & { published?: unknown }>(req)
+      const prepared = prepareBrew(body)
       if (!prepared.ok) {
         sendJson(res, prepared.status, { error: prepared.error }, meta)
         return
       }
 
+      if (typeof body.published !== 'undefined' && typeof body.published !== 'boolean') {
+        sendJson(res, 400, { error: 'Published must be a boolean.' }, meta)
+        return
+      }
+
+      // Publication is only touched when the editor sends it, so editing a
+      // recipe can never pull a cup off the log by omission.
       const brew = await Brew.findByIdAndUpdate(
         id,
-        { $set: prepared.value },
+        {
+          $set: {
+            ...prepared.value,
+            ...(typeof body.published === 'boolean' ? { published: body.published } : {}),
+          },
+        },
         { new: true, runValidators: true }
       )
         .select(FIELDS)
@@ -58,12 +72,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
-      sendJson(res, 200, brew, meta)
+      // Origin, method and publication all move the shelf totals. This clears
+      // only this instance's memo; elsewhere the TTL is the bound.
+      invalidateShelfCache()
+      sendJson(res, 200, { ...brew, published: isPublishedUnlessFalse(brew.published) }, meta)
       return
     }
 
     if (req.method === 'DELETE') {
       await Brew.findByIdAndDelete(id)
+      invalidateShelfCache()
       sendJson(res, 200, { ok: true }, meta)
       return
     }

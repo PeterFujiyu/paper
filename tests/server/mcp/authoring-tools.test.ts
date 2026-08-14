@@ -191,6 +191,9 @@ describe('stdio MCP authoring tools', () => {
     expect(tools.find((tool) => tool.name === 'add_note')?.description).toContain(
       'unpublished draft',
     )
+    expect(tools.find((tool) => tool.name === 'log_brew')?.description).toContain(
+      'unpublished draft',
+    )
     expect(tools.find((tool) => tool.name === 'update_essay')?.description).toContain(
       'allowPublished',
     )
@@ -457,7 +460,7 @@ describe('stdio MCP authoring tools', () => {
     expect(result.content[0].text).toContain('Note drafted')
   })
 
-  it('logs a normalized brew without leaking its id or search projection', async () => {
+  it('logs a normalized brew as a draft, off the log and off the shelf', async () => {
     mockBrewCreate.mockImplementationOnce(async (value: Record<string, unknown>) => documentResult({
       _id: 'brew-1',
       ...value,
@@ -479,6 +482,7 @@ describe('stdio MCP authoring tools', () => {
       temperature: 0,
       brewSeconds: 0,
       rating: 0,
+      published: false,
     }))
     expect(result.structuredContent).toEqual({
       bean: 'Kochere',
@@ -493,7 +497,9 @@ describe('stdio MCP authoring tools', () => {
       tastingNote: '',
       pairedSlug: '',
       createdAt: '2026-08-05T00:00:00.000Z',
+      published: false,
     })
+    expect(result.content[0].text).toContain('Brew drafted')
     expect(JSON.stringify(result)).not.toMatch(/brew-1|searchText/)
   })
 

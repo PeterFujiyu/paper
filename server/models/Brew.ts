@@ -45,6 +45,13 @@ const brewSchema = new Schema(
     // (`select: false`) so it never bloats a list response. Mirrors the same
     // arrangement on Note.contentText.
     searchText: { type: String, default: '', select: false },
+
+    // Same arrangement as Note.published. `log_brew` is the only path that
+    // *creates* a draft, so nothing an agent logs reaches the coffee log or its
+    // shelf totals until a person publishes it; the admin editor can move a cup
+    // either way afterwards. Cups logged before this field existed carry no
+    // value, which is why public reads match `$ne: false` rather than `true`.
+    published: { type: Boolean, default: false },
   },
   {
     timestamps: true,
