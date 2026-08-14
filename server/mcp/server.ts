@@ -9,8 +9,10 @@ import { applySecurityHeaders } from '../lib/security.js'
 import { createPaperMcpServer, PUBLIC_MCP_CACHE_HINT } from './factory.js'
 
 // Generous for an agent working through a question, cheap to survive a loop:
-// a burst of 30 calls, then 30 a minute. Every request counts, including the
-// 405s, since the cost being bounded is the invocation itself.
+// a burst of 30 calls, then 30 a minute. Every request counts except the CORS
+// preflight — even a 405 is an invocation, which is the cost being bounded,
+// while an OPTIONS is answered here and would otherwise halve a browser
+// client's real budget.
 const MCP_RATE_LIMIT: RateLimitOptions = { capacity: 30, refillPerSecond: 0.5 }
 
 const paperMcpHandler = createMcpHandler(
@@ -67,6 +69,45 @@ function rpcErrorResponse(status: number, message: string, headers?: HeadersInit
   )
 }
 
+// What a browser MCP client sends. The protocol headers are not on the CORS
+// safelist, so a cross-origin client cannot send them unless they are named here.
+const ALLOWED_REQUEST_HEADERS = [
+  'Content-Type',
+  'Accept',
+  'MCP-Protocol-Version',
+  'Mcp-Method',
+  'Mcp-Name',
+].join(', ')
+
+/**
+ * Grant the cross-origin permission that passing origin validation implies.
+ *
+ * Allowing an origin only decides whether the request is answered; without
+ * these the browser discards the answer, so a validated origin still could not
+ * connect. The header echoes the caller's own origin rather than `*` — the
+ * allowlist has already accepted it — and `Vary` keeps a shared cache from
+ * handing one origin's response to another.
+ */
+function withCorsHeaders(response: Response, allowedOrigin: string | null): Response {
+  if (!allowedOrigin) return response
+
+  const headers = new Headers(response.headers)
+  headers.set('Access-Control-Allow-Origin', allowedOrigin)
+  headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  headers.set('Access-Control-Allow-Headers', ALLOWED_REQUEST_HEADERS)
+  // Retry-After is not on the response safelist, so without this a browser
+  // client can see the 429 but not how long to wait.
+  headers.set('Access-Control-Expose-Headers', 'Retry-After')
+  headers.set('Access-Control-Max-Age', '86400')
+  headers.append('Vary', 'Origin')
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 function withSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers)
   applySecurityHeaders({
@@ -84,19 +125,39 @@ function withSecurityHeaders(response: Response): Response {
 }
 
 export async function paperMcpFetch(request: Request): Promise<Response> {
-  const originRejected = originValidationResponse(request, allowedOriginHostnames())
+  const allowed = allowedOriginHostnames()
+  const originRejected = originValidationResponse(request, allowed)
   if (originRejected) return withSecurityHeaders(originRejected)
+
+  // Validation passed, so an Origin present here is one of ours — but check it
+  // against the list rather than trusting that, since validation also passes a
+  // request that carries no Origin at all. Those are non-browser clients, which
+  // need no CORS headers.
+  const origin = request.headers.get('origin')
+  const originHostname = hostnameFrom(origin ?? undefined)
+  const corsOrigin = origin && originHostname && allowed.includes(originHostname)
+    ? origin
+    : null
+
+  // The preflight is unmetered: it reaches no tool and no database, and
+  // charging for it would halve a browser client's real budget.
+  if (request.method === 'OPTIONS') {
+    return withCorsHeaders(withSecurityHeaders(new Response(null, { status: 204 })), corsOrigin)
+  }
 
   // Metered before dispatch: the tools behind this reach MongoDB, and nothing
   // in front of it caches a POST.
   const limit = consumeToken(clientKey(request.headers), MCP_RATE_LIMIT)
   if (!limit.allowed) {
-    return withSecurityHeaders(rpcErrorResponse(429, 'Too many requests', {
-      'Retry-After': String(limit.retryAfterSeconds),
-    }))
+    return withCorsHeaders(
+      withSecurityHeaders(rpcErrorResponse(429, 'Too many requests', {
+        'Retry-After': String(limit.retryAfterSeconds),
+      })),
+      corsOrigin,
+    )
   }
 
-  return withSecurityHeaders(await paperMcpHandler.fetch(request))
+  return withCorsHeaders(withSecurityHeaders(await paperMcpHandler.fetch(request)), corsOrigin)
 }
 
 export { createPaperMcpServer }

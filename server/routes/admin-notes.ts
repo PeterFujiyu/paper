@@ -1,5 +1,6 @@
 import { connectDB } from '../lib/db.js'
 import { beginRequest, finishRequest, logError, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
+import { sanitizeStoredNoteContent } from '../lib/note-content.js'
 import { requireAuth } from '../lib/vercel-auth.js'
 import Note from '../models/Note.js'
 
@@ -26,7 +27,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       .lean()
 
     res.setHeader('Cache-Control', 'no-store')
-    sendJson(res, 200, notes, meta)
+    // Same invariant as the public list: stored TipTap JSON is re-sanitized
+    // before it is returned, so legacy or tampered content never reaches the
+    // preview renderer intact.
+    sendJson(res, 200, notes.map((note) => ({
+      ...note,
+      content: sanitizeStoredNoteContent(note.content),
+    })), meta)
   } catch (error) {
     logError('[api/admin-notes]', meta, error)
     sendJson(res, 500, { error: 'Request failed' }, meta)

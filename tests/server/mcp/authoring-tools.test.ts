@@ -6,6 +6,7 @@ const mockPostFindOne = vi.hoisted(() => vi.fn())
 const mockPostCreate = vi.hoisted(() => vi.fn())
 const mockPostFindByIdAndUpdate = vi.hoisted(() => vi.fn())
 const mockPostFindOneAndUpdate = vi.hoisted(() => vi.fn())
+const mockPostFindById = vi.hoisted(() => vi.fn())
 const mockNoteCreate = vi.hoisted(() => vi.fn())
 const mockBrewCreate = vi.hoisted(() => vi.fn())
 const mockUserFindById = vi.hoisted(() => vi.fn())
@@ -17,6 +18,7 @@ vi.mock('../../../server/lib/db.js', () => ({
 vi.mock('../../../server/models/Post.js', () => ({
   default: {
     findOne: mockPostFindOne,
+    findById: mockPostFindById,
     create: mockPostCreate,
     findByIdAndUpdate: mockPostFindByIdAndUpdate,
     findOneAndUpdate: mockPostFindOneAndUpdate,
@@ -332,13 +334,14 @@ describe('stdio MCP authoring tools', () => {
         text: 'That essay is published. Pass allowPublished: true to edit live content.',
       }],
     })
-    expect(mockPostFindByIdAndUpdate).not.toHaveBeenCalled()
+    expect(mockPostFindOneAndUpdate).not.toHaveBeenCalled()
 
-    // The same call with the flag goes through, and leaves it published.
+    // The same call with the flag goes through, and leaves it published. The
+    // filter drops the draft condition, which is what the flag buys.
     mockPostFindOne
       .mockReturnValueOnce(queryResult({ _id: 'post-1', published: true }))
       .mockReturnValueOnce(queryResult(null))
-    mockPostFindByIdAndUpdate.mockReturnValueOnce(updateResult({
+    mockPostFindOneAndUpdate.mockReturnValueOnce(updateResult({
       _id: 'post-1',
       slug: 'on-craft',
       title: 'On Craft',
@@ -354,21 +357,72 @@ describe('stdio MCP authoring tools', () => {
 
     expect(allowed.isError).toBeUndefined()
     expect(allowed.structuredContent).toMatchObject({ published: true })
-    expect(mockPostFindByIdAndUpdate).toHaveBeenCalledTimes(1)
+    expect(mockPostFindOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'post-1' },
+      expect.anything(),
+      { new: true, runValidators: true },
+    )
+  })
+
+  it('refuses an essay published between the check and the write', async () => {
+    mockPostFindOne
+      // A draft when read...
+      .mockReturnValueOnce(queryResult({ _id: 'post-1', published: false }))
+      .mockReturnValueOnce(queryResult(null))
+    // ...but the guarded update matches nothing, because it went live meanwhile.
+    mockPostFindOneAndUpdate.mockReturnValueOnce(updateResult(null))
+    // The essay is still there, so the miss was the guard, not a deletion.
+    mockPostFindById.mockReturnValueOnce(queryResult({ _id: 'post-1' }))
+
+    const result = await client.callTool('update_essay', { slug: 'on-craft', ...essayArgs })
+
+    expect(mockPostFindOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'post-1', published: { $ne: true } },
+      expect.anything(),
+      { new: true, runValidators: true },
+    )
+    expect(result).toMatchObject({
+      isError: true,
+      content: [{
+        type: 'text',
+        text: 'That essay is published. Pass allowPublished: true to edit live content.',
+      }],
+    })
+  })
+
+  it('says Not found when the essay was deleted rather than published', async () => {
+    mockPostFindOne
+      .mockReturnValueOnce(queryResult({ _id: 'post-1', published: false }))
+      .mockReturnValueOnce(queryResult(null))
+    // The guarded update matches nothing, same as the publish race...
+    mockPostFindOneAndUpdate.mockReturnValueOnce(updateResult(null))
+    // ...but the essay is gone, not live, so the answer must differ.
+    mockPostFindById.mockReturnValueOnce(queryResult(null))
+
+    const result = await client.callTool('update_essay', { slug: 'on-craft', ...essayArgs })
+
+    expect(mockPostFindById).toHaveBeenCalledWith('post-1')
+    expect(result).toMatchObject({
+      isError: true,
+      content: [{ type: 'text', text: 'Not found' }],
+    })
   })
 
   it('fully replaces editable essay fields without changing publication state', async () => {
     mockPostFindOne
-      .mockReturnValueOnce(queryResult({ _id: 'post-1' }))
+      .mockReturnValueOnce(queryResult({ _id: 'post-1', published: false }))
       .mockReturnValueOnce(queryResult(null))
-    mockPostFindByIdAndUpdate.mockReturnValueOnce(updateResult({
+    // A draft, and still a draft afterwards: the guarded filter only matches
+    // `published != true` and the $set never mentions the field, so this is the
+    // document such an update can actually return.
+    mockPostFindOneAndUpdate.mockReturnValueOnce(updateResult({
       _id: 'post-1',
       slug: 'craft-revised',
       title: 'On Craft',
       excerpt: 'A long enough excerpt.',
       tags: ['Craft'],
       readingMinutes: 1,
-      published: true,
+      published: false,
       viewCount: 10,
       readCompletionCount: 3,
       createdAt: new Date('2026-08-01T00:00:00.000Z'),
@@ -386,8 +440,8 @@ describe('stdio MCP authoring tools', () => {
       slug: 'craft-revised',
       _id: { $ne: 'post-1' },
     })
-    expect(mockPostFindByIdAndUpdate).toHaveBeenCalledWith(
-      'post-1',
+    expect(mockPostFindOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'post-1', published: { $ne: true } },
       {
         $set: {
           title: 'On Craft',
@@ -405,7 +459,7 @@ describe('stdio MCP authoring tools', () => {
     )
     expect(result.structuredContent).toEqual(expect.objectContaining({
       slug: 'craft-revised',
-      published: true,
+      published: false,
       body: 'hello world',
     }))
   })

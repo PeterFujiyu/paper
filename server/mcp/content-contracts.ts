@@ -38,8 +38,9 @@ export const essaySummarySchema = z.object({
 export const essayListSchema = z.object({
   essays: z.array(essaySummarySchema),
   // How many came back, not how many exist — `total` read as the archive size
-  // to a caller that had no way to ask for the rest. `hasMore` infers from a
-  // full page, which is the honest signal available without a second count.
+  // to a caller that had no way to ask for the rest. `hasMore` reports whether
+  // a row past the page existed: the tools ask for one more than they return,
+  // so it is observed rather than guessed from a full page.
   returned: z.number().int().nonnegative(),
   hasMore: z.boolean(),
 })

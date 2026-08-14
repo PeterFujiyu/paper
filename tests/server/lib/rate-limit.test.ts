@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { clientKey, consumeToken, resetRateLimits } from '../../../server/lib/rate-limit.js'
+import {
+  clientKey,
+  consumeToken,
+  resetRateLimits,
+  trackedKeyCount,
+} from '../../../server/lib/rate-limit.js'
 
 const OPTIONS = { capacity: 3, refillPerSecond: 0.5 }
 const START = 1_000_000
@@ -34,6 +39,18 @@ describe('token bucket', () => {
 
     expect(consumeToken('a', OPTIONS, START).allowed).toBe(false)
     expect(consumeToken('b', OPTIONS, START).allowed).toBe(true)
+  })
+
+  it('holds the bound under a flood of keys that never refill', () => {
+    // Spend each bucket dry at the same instant, so the refill sweep can free
+    // nothing and only the age-based eviction keeps the map bounded.
+    const options = { capacity: 1, refillPerSecond: 0.001 }
+    for (let i = 0; i < 10_200; i += 1) consumeToken(`flood-${i}`, options, START)
+
+    expect(trackedKeyCount()).toBeLessThanOrEqual(10_000)
+
+    // The most recent callers survive; the oldest were the ones dropped.
+    expect(consumeToken('flood-10199', options, START).allowed).toBe(false)
   })
 
   it('keys on the client the platform reports, falling back to a shared bucket', () => {

@@ -1,6 +1,7 @@
+import { isPublishedUnlessFalse } from '../lib/content-queries.js'
 import { connectDB } from '../lib/db.js'
 import { beginRequest, finishRequest, getQueryParam, logError, readBody, sendJson, type ApiRequest, type ApiResponse } from '../lib/logger.js'
-import { prepareNoteContent } from '../lib/note-content.js'
+import { prepareNoteContent, sanitizeStoredNoteContent } from '../lib/note-content.js'
 import { requireAuth } from '../lib/vercel-auth.js'
 import Note from '../models/Note.js'
 
@@ -9,14 +10,13 @@ type NoteBody = {
   published?: unknown
 }
 
-// Legacy notes carry no flag at all and are public, which is what `$ne: false`
-// means in the query layer; report them the same way here.
-function isPublished(value: unknown): boolean {
-  return value !== false
-}
-
 // Single-note operations for the admin editor: load one for editing, update, or
 // delete. All require authentication — guests never reach this handler.
+//
+// Content is re-sanitized on the way out, exactly as the public list does it:
+// the invariant is that stored TipTap JSON is cleaned before it is returned, and
+// an admin read is where legacy or tampered content would otherwise reach a
+// renderer intact.
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   const meta = beginRequest(req)
 
@@ -42,7 +42,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       // so a CDN copy would answer a later request without re-authorizing it, and
       // would hand the editor stale content right after a save.
       res.setHeader('Cache-Control', 'no-store')
-      sendJson(res, 200, { _id: note._id, content: note.content ?? null, createdAt: note.createdAt, updatedAt: note.updatedAt, published: isPublished(note.published) }, meta)
+      sendJson(res, 200, { _id: note._id, content: sanitizeStoredNoteContent(note.content), createdAt: note.createdAt, updatedAt: note.updatedAt, published: isPublishedUnlessFalse(note.published) }, meta)
       return
     }
 
@@ -78,7 +78,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         return
       }
 
-      sendJson(res, 200, { _id: note._id, content: note.content ?? null, createdAt: note.createdAt, updatedAt: note.updatedAt, published: isPublished(note.published) }, meta)
+      sendJson(res, 200, { _id: note._id, content: sanitizeStoredNoteContent(note.content), createdAt: note.createdAt, updatedAt: note.updatedAt, published: isPublishedUnlessFalse(note.published) }, meta)
       return
     }
 
