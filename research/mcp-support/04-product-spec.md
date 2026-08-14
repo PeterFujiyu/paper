@@ -1,14 +1,17 @@
 # 4. Product specification — the MCP function surface
 
-Status: **specification — nothing implemented**
-Date: 2026-08-13
+Status: **implemented, with the amendments in §8**
+Date: 2026-08-13, amended 2026-08-14
 Scope: every MCP function Paper exposes, on both servers (remote read-only at `/api/mcp`,
-local stdio authoring). **Excludes the front-end entirely** — no Vue, no admin UI, no
-`src/` changes beyond possibly sharing types. The admin panel remains the only browser
-write path.
+local stdio authoring). Originally scoped to exclude the front end; the draft policy in
+§8 changed that, and the admin UI now carries the publish controls those drafts need.
 
 Builds on [`01`](01-protocol-landscape.md)–[`03`](03-implementation-plan.md). Where this
 document and 03 disagree, this document wins — it is the later, finer-grained pass.
+
+**Read [§8](#8-amendments-after-review) before treating any section below as current.**
+Sections 0–7 are the pre-implementation specification, left as written; a security review
+of the built feature changed eight of its decisions, and §8 records what replaced them.
 
 ---
 
@@ -402,3 +405,99 @@ Beyond the per-tool behaviour above (each row becomes at least one test in
 | Rate limiting on remote tools | None beyond query bounds | abuse observed; reuse `MetricThrottle` pattern |
 | `MCP_AUTHOR_ID` vs. single-user assumption | Env var, fail-fast | multi-author ever happens |
 | Prompts capability | Not registered | a recurring agent workflow emerges worth encoding |
+
+---
+
+## 8. Amendments after review
+
+Date: 2026-08-14. A code review and security review of the implemented feature changed
+eight decisions in §§0–7. Those sections are left as written, so the reasoning that
+produced them stays legible; where they disagree with this section, this section is what
+the code does.
+
+The through-line is one policy the earlier sections did not have: **what MCP writes lands
+as a draft, and a person publishes it from the admin UI.** Two tools are deliberately
+outside that rule, and they are the whole of the agent's reach into what a reader sees:
+
+- `publish_essay` exists to change publication state — that is its job.
+- `update_essay` will rewrite a live essay when the call passes `allowPublished: true`.
+
+So the guarantee is not "an agent cannot change the site"; it is that an agent cannot do
+so **incidentally**. Every path to live content is one the caller had to name.
+
+### 8.1 `add_note` drafts instead of publishing (§4.4)
+
+Spec: publishes immediately, carries `destructiveHint: true`, output is `noteSchema`.
+
+Now: writes `published: false` and returns `draftNoteSchema` (`noteSchema` + `published`).
+The hint is gone, because nothing the tool does reaches the site. `Note` gained a
+`published` field; public reads match `$ne: false` so notes written before the field
+existed stay visible without a backfill, and the admin note editor carries the same
+Live/Draft toggle the essay editor has.
+
+### 8.2 `log_brew` drafts too (§4.5)
+
+Same change, for the same reason, on `Brew` — including the shelf aggregation, which
+`$match`es published cups so a drafted brew cannot move the totals. Output is
+`draftBrewSchema`. Admin-logged cups still publish on save; only MCP drafts.
+
+### 8.3 `update_essay` refuses live essays (§4.2)
+
+Spec: updates either state, preserving publication.
+
+Now: edits drafts freely, and refuses a published essay unless the call passes
+`allowPublished: true` — `That essay is published. Pass allowPublished: true to edit live
+content.` The draft condition is part of the update filter, not a separate read, so an
+essay published between check and write is refused rather than overwritten.
+
+### 8.4 The front end is in scope
+
+Spec: excludes Vue entirely. Drafts have to be publishable by a person, so the notes and
+coffee list views mark drafts and both editors carry a publish toggle.
+
+### 8.5 Essay lists report `returned` and `hasMore`, not `total` (§2.1, §2.2)
+
+`total` was the size of the page served, which read as the size of the archive to a caller
+with no way to ask for the rest. The tools now fetch `limit + 1` rows, return `limit` of
+them, and report `hasMore` as the fact that the extra row existed.
+
+### 8.6 The remote endpoint is metered and CORS-aware (§7 open question)
+
+Rate limiting is no longer "none beyond query bounds": JSON-RPC over POST is never cached
+in front of the function, and `search_essays` and `list_brews` are the heaviest queries in
+the codebase. A per-IP token bucket allows 30 in a burst, then 30 a minute, refused before
+dispatch.
+
+**It is best-effort, per-instance, and not a quota.** The bucket lives in one function
+instance's memory: a cold start hands the caller a full one, instances do not share state,
+and eviction under a flood of distinct keys re-grants budget to whoever was dropped. What
+it buys is that a single client cannot pin a single instance. A real per-IP ceiling across
+a deployment needs shared storage, which this does not have.
+
+The shelf aggregation is memoized for 60s. A brew write clears the memo **of the instance
+that served it**; the brew routes and `/api/mcp` are separate functions, so elsewhere the
+TTL is what bounds staleness, and a warm instance can pair a fresh brew list with a shelf
+up to a minute old.
+
+Passing origin validation now also grants the CORS headers a browser client needs to read
+the answer, and `OPTIONS` is answered as an unmetered preflight.
+
+### 8.7 The advertised version is a literal (§0.1)
+
+`packageJson.version` was the only `package.json` import in the codebase, and `vercel.json`
+ships `server/**` to the function without it. `MCP_SERVER_VERSION` describes the tool
+contract instead — the npm version is `0.0.0` and tells a client nothing.
+
+### 8.8 One new error message (§6 acceptance criterion 3)
+
+Message parity with the HTTP API holds except for slug derivation, which the HTTP API has
+no equivalent of: a title with no ASCII alphanumerics returns `Could not derive a usable
+slug from that title. Pass slug explicitly.` rather than the HTTP validator's misleading
+`Slug is required.`
+
+### 8.9 Known and accepted
+
+The tag filter on `list_essays` scans rather than using an index: `normalizeTags` stores
+the author's display casing, so the match must stay case-insensitive, and a case-insensitive
+regex cannot use one. Fixing it means a normalized lowercase field and a backfill. Deferred
+until the archive is big enough for it to matter.
