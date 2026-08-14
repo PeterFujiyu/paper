@@ -46,10 +46,19 @@ export type NoteLean = {
 }
 
 /**
- * Public notes. Matches `$ne: false` rather than `true` so every note written
- * before the draft flag existed stays on the site without a migration.
+ * Public notes and brews. Matches `$ne: false` rather than `true` so everything
+ * written before the draft flag existed stays on the site without a migration.
  */
-const PUBLISHED_NOTE = { published: { $ne: false } } as const
+const PUBLISHED = { published: { $ne: false } } as const
+
+/**
+ * The same rule as `PUBLISHED`, for one document already in hand: admin reads
+ * report a note or brew written before the flag existed as published, because
+ * that is what the query above says about it.
+ */
+export function isPublishedUnlessFalse(value: unknown): boolean {
+  return value !== false
+}
 
 export type BrewLean = {
   _id?: unknown
@@ -158,8 +167,8 @@ export async function findPublishedPost(
  */
 export async function listNotes(opts: { q?: string; limit: number }): Promise<NoteLean[]> {
   const filter = opts.q
-    ? { ...PUBLISHED_NOTE, contentText: new RegExp(escapeRegExp(opts.q), 'i') }
-    : { ...PUBLISHED_NOTE }
+    ? { ...PUBLISHED, contentText: new RegExp(escapeRegExp(opts.q), 'i') }
+    : { ...PUBLISHED }
 
   const notes = await Note.find(filter)
     .sort({ createdAt: -1 })
@@ -171,7 +180,8 @@ export async function listNotes(opts: { q?: string; limit: number }): Promise<No
 }
 
 /**
- * List recent brews while computing shelf totals over the whole collection.
+ * List recent published brews, with shelf totals over every published cup
+ * rather than the page being served.
  *
  * The search runs over `searchText`, the lowercase plain-text projection the
  * schema keeps `select: false`; the query is lowercased to match it and escaped
@@ -182,8 +192,8 @@ export async function listBrews(opts: {
   limit: number
 }): Promise<{ brews: BrewLean[]; shelf: Shelf }> {
   const filter = opts.q
-    ? { searchText: new RegExp(escapeRegExp(opts.q.toLowerCase()), 'i') }
-    : {}
+    ? { ...PUBLISHED, searchText: new RegExp(escapeRegExp(opts.q.toLowerCase()), 'i') }
+    : { ...PUBLISHED }
 
   const [brews, shelf] = await Promise.all([
     Brew.find(filter)
@@ -198,14 +208,21 @@ export async function listBrews(opts: {
 }
 
 /**
- * The shelf groups the whole brews collection, and every caller gets the same
- * answer, so it is held for a minute instead of re-aggregating per request.
+ * The shelf groups every published brew, and every caller gets the same answer,
+ * so it is held for a minute instead of re-aggregating per request.
  * The window matches the CDN's `s-maxage` on the public read, so the site is no
  * staler than before; MCP is the reason this exists at all, being POST-only and
  * therefore never cached in front of the function.
  *
  * Caching the promise rather than the value also collapses concurrent misses
  * into one aggregation.
+ *
+ * The TTL, not the invalidation, is what bounds staleness. Each serverless
+ * instance holds its own memo, and the brew routes and `/api/mcp` are separate
+ * functions, so a write can only clear the memo of the instance that served it.
+ * Another warm instance can pair a fresh brew list with a shelf up to a minute
+ * behind — acceptable for a totals strip, and the ceiling to design against if
+ * these numbers ever need to be exact.
  */
 const SHELF_TTL_MS = 60_000
 
@@ -225,14 +242,20 @@ function cachedShelf(): Promise<Shelf> {
   return promise
 }
 
-/** Drop the memoized shelf — called after a write so the author sees their cup. */
+/**
+ * Drop this instance's memoized shelf, so the process that just took a write
+ * reports it immediately. Other instances keep theirs until the TTL expires.
+ */
 export function invalidateShelfCache(): void {
   shelfCache = null
 }
 
-/** Standing shelf facts, intentionally computed over every brew. */
+/** Standing shelf facts, intentionally computed over every published brew. */
 async function readShelf(): Promise<Shelf> {
   const tallies = (await Brew.aggregate([
+    // Drafts are not on the shelf either — a cup an agent logged must not move
+    // the totals before a person publishes it.
+    { $match: PUBLISHED },
     { $group: { _id: '$method', count: { $sum: 1 }, origins: { $addToSet: '$origin' } } },
   ])) as MethodTally[]
 

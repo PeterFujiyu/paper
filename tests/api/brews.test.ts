@@ -105,7 +105,9 @@ describe('api/brews', () => {
     await handler(makeReq(), res)
 
     expect(mockRequireAuth).not.toHaveBeenCalled()
-    expect(mockFind).toHaveBeenCalledWith({})
+    // `$ne: false`, not `true`: cups logged before the draft flag existed
+    // carry no value and must stay on the log.
+    expect(mockFind).toHaveBeenCalledWith({ published: { $ne: false } })
     expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', PUBLIC_READ_CACHE_CONTROL)
     expect(res.statusCode).toBe(200)
     expect(res.json).toHaveBeenCalledWith({
@@ -138,7 +140,7 @@ describe('api/brews', () => {
 
     await handler(makeReq({ url: '/api/brews?q=Ethiopia', query: { q: 'Ethiopia' } }), res)
 
-    expect(mockFind).toHaveBeenCalledWith({ searchText: /ethiopia/i })
+    expect(mockFind).toHaveBeenCalledWith({ published: { $ne: false }, searchText: /ethiopia/i })
     expect(sort).toHaveBeenCalledWith({ createdAt: -1 })
     expect(limit).toHaveBeenCalledWith(20)
     expect(res.statusCode).toBe(200)
@@ -150,7 +152,7 @@ describe('api/brews', () => {
 
     await handler(makeReq({ url: '/api/brews?q=a.*b', query: { q: 'a.*b' } }), res)
 
-    expect(mockFind).toHaveBeenCalledWith({ searchText: /a\.\*b/i })
+    expect(mockFind).toHaveBeenCalledWith({ published: { $ne: false }, searchText: /a\.\*b/i })
   })
 
   it('creates a brew from a normalized body when authenticated', async () => {
@@ -165,6 +167,8 @@ describe('api/brews', () => {
         bean: 'Kochere',
         method: 'V60',
         searchText: 'kochere ethiopia passenger v60 jasmine up front.',
+        // A cup logged by hand in the admin goes on the log; only MCP drafts.
+        published: true,
       })
     )
     expect(res.statusCode).toBe(201)

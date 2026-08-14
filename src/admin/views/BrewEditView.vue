@@ -4,6 +4,9 @@
     <header class="edit-header">
       <RouterLink to="/admin/brews" class="back-link">← Coffee</RouterLink>
       <div class="edit-actions">
+        <!-- A draft cup is one an agent logged over MCP; this puts it on the
+             log and into the shelf totals. -->
+        <PublicationToggle v-if="isEdit" v-model="published" />
         <button class="btn-save" :class="{ 'btn-save--saving': saving }" @click="save" :disabled="saving || !!validationMessage">
           {{ saving ? 'Saving…' : 'Save' }}
         </button>
@@ -116,6 +119,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
+import PublicationToggle from '../components/PublicationToggle.vue'
 import { apiFetch } from '../store'
 import { confirmDialog } from '../../shared/dialog'
 import {
@@ -159,6 +163,10 @@ const form = reactive<BrewForm>({
 // parsed on save and on every keystroke for the validation message.
 const brewTimeText = ref('')
 
+// A cup logged here goes on the log, as it always has; only an existing one can
+// be a draft, and only the toggle above changes that.
+const published = ref(true)
+
 const loading = ref(false)
 const saving = ref(false)
 const error  = ref('')
@@ -194,6 +202,7 @@ onMounted(async () => {
     form.tastingNote = brew.tastingNote
     form.pairedSlug = brew.pairedSlug
     brewTimeText.value = brewTimeInput(brew.brewSeconds)
+    published.value = brew.published !== false
   } catch (e: unknown) {
     error.value = getErrorMessage(e)
   } finally {
@@ -226,7 +235,7 @@ async function save() {
     if (isEdit.value) {
       await apiFetch<BrewDocument>(`/brew?id=${encodeURIComponent(brewId.value)}`, {
         method: 'PUT',
-        body: JSON.stringify(payload()),
+        body: JSON.stringify({ ...payload(), published: published.value }),
       })
     } else {
       const brew = await apiFetch<BrewDocument>('/brews', {
