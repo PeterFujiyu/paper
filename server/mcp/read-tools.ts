@@ -18,7 +18,6 @@ import {
   type PostSummaryLean,
 } from '../lib/content-queries.js'
 import { connectDB } from '../lib/db.js'
-import { normalizeSlug } from '../lib/validation.js'
 import {
   brewSchema,
   essayListSchema,
@@ -193,10 +192,14 @@ export function registerReadTools(
     },
     async (uri, variables) => {
       try {
-        await connectDB()
+        // Held to the same slug schema as get_essay, so the two ways into one
+        // essay agree on what a slug is — and a malformed URI costs no query.
         const value = variables.slug
-        const slug = normalizeSlug(Array.isArray(value) ? value[0] ?? '' : value ?? '')
-        const post = await findPublishedPost(slug, { withText: true })
+        const slug = slugSchema.safeParse(Array.isArray(value) ? value[0] ?? '' : value ?? '')
+        if (!slug.success) throw new ResourceNotFoundError(uri.href, 'Not found')
+
+        await connectDB()
+        const post = await findPublishedPost(slug.data, { withText: true })
         if (!post) throw new ResourceNotFoundError(uri.href, 'Not found')
 
         return {

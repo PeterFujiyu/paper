@@ -105,7 +105,15 @@ export function registerAuthoringTools(server: McpServer, authorId: string): voi
       annotations: { readOnlyHint: false },
     },
     async (args) => runAuthoringTool(async () => {
-      const slug = normalizeSlug(args.slug ?? slugify(args.title))
+      // A derived slug is held to the same schema as a supplied one. A title
+      // with no ASCII alphanumerics — Chinese, Japanese, emoji — slugifies to
+      // nothing, and a very long one to something past the length cap.
+      const derived = slugSchema.safeParse(args.slug ?? slugify(args.title))
+      if (!derived.success) {
+        return toolError('Could not derive a usable slug from that title. Pass slug explicitly.')
+      }
+
+      const slug = derived.data
       const body = postBody(args, slug)
       const prepared = prepareEssay(body)
       if (!prepared.ok) return toolError(prepared.error)

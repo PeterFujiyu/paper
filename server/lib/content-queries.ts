@@ -79,7 +79,16 @@ type MethodTally = {
   origins: (string | null)[]
 }
 
-/** Browse published essays newest-first. A non-positive limit means unbounded. */
+/**
+ * Browse published essays newest-first. A non-positive limit means unbounded.
+ *
+ * The tag match is anchored and escaped, so it is an equality test spelled as a
+ * regex. It stays case-insensitive — and therefore a collection scan, since a
+ * case-insensitive regex cannot use an index — because `normalizeTags` stores
+ * tags in the author's display casing and a caller cannot know it. Making this
+ * index-backed means a normalized lowercase field and a backfill; the archive
+ * is small enough that the scan is the cheaper trade for now.
+ */
 export async function listPublishedPosts(opts: {
   tag?: string
   limit: number
@@ -100,7 +109,17 @@ export async function listPublishedPosts(opts: {
   return posts as unknown as PostSummaryLean[]
 }
 
-/** Search published essay summaries by an escaped, literal substring. */
+/**
+ * Search published essay summaries across title, excerpt, tags and the full
+ * body by an escaped, literal substring.
+ *
+ * The query is escaped to a literal so special characters can neither break the
+ * pattern nor trigger ReDoS; callers cap its length before it gets here. Regex
+ * rather than `$text` because MongoDB text indexes and queries are rejected
+ * under this connection's Stable API `apiStrict` — an index would look like the
+ * obvious optimization and would fail only in production. The heavy contentText
+ * field stays server-side (`select: false`); only summary fields ship.
+ */
 export async function searchPublishedPosts(q: string, limit: number): Promise<PostSummaryLean[]> {
   const rx = new RegExp(escapeRegExp(q), 'i')
   const posts = await Post.find({
@@ -130,9 +149,12 @@ export async function findPublishedPost(
 
 /**
  * List recent published notes, optionally searching their server-only text
- * projection. Drafts are excluded here rather than at the callers, because
- * every caller of this function serves the public (the admin list reads the
- * collection directly).
+ * projection with an escaped, literal substring (see searchPublishedPosts for
+ * why it is a regex and not `$text`).
+ *
+ * Drafts are excluded here rather than at the callers, because every caller of
+ * this function serves the public — the admin list reads the collection
+ * directly.
  */
 export async function listNotes(opts: { q?: string; limit: number }): Promise<NoteLean[]> {
   const filter = opts.q
@@ -148,7 +170,13 @@ export async function listNotes(opts: { q?: string; limit: number }): Promise<No
   return notes as unknown as NoteLean[]
 }
 
-/** List recent brews while computing shelf totals over the whole collection. */
+/**
+ * List recent brews while computing shelf totals over the whole collection.
+ *
+ * The search runs over `searchText`, the lowercase plain-text projection the
+ * schema keeps `select: false`; the query is lowercased to match it and escaped
+ * to a literal, so it can neither break the pattern nor trigger ReDoS.
+ */
 export async function listBrews(opts: {
   q?: string
   limit: number

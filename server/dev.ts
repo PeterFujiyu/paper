@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { createServer } from 'node:http'
+import { createServer, type IncomingMessage } from 'node:http'
 import { parse as parseUrl } from 'node:url'
 import type { ApiRequest, ApiResponse } from './lib/logger.js'
 import { allRoutes, type RouteHandler } from './routes/index.js'
@@ -11,6 +11,32 @@ const routes: Record<string, RouteHandler> = Object.fromEntries(
   Object.entries(allRoutes).map(([name, handler]) => [`/api/${name}`, handler]),
 )
 
+/**
+ * The request body as bytes, decoded once at the end.
+ *
+ * Appending each chunk to a string would decode them independently, and a
+ * multi-byte character split across a chunk boundary becomes two replacement
+ * characters — which is every essay with a CJK title long enough to arrive in
+ * more than one piece.
+ */
+async function readRawBody(req: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = []
+  for await (const chunk of req) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string))
+  }
+  return Buffer.concat(chunks).toString('utf8')
+}
+
+// Framing belongs to whoever writes the body, and fetch rewrites it from the
+// body we hand over; forwarding the originals would describe the old request.
+const UNFORWARDED_HEADERS = new Set([
+  'connection',
+  'content-length',
+  'host',
+  'keep-alive',
+  'transfer-encoding',
+])
+
 createServer(async (req, res) => {
   const url = parseUrl(req.url ?? '', true)
 
@@ -19,14 +45,13 @@ createServer(async (req, res) => {
   if (url.pathname === '/api/mcp') {
     const headers = new Headers()
     for (const [name, value] of Object.entries(req.headers)) {
+      if (UNFORWARDED_HEADERS.has(name.toLowerCase())) continue
       for (const item of Array.isArray(value) ? value : [value]) {
         if (typeof item === 'string') headers.append(name, item)
       }
     }
 
-    let rawBody = ''
-    for await (const chunk of req) rawBody += chunk
-
+    const rawBody = await readRawBody(req)
     const method = req.method ?? 'GET'
     const request = new Request(new URL(req.url ?? '/api/mcp', 'http://localhost:3001'), {
       method,
@@ -51,10 +76,7 @@ createServer(async (req, res) => {
     return
   }
 
-  let rawBody = ''
-  for await (const chunk of req) {
-    rawBody += chunk
-  }
+  const rawBody = await readRawBody(req)
 
   let parsedBody: unknown = undefined
   if (rawBody) {

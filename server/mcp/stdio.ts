@@ -30,5 +30,8 @@ async function main(): Promise<void> {
 void main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : 'Unknown startup error'
   console.error('[mcp:stdio] startup failed', message)
-  process.exitCode = 1
+  // Exit rather than setting exitCode: resolving the author already opened the
+  // Mongo pool, whose sockets would hold the loop open indefinitely, leaving
+  // the client waiting on a server that is never going to speak.
+  process.exit(1)
 })
