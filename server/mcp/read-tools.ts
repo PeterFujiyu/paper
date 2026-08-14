@@ -55,12 +55,18 @@ async function runReadTool(operation: () => Promise<CallToolResult>): Promise<Ca
   }
 }
 
+/**
+ * Shape a page of essays. Callers ask the database for one past the limit, so
+ * `hasMore` is the fact that the extra row existed rather than a guess from a
+ * full page — an archive holding exactly `limit` essays reports false.
+ */
 function essayListResult(posts: PostSummaryLean[], limit: number): CallToolResult {
-  const essays = posts.map(shapeEssaySummary)
+  const hasMore = posts.length > limit
+  const essays = posts.slice(0, limit).map(shapeEssaySummary)
   const structuredContent = {
     essays,
     returned: essays.length,
-    hasMore: essays.length >= limit,
+    hasMore,
   }
   const text = essays
     .map((essay) => (
@@ -90,7 +96,8 @@ export function registerReadTools(
       annotations: READ_ANNOTATIONS,
     },
     async ({ tag, limit }) => runReadTool(async () => (
-      essayListResult(await listPublishedPosts({ tag, limit }), limit)
+      // One past the page, so `hasMore` is observed rather than inferred.
+      essayListResult(await listPublishedPosts({ tag, limit: limit + 1 }), limit)
     )),
   )
 
@@ -106,7 +113,7 @@ export function registerReadTools(
       annotations: READ_ANNOTATIONS,
     },
     async ({ q, limit }) => runReadTool(async () => (
-      essayListResult(await searchPublishedPosts(q, limit), limit)
+      essayListResult(await searchPublishedPosts(q, limit + 1), limit)
     )),
   )
 

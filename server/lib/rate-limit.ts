@@ -21,8 +21,10 @@ export type RateLimitResult =
 
 type Bucket = { tokens: number; updatedAt: number }
 
-// Bounds the memory one instance can be made to hold. Buckets are only evicted
-// once they have refilled to full, so eviction can never grant extra budget.
+// Bounds the memory one instance can be made to hold. Refilled buckets go
+// first, since evicting one grants nothing a fresh key would not already have;
+// only when none have refilled does it fall back to evicting the least recently
+// seen, which is a real (if small) amnesty and the price of a hard bound.
 const MAX_TRACKED_KEYS = 10_000
 
 const buckets = new Map<string, Bucket>()
@@ -48,7 +50,7 @@ export function consumeToken(
     }
   }
 
-  if (buckets.size >= MAX_TRACKED_KEYS) pruneFullBuckets(options, now)
+  if (!buckets.has(key) && buckets.size >= MAX_TRACKED_KEYS) makeRoom(options, now)
   buckets.set(key, { tokens: tokens - 1, updatedAt: now })
   return { allowed: true }
 }
@@ -64,14 +66,34 @@ export function clientKey(headers: Headers): string {
   return forwarded || headers.get('x-real-ip')?.trim() || 'unknown'
 }
 
-function pruneFullBuckets(options: RateLimitOptions, now: number): void {
+/**
+ * Free at least one slot, so the map cannot grow past the bound.
+ *
+ * Dropping only the refilled buckets is not enough on its own: under a flood of
+ * distinct keys none of them refill, the sweep frees nothing, and inserts carry
+ * on regardless. Whatever the sweep leaves behind, the oldest entries go until
+ * there is room.
+ */
+function makeRoom(options: RateLimitOptions, now: number): void {
   for (const [key, bucket] of buckets) {
     const refilled = bucket.tokens + ((now - bucket.updatedAt) / 1000) * options.refillPerSecond
     if (refilled >= options.capacity) buckets.delete(key)
+  }
+
+  if (buckets.size < MAX_TRACKED_KEYS) return
+
+  const byAge = [...buckets.entries()].sort((a, b) => a[1].updatedAt - b[1].updatedAt)
+  for (const [key] of byAge.slice(0, buckets.size - MAX_TRACKED_KEYS + 1)) {
+    buckets.delete(key)
   }
 }
 
 /** Test seam: drop all tracked buckets. */
 export function resetRateLimits(): void {
   buckets.clear()
+}
+
+/** Test seam: how many callers are currently tracked. */
+export function trackedKeyCount(): number {
+  return buckets.size
 }

@@ -154,7 +154,8 @@ describe('remote Paper MCP server', () => {
 
     const { body } = await callTool('list_essays', { tag: ' craft ', limit: 10 })
 
-    expect(mockListPublishedPosts).toHaveBeenCalledWith({ tag: 'craft', limit: 10 })
+    // One past the page, so hasMore is observed rather than inferred.
+    expect(mockListPublishedPosts).toHaveBeenCalledWith({ tag: 'craft', limit: 11 })
     expect(toolPayload(body).structuredContent).toEqual({
       essays: [{
         slug: 'on-craft',
@@ -179,10 +180,10 @@ describe('remote Paper MCP server', () => {
   it('searches with the schema-trimmed query and the caller limit', async () => {
     await callTool('search_essays', { q: '  typography  ', limit: 3 })
 
-    expect(mockSearchPublishedPosts).toHaveBeenCalledWith('typography', 3)
+    expect(mockSearchPublishedPosts).toHaveBeenCalledWith('typography', 4)
   })
 
-  it('reports a full page as having more, so a caller knows it is not the archive', async () => {
+  it('reports more only when a row past the page exists, and never returns it', async () => {
     const essay = {
       slug: 'on-craft',
       title: 'On Craft',
@@ -193,13 +194,19 @@ describe('remote Paper MCP server', () => {
       viewCount: 0,
       readCompletionCount: 0,
     }
-    mockListPublishedPosts.mockResolvedValue([essay, { ...essay, slug: 'second' }])
+    const page = [essay, { ...essay, slug: 'second' }]
 
-    const full = await callTool('list_essays', { limit: 2 })
-    expect(toolPayload(full.body).structuredContent).toMatchObject({ returned: 2, hasMore: true })
+    // Three rows for a page of two: the third is the proof, not part of the page.
+    mockListPublishedPosts.mockResolvedValue([...page, { ...essay, slug: 'third' }])
+    const more = toolPayload((await callTool('list_essays', { limit: 2 })).body)
+    expect(more.structuredContent).toMatchObject({ returned: 2, hasMore: true })
+    expect(JSON.stringify(more)).not.toContain('third')
 
-    const partial = await callTool('list_essays', { limit: 5 })
-    expect(toolPayload(partial.body).structuredContent).toMatchObject({ returned: 2, hasMore: false })
+    // An archive holding exactly the limit reports no more — the boundary a
+    // "page looks full" guess gets wrong.
+    mockListPublishedPosts.mockResolvedValue(page)
+    const exact = toolPayload((await callTool('list_essays', { limit: 2 })).body)
+    expect(exact.structuredContent).toMatchObject({ returned: 2, hasMore: false })
   })
 
   it('rejects schema-invalid arguments before a query runs', async () => {
@@ -418,6 +425,60 @@ describe('remote Paper MCP server', () => {
     }
   })
 
+  it('grants an allowed origin the CORS permission it needs to connect', async () => {
+    const previous = process.env.SITE_ORIGIN
+    process.env.SITE_ORIGIN = 'https://paper.test'
+
+    try {
+      // Preflight: answered here, never dispatched, and never metered.
+      const preflight = await paperMcpFetch(new Request('https://paper.test/api/mcp', {
+        method: 'OPTIONS',
+        headers: { Origin: 'https://paper.test' },
+      }))
+
+      expect(preflight.status).toBe(204)
+      expect(preflight.headers.get('Access-Control-Allow-Origin')).toBe('https://paper.test')
+      expect(preflight.headers.get('Access-Control-Allow-Methods')).toContain('POST')
+      expect(preflight.headers.get('Access-Control-Allow-Headers')).toContain('Mcp-Method')
+      expect(preflight.headers.get('Vary')).toContain('Origin')
+
+      // And the real answer carries the header, or the browser discards it.
+      const { response } = await requestMcp('tools/list', {}, {
+        headers: { Origin: 'https://paper.test' },
+      })
+      expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://paper.test')
+    } finally {
+      if (previous === undefined) delete process.env.SITE_ORIGIN
+      else process.env.SITE_ORIGIN = previous
+    }
+  })
+
+  it('lets a browser client read Retry-After off a 429', async () => {
+    const previous = process.env.SITE_ORIGIN
+    process.env.SITE_ORIGIN = 'https://paper.test'
+    const headers = { Origin: 'https://paper.test', 'x-forwarded-for': '203.0.113.11' }
+
+    try {
+      for (let i = 0; i < 30; i += 1) await requestMcp('tools/list', {}, { headers })
+      const { response } = await requestMcp('tools/list', {}, { headers })
+
+      expect(response.status).toBe(429)
+      // Without the expose header the browser sees the status but not the wait.
+      expect(response.headers.get('Access-Control-Expose-Headers')).toContain('Retry-After')
+      expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://paper.test')
+      expect(Number(response.headers.get('Retry-After'))).toBeGreaterThan(0)
+    } finally {
+      if (previous === undefined) delete process.env.SITE_ORIGIN
+      else process.env.SITE_ORIGIN = previous
+    }
+  })
+
+  it('sends no CORS headers to a caller that never asked cross-origin', async () => {
+    const { response } = await requestMcp('tools/list')
+
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull()
+  })
+
   it('meters one caller and answers 429 with a Retry-After, without touching the DB', async () => {
     const headers = { 'x-forwarded-for': '203.0.113.7' }
 
@@ -434,6 +495,7 @@ describe('remote Paper MCP server', () => {
 
     expect(limited.response.status).toBe(429)
     expect(Number(limited.response.headers.get('Retry-After'))).toBeGreaterThan(0)
+    expect(limited.response.headers.get('Access-Control-Allow-Origin')).toBeNull()
     expect(limited.body.error).toMatchObject({ code: -32000, message: 'Too many requests' })
     expect(mockListPublishedPosts).not.toHaveBeenCalled()
 

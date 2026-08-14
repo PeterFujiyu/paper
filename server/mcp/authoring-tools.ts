@@ -72,6 +72,9 @@ const updateEssayInputSchema = z.object({
   allowPublished: z.boolean().default(false),
 })
 
+const LIVE_ESSAY_REFUSAL =
+  'That essay is published. Pass allowPublished: true to edit live content.'
+
 const publishEssayOutputSchema = z.object({
   slug: z.string(),
   title: z.string(),
@@ -147,7 +150,7 @@ export function registerAuthoringTools(server: McpServer, authorId: string): voi
       if (!existing) return toolError('Not found')
 
       if (existing.published === true && !args.allowPublished) {
-        return toolError('That essay is published. Pass allowPublished: true to edit live content.')
+        return toolError(LIVE_ESSAY_REFUSAL)
       }
 
       const id = String(existing._id)
@@ -158,15 +161,31 @@ export function registerAuthoringTools(server: McpServer, authorId: string): voi
 
       if (await slugExists(slug, id)) return toolError('Slug is already in use.')
 
-      const post = await Post.findByIdAndUpdate(
-        id,
+      // The draft condition rides along in the filter, not just the check
+      // above: an essay published between the two would otherwise have its
+      // live text overwritten by a call that never asked for that.
+      const post = await Post.findOneAndUpdate(
+        {
+          _id: id,
+          ...(args.allowPublished ? {} : { published: { $ne: true } }),
+        },
         {
           $set: essayWriteFields(args, slug, prepared),
         },
         { new: true, runValidators: true },
       ).lean()
 
-      if (!post) return toolError('Not found')
+      if (!post) {
+        // Matching nothing means the essay was deleted, or it went live and the
+        // guard caught it. Those are different answers, and 'Not found' is the
+        // contract for the first, so ask which happened. The re-read races too,
+        // but no write occurred either way — this only picks the message.
+        if (!args.allowPublished) {
+          const current = await Post.findById(id).select('_id').lean()
+          return toolError(current ? LIVE_ESSAY_REFUSAL : 'Not found')
+        }
+        return toolError('Not found')
+      }
       const output = shapeAuthorEssay(post, prepared.contentText, post.published === true)
       return toolSuccess(`Essay updated: ${output.slug} — ${output.title}`, output)
     }),
