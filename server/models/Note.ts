@@ -7,11 +7,12 @@ const noteSchema = new Schema(
     // (case-insensitive regex) for full-text lookups; excluded from normal reads
     // (`select: false`) so the heavy field never bloats list responses.
     contentText: { type: String, default: '', select: false },
-    // Drafts exist so an agent can write a note without putting it on the site;
-    // the MCP authoring tool is the only writer that leaves this false. The
-    // default is the safe one, so a new writer has to opt into publishing.
-    // Notes written before this field existed have no value at all, which is
-    // why public reads match `$ne: false` rather than `true`.
+    // Drafts exist so an agent can write a note without putting it on the site.
+    // `add_note` is the only path that creates one; the admin editor can move a
+    // note either way afterwards. The default is the safe one, so a new writer
+    // has to opt into publishing. Notes written before this field existed have
+    // no value at all, which is why public reads match `$ne: false` rather
+    // than `true`.
     published: { type: Boolean, default: false },
   },
   {

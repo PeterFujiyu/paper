@@ -66,11 +66,13 @@ npm run mcp:stdio
 
 The stdio server adds tools to create drafts, replace or publish essays, add notes, and log brews. It talks directly to the configured MongoDB and intentionally has no delete tool.
 
-Everything it writes starts as a draft, so an agent cannot change the site on its own:
+What it writes starts as a draft, so an agent cannot change the site incidentally — only through a call that names the intent:
 
-- `create_draft` and `add_note` produce unpublished content. Notes are published from the admin Notes view.
+- `create_draft`, `add_note` and `log_brew` produce unpublished content. Notes and brews are published from the admin Notes and Coffee views; a drafted cup stays off the shelf totals too.
 - `update_essay` edits drafts freely, but refuses a published essay unless the call passes `allowPublished: true`.
-- `publish_essay` is the one tool that changes what a reader sees.
+- `publish_essay` is the dedicated tool for changing publication state — putting an essay in front of readers, or taking it back down.
+
+Those last two are the only reach an agent has into live content, and both require the caller to say so explicitly.
 
 A client can register it by running the equivalent of:
 

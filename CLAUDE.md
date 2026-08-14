@@ -13,7 +13,7 @@ npm run api:dev          # local API server on :3001 — user runs this
 npm run mcp:stdio        # local MCP server; requires MCP_AUTHOR_ID
 ```
 
-Verify with the typecheck/lint/test command above — that is the whole verification loop. Do not start dev servers, open the browser preview, or drive the app in a browser; `npm run dev` and `npm run api:dev` are for the user. When a change really needs eyes in a browser (auth/DB/cookie flows, visual polish), finish the code and tests, then say what the user should exercise.
+typecheck/lint/test is the default loop; add `npm run build` when the change touches Vite config, deps, or anything deploy-sensitive (`api/`, `vercel.json`). Nothing else runs — do not start dev servers, open the browser preview, or drive the app in a browser; `npm run dev` and `npm run api:dev` are for the user. When a change really needs eyes in a browser (auth/DB/cookie flows, visual polish), finish the code and tests, then say what the user should exercise.
 
 Setup: `cp .env.example .env`; set `MONGODB_URI`, `JWT_SECRET` (≥ 32 chars, enforced). `INVITE_CODE` unset disables registration. `MCP_AUTHOR_ID` is required only for local MCP authoring. Keep `VITE_API_BASE=/api`.
 
@@ -22,7 +22,7 @@ Setup: `cp .env.example .env`; set `MONGODB_URI`, `JWT_SECRET` (≥ 32 chars, en
 - `api/` — one function per route group (`auth`, `admin`, `content`, `metrics`, `shell`), each one line: `createDispatcher(<group>Routes)`. `mcp.ts` is the sole standalone fetch-handler exception and intentionally has no `allRoutes` or rewrite entry. Vercel Hobby caps 12 functions, hence grouping; only add a new group here.
 - `server/routes/` — one thin route per file (method guard, auth gate, validation, shaping), default async `handler`. `index.ts` is the single route table read by both `server/dev.ts` and `api/`, so dev/prod can't drift.
 - `server/lib/` — shared server logic (new reusable server code goes here, not `api/`).
-- `server/mcp/` — shared MCP factory/tools; remote `/api/mcp` is public read-only (origin-checked, rate-limited), while local stdio alone registers authoring tools. Everything MCP writes stays a draft: `publish_essay` and the admin UI are the only ways content goes live.
+- `server/mcp/` — shared MCP factory/tools; remote `/api/mcp` is public read-only (origin-checked, CORS'd, rate-limited), while local stdio alone registers authoring tools. What MCP writes lands as a draft — essays, notes and brews all carry `published`, and the admin UI publishes them. Two deliberate exceptions: `publish_essay` exists to change that state, and `update_essay` will edit a live essay when the call passes `allowPublished: true`.
 - `src/` — Vue app; `admin/store.ts` is the auth store. `src/types/content.ts` = shared API payload types; update with any response-shape change.
 - `tests/` — mirrors source tree; `tests/setup.ts` sets `JWT_SECRET` before modules load.
 - `research/` — plan/audit docs (see `research-audit` skill). `design-anthropic-blog/design.html` is a typographic reference, not a page — nothing builds or serves it; `src/style.css` cites it for `--measure`. `vercel.json` — build/rewrites/headers. Never hand-edit `dist/`.
@@ -37,7 +37,7 @@ For route-table APIs, copy an existing file in `server/routes/`: new route = fil
 - Cookies only via `server/lib/auth.ts` helpers — never hand-rolled strings.
 - Keep CSP/headers aligned between `server/lib/security.ts` and `vercel.json`.
 - Never expose stack traces, raw JWT errors, or DB internals — return `Unauthorized`, `Not found`, `Request failed`.
-- Keep `runValidators: true` on `findByIdAndUpdate`; preserve duplicate-slug handling in post routes.
+- Keep `runValidators: true` on every `findByIdAndUpdate`/`findOneAndUpdate`; preserve duplicate-slug handling in post routes.
 
 ## Code style
 
