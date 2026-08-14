@@ -6,10 +6,7 @@
       <div class="edit-actions">
         <!-- A draft note is one an agent wrote through MCP; this is where it
              goes live, and the only place that state is visible. -->
-        <label v-if="isEdit" class="publish-toggle">
-          <input type="checkbox" v-model="form.published" />
-          <span>{{ form.published ? 'Live' : 'Draft' }}</span>
-        </label>
+        <PublicationToggle v-if="isEdit" v-model="form.published" />
         <button class="btn-save" :class="{ 'btn-save--saving': saving }" @click="save" :disabled="saving || !!validationMessage">
           {{ saving ? 'Saving…' : 'Save' }}
         </button>
@@ -30,6 +27,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
+import PublicationToggle from '../components/PublicationToggle.vue'
 import TiptapEditor from '../components/TiptapEditor.vue'
 import { apiFetch } from '../store'
 import { confirmDialog } from '../../shared/dialog'
@@ -42,7 +40,7 @@ const isEdit = computed(() => !!route.params.id && route.params.id !== 'new')
 const noteId = computed(() => String(route.params.id ?? ''))
 
 // A new note publishes on save, as it always has; only an existing note can be
-// a draft, and only the checkbox above changes that.
+// a draft, and only the toggle above changes that.
 const form = reactive<{ content: JsonValue | null; published: boolean }>({
   content: null,
   published: true,
@@ -145,19 +143,6 @@ async function remove() {
   gap: 1rem;
   align-items: center;
 }
-
-/* Same control as the essay editor's, so publication reads the same in both. */
-.publish-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  cursor: var(--cursor-pointer);
-}
-.publish-toggle input { accent-color: var(--text-main); }
 
 .btn-save {
   font-family: inherit;

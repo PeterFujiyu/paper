@@ -5,10 +5,7 @@
     <header class="edit-header">
       <RouterLink to="/admin" class="back-link">← Posts</RouterLink>
       <div class="edit-actions">
-        <label class="publish-toggle">
-          <input type="checkbox" v-model="form.published" />
-          <span>{{ form.published ? 'Live' : 'Draft' }}</span>
-        </label>
+        <PublicationToggle v-model="form.published" />
         <button class="btn-save" :class="{ 'btn-save--saving': saving }" @click="save" :disabled="saving || !!validationMessage">
           {{ saving ? 'Saving…' : 'Save' }}
         </button>
@@ -98,6 +95,7 @@
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 import TiptapEditor from '../components/TiptapEditor.vue'
+import PublicationToggle from '../components/PublicationToggle.vue'
 import { apiFetch } from '../store'
 import { confirmDialog } from '../../shared/dialog'
 import {
@@ -358,18 +356,6 @@ async function remove() {
   align-items: center;
   gap: 1rem;
 }
-
-.publish-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  cursor: var(--cursor-pointer);
-}
-.publish-toggle input { accent-color: var(--text-main); }
 
 .btn-save {
   font-family: inherit;
