@@ -11,7 +11,7 @@ A personal website and blog built with Vue 3, Vite, and a serverless API backend
 
 ## Prerequisites
 
-- Node.js (v24+)
+- Node.js 24 (see `.nvmrc`; `engines` pins the major so a new Node release cannot change the deployment under you)
 - MongoDB database (local or Atlas)
 
 ## Local Setup
