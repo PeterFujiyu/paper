@@ -83,6 +83,8 @@
         <span class="footer-sep">·</span>
         <span style="color: var(--text-muted); font-style: italic;">All opinions are my own.</span>
         <span class="footer-sep">·</span>
+        <RouterLink to="/mcp" class="footer-link">MCP docs</RouterLink>
+        <span class="footer-sep">·</span>
         <button
           class="eth-toggle"
           type="button"
@@ -544,6 +546,24 @@ onUnmounted(() => {
 
 .footer-sep {
   opacity: 0.4;
+}
+
+/* A destination, not a disclosure — so it takes the same link idiom as the
+   header nav (muted, accent on hover, never underlined) rather than the
+   icon-button idiom the two controls beside it share. It keeps the footer's
+   serif: the row reads as one line of type, not a label dropped into prose. */
+.footer-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-link:hover {
+  color: var(--accent-ink);
+}
+
+.footer-link.router-link-active {
+  color: var(--text-main);
 }
 
 .eth-toggle {
