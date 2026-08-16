@@ -375,10 +375,11 @@ const progress = ref(0)
 const filterEl = ref<HTMLInputElement | null>(null)
 
 // ─── Connect snippets ───
-// The host is read from the page rather than configured, so the commands are
-// correct on production, on a preview deployment, and on localhost alike.
-const host = typeof window === 'undefined' ? '<your-host>' : window.location.host
-const url = `https://${host}/api/mcp`
+// The endpoint is read from the page rather than configured, so the commands are
+// correct on production, on a preview deployment, and on localhost alike. Scheme
+// included: hardcoding https would hand the dev server a URL that does not exist.
+const siteOrigin = typeof window === 'undefined' ? 'https://<your-host>' : window.location.origin
+const url = `${siteOrigin}/api/mcp`
 
 const CLIENTS: Record<ClientKey, {
   label: string
@@ -420,11 +421,12 @@ const CLIENTS: Record<ClientKey, {
 /** Resolved during setup, not in onMounted: reading it later would paint the
     default snippet first and then swap it under the reader. An unknown stored
     value (hand-edited, or from an older build) falls back rather than blanking
-    the section. */
+    the section — hasOwn, not `in`, so an inherited name like "toString" counts
+    as unknown instead of resolving to a function. */
 function storedClient(): ClientKey {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored && stored in CLIENTS) return stored as ClientKey
+    if (stored && Object.hasOwn(CLIENTS, stored)) return stored as ClientKey
   } catch {
     // Storage blocked; the default stands.
   }
