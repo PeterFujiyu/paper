@@ -367,3 +367,16 @@ describe('shell width', () => {
     expect(wrapper.find('div').classes()).toContain('shell-wide')
   })
 })
+
+describe('footer', () => {
+  it('offers a route to the MCP docs', () => {
+    const wrapper = mount(App)
+
+    const targets = wrapper
+      .findAllComponents({ name: 'RouterLink' })
+      .map(link => link.props('to'))
+
+    expect(targets).toContain('/mcp')
+    expect(wrapper.find('.footer-link').text()).toBe('MCP docs')
+  })
+})
