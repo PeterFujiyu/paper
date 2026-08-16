@@ -106,9 +106,12 @@ describe('McpView index', () => {
 })
 
 describe('McpView connect snippets', () => {
-  it('builds the remote command against the page host', () => {
+  // Origin, not host: a hardcoded https:// would print a URL that does not
+  // resolve on the plain-http dev server.
+  it('builds the remote command against the page origin, scheme included', () => {
     const wrapper = mountDocs()
-    expect(wrapper.text()).toContain(`claude mcp add --transport http paper https://${window.location.host}/api/mcp`)
+    expect(wrapper.text()).toContain(`claude mcp add --transport http paper ${window.location.origin}/api/mcp`)
+    expect(window.location.origin).not.toBe('')
   })
 
   it('switches snippet format with the selected client', async () => {
@@ -130,9 +133,11 @@ describe('McpView connect snippets', () => {
     expect(wrapper.text()).toContain('"servers"')
   })
 
-  // A stale or hand-edited value must not blank the connect section.
-  it('falls back to the default when the stored client is unknown', () => {
-    localStorage.setItem('mcp-docs-client', 'not-a-client')
+  // A stale or hand-edited value must not blank the connect section. The second
+  // case is the one a plain `in` check waves through: every object inherits
+  // toString, so the lookup would yield a function and render nothing.
+  it.each(['not-a-client', 'toString'])('falls back to the default when the stored client is %s', key => {
+    localStorage.setItem('mcp-docs-client', key)
     const wrapper = mountDocs()
     expect(wrapper.text()).toContain('claude mcp add --transport http paper')
   })
