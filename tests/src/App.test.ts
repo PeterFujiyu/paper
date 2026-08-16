@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 
+const { routeMeta } = vi.hoisted(() => ({ routeMeta: {} as { wide?: boolean } }))
+
 vi.mock('vue-router', () => ({
   RouterLink: defineComponent({
     name: 'RouterLink',
@@ -9,6 +11,8 @@ vi.mock('vue-router', () => ({
     setup: (_, { slots }) => () => h('a', slots.default?.()),
   }),
   RouterView: defineComponent({ name: 'RouterView', setup: () => () => h('div') }),
+  // App reads `meta.wide` to widen the shell for reference views.
+  useRoute: () => ({ meta: routeMeta }),
 }))
 
 vi.mock('../../src/shared/AppDialog.vue', () => ({
@@ -340,5 +344,26 @@ describe('footer contrast setting', () => {
 
     expect(wrapper.find('div').classes()).toContain('dark')
     expect(wrapper.find('div').classes()).toContain('high-contrast')
+  })
+})
+
+// The header and the content column are centred independently, so they only
+// line up while they share a width. A route that widens one must widen both,
+// which is why the flag lives on the shell rather than on .page-wrap.
+describe('shell width', () => {
+  afterEach(() => { delete routeMeta.wide })
+
+  it('holds the shell to the reading measure by default', () => {
+    const wrapper = mount(App)
+
+    expect(wrapper.find('div').classes()).not.toContain('shell-wide')
+  })
+
+  it('widens the shell for a route that asks for it', () => {
+    routeMeta.wide = true
+
+    const wrapper = mount(App)
+
+    expect(wrapper.find('div').classes()).toContain('shell-wide')
   })
 })

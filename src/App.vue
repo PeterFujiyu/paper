@@ -1,5 +1,5 @@
 <template>
-  <div :class="{ dark: isDark, 'high-contrast': highContrast, 'less-artwork': lessArtwork }" style="min-height: 100vh; background-color: var(--bg); color: var(--text-main); transition: background-color 0.3s ease, color 0.3s ease;">
+  <div :class="{ dark: isDark, 'high-contrast': highContrast, 'less-artwork': lessArtwork, 'shell-wide': route.meta.wide }" style="min-height: 100vh; background-color: var(--bg); color: var(--text-main); transition: background-color 0.3s ease, color 0.3s ease;">
 
     <!-- Keyboard skip target — the only element hidden until :focus-visible -->
     <a class="skip-link" href="#main" @click.prevent="skipToMain">Skip to content</a>
@@ -187,7 +187,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 import AppDialog from './shared/AppDialog.vue'
 import type { CursorSize } from './shared/cursor'
 import {
@@ -210,6 +210,10 @@ import {
 // True from the moment the outgoing view starts leaving until the incoming one
 // has settled; drives the placeholder height that keeps the footer in place.
 const swapping = ref(false)
+
+// Reading views are held to --measure. A view that is reference rather than
+// prose opts out with `meta.wide` (see src/router/index.ts).
+const route = useRoute()
 
 // ─── Dark mode ───
 // src/main.ts has already applied the stored preference to <html> before mount,
@@ -343,10 +347,22 @@ onUnmounted(() => {
 }
 
 /* ─── Layout ─── */
+/* ─── Shell width ───
+   The header and the content column are centred independently, so they only
+   line up while they agree on a width. Both read --shell-w rather than naming
+   --measure themselves; a route that needs more room overrides the one
+   variable and the header follows it. */
 .page-wrap {
-  max-width: var(--measure);
+  max-width: var(--shell-w, var(--measure));
   margin: 0 auto;
   padding: clamp(5rem, 10vh, 7rem) 1.5rem clamp(2rem, 5vh, 4rem);
+}
+
+/* Room for a sidebar alongside a measure of text — 15rem of rail plus a 3.5rem
+   gap. Set by `meta.wide` in src/router/index.ts. The reading column inside is
+   still capped at --measure, so prose is never set wider than it should be. */
+.shell-wide {
+  --shell-w: calc(var(--measure) + 18.5rem);
 }
 
 .route-view--swapping {
@@ -365,7 +381,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: min(var(--measure), 100%);
+  width: min(var(--shell-w, var(--measure)), 100%);
   margin-left: auto;
   margin-right: auto;
   padding: var(--header-pad-y) 1.5rem;
