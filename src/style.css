@@ -37,9 +37,13 @@
   --page-appear: 160ms;
 
   /* Type voices — sans for titles/labels/UI, serif for reading (the
-     "two-voice" academic-journal contrast). Montserrat is already loaded. */
+     "two-voice" academic-journal contrast). Montserrat is already loaded.
+     Mono is a third, narrow voice: literal strings the reader may retype or
+     copy — tool names, field names, shell commands. Never used for prose.
+     System stack only, so it costs no webfont. */
   --font-serif: "Georgia", "Times New Roman", "Songti SC", "SimSun", serif;
   --font-sans:  "Montserrat", "Google Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono:  ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
   /* Typography */
   font-family: var(--font-serif);
