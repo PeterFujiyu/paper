@@ -10,6 +10,7 @@ import { hashElement, headerOffset, scrollMotion } from '../shared/scroll'
 import HomeView from '../views/HomeView.vue'
 import PostView from '../views/PostView.vue'
 
+const McpView = () => import('../views/McpView.vue')
 const AdminLayout = () => import('../admin/AdminLayout.vue')
 const LoginView = () => import('../admin/views/LoginView.vue')
 const PostsListView = () => import('../admin/views/PostsListView.vue')
@@ -23,6 +24,8 @@ const routes: RouteRecordRaw[] = [
   // ─── Public ───
   { path: '/',                name: 'home', component: HomeView },
   { path: '/writing/:slug',   name: 'post', component: PostView, props: true },
+  // Reference docs, not reading: the index rail needs more room than --measure.
+  { path: '/mcp',             name: 'mcp',  component: McpView, meta: { wide: true } },
 
   // ─── Admin ───
   { path: '/admin/login', name: 'login', component: LoginView },
