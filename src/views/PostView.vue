@@ -17,6 +17,20 @@
       />
     </Teleport>
 
+    <!-- Contents rail — teleported for the same reason as the progress bar: it is
+         fixed, and the route transition's transform on an ancestor would
+         otherwise become its containing block. Living outside the reading column
+         is the point; the 68ch measure is untouched. -->
+    <Teleport to="body">
+      <TableOfContents
+        v-if="showToc && railFits"
+        variant="rail"
+        :headings="headings"
+        :active-id="activeHeadingId"
+        @select="goToHeading"
+      />
+    </Teleport>
+
     <!-- Persistent live region: announces load state + the 404 to screen
          readers. The visible 404 block below keeps its link outside the region. -->
     <div role="status">
@@ -49,12 +63,25 @@
         </div>
       </header>
 
+      <TableOfContents
+        v-if="showToc && !railFits"
+        variant="disclosure"
+        :headings="headings"
+        :active-id="activeHeadingId"
+        @select="goToHeading"
+      />
+
       <figure v-if="post.coverImage" class="post-cover">
         <img :src="post.coverImage" alt="" loading="lazy" />
       </figure>
 
       <!-- Render Tiptap JSON as HTML via generateHTML -->
-      <div class="post-body prose" :class="{ 'post-body--has-cover': post.coverImage }" v-html="renderedHTML" />
+      <div
+        ref="bodyRef"
+        class="post-body prose"
+        :class="{ 'post-body--has-cover': post.coverImage }"
+        v-html="renderedHTML"
+      />
 
       <!-- Related — peak-end close, keeps the reading loop open (Zeigarnik) -->
       <section v-if="relatedPosts.length" class="related" aria-label="Continue reading">
@@ -80,12 +107,22 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { renderContentHTML } from '../shared/tiptap-extensions'
 import { formatReadingTime } from '../shared/reading-time'
 import { getHCaptchaToken } from '../shared/hcaptcha'
+import { observeHeadings } from '../shared/heading-spy'
+import { scrollToHash } from '../shared/scroll'
+import {
+  ANCHOR_CLASS,
+  decorateHeadings,
+  headingHash,
+  shouldShowToc,
+  type HeadingEntry,
+} from '../shared/headings'
 import EditorialArt from '../components/EditorialArt.vue'
 import LoadingIndicator from '../components/LoadingIndicator.vue'
+import TableOfContents from '../components/TableOfContents.vue'
 import type { PostDocument, PostMetrics, PostSummary } from '../types/content'
 
 const props = defineProps({
@@ -99,9 +136,26 @@ const articleRef = ref<HTMLElement | null>(null)
 const completionSent = ref(false)
 const completionInFlight = ref(false)
 const readProgress = ref(0)
+const bodyRef = ref<HTMLElement | null>(null)
+const headings = ref<HeadingEntry[]>([])
+const activeHeadingId = ref('')
+const railFits = ref(false)
 let scrollFrame: number | null = null
+let stopSpy: (() => void) | null = null
+let railQuery: MediaQueryList | null = null
+
+const route = useRoute()
+const router = useRouter()
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
+
+/**
+ * The viewport width at which the contents rail can sit beside the article
+ * rather than inside it: the 68ch measure plus --toc-rail-w and its gutters on
+ * both sides, with room to spare. Below it the contents collapse into the
+ * disclosure under the article header instead.
+ */
+const TOC_RAIL_QUERY = '(min-width: 78rem)'
 
 /** Matches <title> in index.html, so leaving an essay restores it. */
 const SITE_TITLE = 'Paper'
@@ -111,13 +165,28 @@ type MetricError = {
 }
 
 onMounted(() => {
+  railQuery = window.matchMedia(TOC_RAIL_QUERY)
+  syncRail()
+  // Listened for on both the query and the window: the media query is the
+  // precise signal, the resize a cheap re-read that keeps the two in step even
+  // if a change event is missed (a backgrounded tab restored at another size).
+  railQuery.addEventListener?.('change', syncRail)
+  window.addEventListener('resize', syncRail)
   void loadPost()
 })
 
 onBeforeUnmount(() => {
   stopScrollTracking()
+  teardownHeadings()
+  railQuery?.removeEventListener?.('change', syncRail)
+  window.removeEventListener('resize', syncRail)
+  railQuery = null
   document.title = SITE_TITLE
 })
+
+function syncRail(): void {
+  railFits.value = railQuery?.matches ?? false
+}
 
 // The served HTML carries one static title for the whole SPA, so without this a
 // bookmark, tab or history entry for any essay just reads "Paper". Link previews
@@ -137,6 +206,7 @@ async function loadPost(): Promise<void> {
   completionSent.value = false
   readProgress.value = 0
   stopScrollTracking()
+  teardownHeadings()
 
   try {
     const res = await fetch(`${API_BASE}/post?slug=${encodeURIComponent(props.slug)}`)
@@ -149,9 +219,16 @@ async function loadPost(): Promise<void> {
 
   if (post.value) {
     await nextTick()
+    setupHeadings()
     void reportPostView(post.value.slug)
     startScrollTracking()
     void loadRelated(post.value.slug)
+
+    // The router already ran its scrollBehavior for this navigation, long before
+    // the body arrived — so a directly loaded /writing/slug#section has to find
+    // its own way down once the headings exist. Instant, not smooth: this is the
+    // first paint of the page, not a move within it.
+    if (route.hash) scrollToHash(route.hash, 'auto')
   }
 }
 
@@ -171,6 +248,85 @@ async function loadRelated(currentSlug: string): Promise<void> {
 const renderedHTML = computed(() => renderContentHTML(post.value?.content))
 
 const readPercent = computed(() => Math.round(readProgress.value * 100))
+
+const showToc = computed(() => shouldShowToc(headings.value, post.value?.readingMinutes))
+
+// ─── Section anchors and contents ───
+
+/**
+ * Id every h2/h3 in the rendered body, hang a permalink off each, and start the
+ * scroll-spy. Runs after the body is in the DOM, since the ids are derived from
+ * the headings the reader actually sees.
+ */
+function setupHeadings(): void {
+  const body = bodyRef.value
+  if (!body) return
+
+  headings.value = decorateHeadings(body)
+  body.addEventListener('click', onAnchorClick)
+
+  // No contents list, nothing to highlight — don't pay for an observer.
+  if (!showToc.value) return
+  stopSpy = observeHeadings(
+    headings.value.map(entry => entry.id),
+    (id) => { activeHeadingId.value = id }
+  )
+}
+
+function teardownHeadings(): void {
+  stopSpy?.()
+  stopSpy = null
+  bodyRef.value?.removeEventListener('click', onAnchorClick)
+  headings.value = []
+  activeHeadingId.value = ''
+}
+
+// The permalinks are built in plain DOM rather than by the component, so their
+// clicks are caught here by delegation. Modified and non-primary clicks fall
+// through to the browser, which is what makes "open section in a new tab" work.
+function onAnchorClick(event: MouseEvent): void {
+  if (event.defaultPrevented || event.button !== 0) return
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+
+  const target = event.target as HTMLElement | null
+  const anchor = target?.closest<HTMLAnchorElement>(`a.${ANCHOR_CLASS}`)
+  if (!anchor) return
+
+  const id = anchor.getAttribute('href')?.replace(/^#/, '') ?? ''
+  if (!id) return
+
+  event.preventDefault()
+  goToHeading(decodeHeadingId(id))
+}
+
+function decodeHeadingId(raw: string): string {
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
+
+/**
+ * Move to a section through the router, so the hash lands in history and stays
+ * shareable, and the scroll clears the fixed header. Re-selecting the section
+ * already in the URL is not a navigation, so it is scrolled directly instead —
+ * the router would discard it as a duplicate and nothing would move.
+ */
+function goToHeading(id: string): void {
+  if (!id) return
+  activeHeadingId.value = id
+
+  const hash = headingHash(id)
+  if (route.hash === hash) {
+    scrollToHash(hash)
+    return
+  }
+
+  router.push({ path: route.path, query: route.query, hash }).catch(() => {
+    scrollToHash(hash)
+  })
+}
 
 function formatDate(iso?: string): string {
   if (!iso) return ''
@@ -505,6 +661,37 @@ async function reportReadCompletion(): Promise<void> {
 .prose h1 { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 400; letter-spacing: -0.025em; margin: 2em 0 0.6em; }
 .prose h2 { font-size: 1.4rem; font-weight: 400; margin: 1.8em 0 0.5em; }
 .prose h3 { font-size: 1.1rem; font-weight: 400; margin: 1.5em 0 0.4em; }
+
+/* Section permalink — a quiet # that only surfaces on hover or keyboard focus.
+   Kept in flow at opacity 0 rather than display:none, so revealing it never
+   reflows the heading and it stays reachable by Tab. */
+.prose h2 .head-anchor,
+.prose h3 .head-anchor {
+  margin-left: 0.4em;
+  font-size: 0.75em;
+  color: var(--text-muted);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+/* Plain :focus, not :focus-visible — whatever moved focus here, a link the
+   reader cannot see is a link they cannot use. The sitewide ring stays on
+   :focus-visible, so a mouse click reveals the # without painting an outline. */
+.prose h2:hover .head-anchor,
+.prose h3:hover .head-anchor,
+.prose .head-anchor:focus {
+  opacity: 1;
+}
+
+.prose .head-anchor:hover { color: var(--accent-ink); }
+
+/* Anchored sections land clear of the fixed header on a native hash jump too —
+   the reader-facing fallback if scripted scrolling never runs. */
+.prose h2[id],
+.prose h3[id] {
+  scroll-margin-top: calc(var(--header-h) + 1.5rem);
+}
 .prose blockquote {
   border-left: 1px solid var(--text-main);
   margin: 2rem 0;

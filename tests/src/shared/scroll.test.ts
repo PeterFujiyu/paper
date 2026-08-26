@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { headerOffset, scrollMotion, scrollToHash } from '../../../src/shared/scroll'
+import { hashElement, headerOffset, scrollMotion, scrollToHash } from '../../../src/shared/scroll'
 
 const HEADER_HEIGHT = 72
 const HEADER_GAP = 24
@@ -71,6 +71,20 @@ describe('scroll helpers', () => {
     scrollToHash('#nowhere')
 
     expect(scrollTo).not.toHaveBeenCalled()
+  })
+
+  it('resolves a percent-encoded hash, so non-Latin section ids still land', () => {
+    document.body.innerHTML = '<h2 id="可访问性">可访问性</h2>'
+    expect(hashElement('#%E5%8F%AF%E8%AE%BF%E9%97%AE%E6%80%A7')?.id).toBe('可访问性')
+  })
+
+  it('falls back to the literal hash when the escape is malformed', () => {
+    document.body.innerHTML = '<h2 id="%E5">stray</h2>'
+    expect(hashElement('#%E5')?.id).toBe('%E5')
+  })
+
+  it('has no target for an empty hash', () => {
+    expect(hashElement('#')).toBeNull()
   })
 
   it('drops smooth motion when the reader prefers reduced motion', () => {

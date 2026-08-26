@@ -6,7 +6,7 @@ import {
 } from 'vue-router'
 import { loadSession } from '../admin/store'
 import { PAGE_LEAVE_MS, prefersReducedMotion } from '../shared/motion'
-import { headerOffset, scrollMotion } from '../shared/scroll'
+import { hashElement, headerOffset, scrollMotion } from '../shared/scroll'
 import HomeView from '../views/HomeView.vue'
 import PostView from '../views/PostView.vue'
 
@@ -63,8 +63,14 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
   scrollBehavior(to, from, savedPosition) {
+    // Resolve the hash to an element rather than handing the raw selector on:
+    // essay section ids keep the letters of any script, so they arrive
+    // percent-encoded and would not survive querySelector. Falls back to the
+    // literal hash when nothing matches, which is the router's own behaviour.
     const target = savedPosition
-      ?? (to.hash ? { el: to.hash, top: headerOffset(), behavior: scrollMotion() } : { top: 0 })
+      ?? (to.hash
+        ? { el: hashElement(to.hash) ?? to.hash, top: headerOffset(), behavior: scrollMotion() }
+        : { top: 0 })
 
     // The route <Transition> is `out-in`, so scrolling straight away would yank
     // the page while the outgoing view is still on screen. Land it in the gap.

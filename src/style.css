@@ -20,6 +20,11 @@
      see research/design-anthropic-blog/design.html) */
   --measure: 68ch;
 
+  /* Contents rail — width of the essay side rail. The rail is only mounted on
+     viewports wide enough to hold it clear of the measure; that threshold is
+     TOC_RAIL_QUERY in src/views/PostView.vue. */
+  --toc-rail-w: 13rem;
+
   /* Header metrics — the fixed header's vertical padding, and the height that
      follows from it (padding + the wordmark's 1.05rem/1.4 line box + the 1px
      rule). Sticky elements offset by --header-h to park just beneath it. */
