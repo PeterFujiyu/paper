@@ -3,6 +3,11 @@
 Backing evidence for [`README.md`](README.md). Verified at commit `a69dc1d`, 2026-07-31.
 Every command below is read-only.
 
+> **2026-08-26.** Items A1 and B1–B6 have since been acted on, so their "Reality at HEAD" blocks
+> describe a tree that no longer exists — see the [README status block](README.md) for what each
+> one became. [Item D](#d) has been rewritten with the real per-document result; it is the only
+> section here that was not verified to this audit's standard, and now it is.
+
 ---
 
 ## Baseline
@@ -346,18 +351,28 @@ described in the research doc no longer exists.**
 "fix" a bug that is already fixed — which is exactly what nearly happened while producing this
 audit.
 
-### The other documents — spot-checked only
+### The other documents — reconciled 2026-08-26
 
-`research/accessibility/01-accessibility-plan.md`, `research/page-transitions/design.md`,
-`research/aws-migration-plan.md`, and `research/cursor-theme.md` were not reconciled line by line.
-Surface signals: the accessibility work appears substantially landed (`a83a54c`,
-*"feat(a11y): add live regions, landmarks, and keyboard affordances"*, plus `a842e0e`,
-*"feat(a11y): add an opt-in high-contrast palette"*, and a `high-contrast` class in `src/App.vue:2`);
-the cursor theme is clearly shipped (see below). The AWS migration plan's status is unknown — the
-stack is still Vercel + MongoDB.
+The caveat below has been discharged. Every document in `research/` was checked against the code —
+greps and file reads, plus `npm test`, `npm run typecheck`, `npm run lint`, `benchmark:test`,
+`benchmark validate` and `benchmark doctor` actually executed — and each now carries its own status
+header.
 
-**Caveat.** This is the one section of this audit that is *not* verified to the standard of the
-rest. The `research-audit` skill exists precisely for this and should be run per document.
+| Document | Real status | Notes |
+|---|---|---|
+| `accessibility/01-accessibility-plan.md` | **Implemented, all 7 phases** | Header said "plan only — implementation not started"; `a83a54c` had landed the whole thing, including all five test files. Status header replaced with a per-phase evidence table. |
+| `page-transitions/design.md` | **Implemented** | `c213305`, to the millisecond. All 7 checklist items ticked with file:line evidence. |
+| `cursor-theme.md` | **Shipped** | `44212f4` + `27903b3`. Two paragraphs had gone stale and are now marked: the "CSP rules out a pre-paint script" reasoning (true of *inline* scripts only — `public/theme-init.js` is an external same-origin script and does exactly that), and the known gap about dark mode's first-paint flash, which `efb796f` closed. |
+| `design-anthropic-blog/` (5 files) | **All recommendations landed** | P0/P1 were already marked done; the three remaining P2 items — reading time (`b8d1f23`), section-heading anchors (`a7d5540`), dark-mode flash (`efb796f`) — have since landed too, so the todo list is empty. `03-blog-audit.md` is a June snapshot whose every finding is now false; it carries a banner saying so. |
+| `aws-migration-plan.md` | **Still plan only** | Confirmed: no `cdk.json`, no `infra/`, no AWS dependency; `vercel.json` is still the deployment contract. Two counts drifted (18 handlers behind 5 dispatchers, not 14 behind 4) — flagged in the doc, conclusion unchanged. |
+| `benchmark-extraction/` (4 files) | **Stage 1 landed, Stage 2 not started — and Stage 1 is not green** | This was the one that mattered. The README claimed "plan only. No code has been changed"; in fact `48640f2` implemented all eight Stage 1 sections and created all 21 annotated tags. But two exit criteria fail: `benchmark:test` loses 22 tests to a `TypeError: The URL must be of scheme file` from `paths.mjs:17` under Vitest, and `lint` reports 6 errors from un-ignored generated workspaces (→ [B8](README.md#b8-eslintconfigjs-no-longer-ignores-the-benchmarks-runtime-directory-new-2026-08-26)). |
+| `doctor/2026-07-29-1944.md` | **Applied, historical** | A dated point-in-time report that already records what was applied and declined; annotated with what has changed since rather than rewritten. |
+
+**What the spot check got wrong.** Two of its three guesses were too generous and one was too
+vague. "The accessibility work appears substantially landed" understated it — it was complete,
+tests included. The benchmark plan was not sampled at all, and it was the document whose header was
+most wrong *and* the one hiding a live regression. The surface signal that would have caught it
+(`48640f2` in `git log`) was one command away.
 
 ---
 

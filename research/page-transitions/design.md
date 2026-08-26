@@ -4,6 +4,11 @@ Smooth yet restrained non-linear animations for transitions between pages.
 Decisions below were settled in a grilling session on 2026-07-30; implementation
 follows this doc after review.
 
+**Status: implemented.** Shipped in `c213305` (*feat(design): add restrained
+non-linear route transitions*, 2026-07-30) exactly as specified — every motion
+value, both wrappers, the scroll delay, and the teleport. Reconciled against the
+code 2026-08-26; see the checklist at the end for file-level evidence.
+
 ## Decisions (settled)
 
 | Question | Decision |
@@ -113,16 +118,26 @@ the jump lands in the gap between leave and enter.
 - Shared-element / view-transition API morphs.
 - Animating in-page hash scrolls (already smooth-scrolled).
 
-## Implementation checklist
+## Implementation checklist — all done (verified 2026-08-26)
 
-1. Motion tokens in `src/style.css` `:root`; `page-*` and `page-appear-*`
-   transition classes in the global stylesheet.
-2. `src/shared/motion.ts` — `PAGE_LEAVE_MS`, `prefersReducedMotion()`.
-3. `src/App.vue` — transition wrapper with `appear` + swap-height guard.
-4. `src/admin/AdminLayout.vue` — nested transition wrapper.
-5. `src/router/index.ts` — delayed `scrollBehavior` with component-swap
-   detection.
-6. `src/views/PostView.vue` — teleport the reading-progress bar to `body`.
-7. Validate: `npm run typecheck && npm run lint && npm test`, then exercise
-   in the browser — home ↔ post, admin list ↔ editor, back/forward with
-   saved scroll positions, hash nav, reduced-motion emulation, first load.
+1. [x] Motion tokens in `src/style.css` `:root` (`:33-37`, with a comment
+   pointing at `motion.ts`); `page-*` and `page-appear-*` classes at `:176-201`.
+   Every value shipped at the number specified above.
+2. [x] `src/shared/motion.ts` — `PAGE_LEAVE_MS = 120`, `prefersReducedMotion()`.
+3. [x] `src/App.vue:61-78` — `<Transition name="page" mode="out-in" appear>` with
+   the swap-height guard wired through `before-leave` / `after-enter` /
+   `leave-cancelled` / `enter-cancelled` onto `.route-view--swapping`.
+4. [x] `src/admin/AdminLayout.vue:11-15` — nested wrapper, no `appear`, as decided.
+5. [x] `src/router/index.ts:55-72` — component-swap detection over
+   `to.matched[i].components.default`, then a `PAGE_LEAVE_MS` promise; immediate
+   scroll when nothing swaps or under reduced motion.
+6. [x] `src/views/PostView.vue:7-18` — the reading-progress bar is
+   `<Teleport to="body">`-ed, with the comment explaining the transformed-ancestor
+   hazard.
+7. [x] `npm run typecheck` clean, `npm test` green (33 files, 377 tests).
+   `npm run lint` is clean for the app but currently reports errors from generated
+   benchmark workspaces — unrelated to this work, see
+   [`../benchmark-extraction/01-stage-1-harden-in-place.md`](../benchmark-extraction/01-stage-1-harden-in-place.md).
+
+Nothing in the "Out of scope" list was built, and the route-reuse caveat still
+holds: `/writing/a → /writing/b` and hash-only navigations do not animate.

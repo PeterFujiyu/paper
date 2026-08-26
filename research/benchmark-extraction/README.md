@@ -1,7 +1,29 @@
 # Extracting `agent-benchmark/` into a standalone repository
 
-**Status:** plan only. No code has been changed.
-**Date:** 2026-07-31
+**Status (reconciled 2026-08-26):** **Stage 1 has landed. Stage 2 has not started, and Stage 1's
+exit criteria are not all met.**
+
+- **Stage 1 — landed** in `48640f2` (*refactor(benchmark): separate the harness root from the
+  subject root*, 2026-08-01). `agent-benchmark/src/paths.mjs` and `src/subject.mjs` exist, the
+  oracle contract is anchored to the harness, runtime state writes to
+  `agent-benchmark/.agent-benchmark/`, `agent-benchmark/benchmark.config.json` is committed with
+  the subject remote, and **all 21 annotated tags are pushed** (`benchmark/<case>/{base,ref}` plus
+  `benchmark/content-auth-security/oracle`). `validate --json` reports `valid: true`, 10 cases,
+  zero errors; `doctor` reports ready.
+- **Two exit criteria fail** — both introduced by Stage 1, both one-line fixes. See
+  [01 § Stage 1 exit criteria](01-stage-1-harden-in-place.md#stage-1-exit-criteria) for the
+  detail:
+  1. `npm run benchmark:test` — **3 of 15 files fail to collect**, so 22 tests never run
+     (76 pass). `paths.mjs:17` derives `HARNESS_ROOT` with
+     `fileURLToPath(new URL('..', import.meta.url))`, and under Vitest's transform
+     `import.meta.url` is not a `file:` URL: *TypeError: The URL must be of scheme file*.
+  2. `npm run lint` — **6 errors, all from generated candidate workspaces.** `.gitignore` was
+     updated for the harness-local runtime dir (`agent-benchmark/.gitignore:5`), but
+     `eslint.config.js:18` still ignores only the repo-root `.agent-benchmark/**`.
+- **Stage 2 — not started.** No `git filter-repo` run, no separate repository, no CI. The
+  harness is still 30 tracked files in `agent-benchmark/` plus 15 in `tests/agent-benchmark/`.
+
+**Date:** 2026-07-31 (plan) · status reconciled 2026-08-26
 **Scope:** move the commit-reproduction benchmark harness out of `paper` into its own git
 repository, without weakening any of its integrity guarantees.
 
@@ -17,6 +39,10 @@ repository, without weakening any of its integrity guarantees.
 | `agent-benchmark/` | 26 | 9,697 |
 | `tests/agent-benchmark/` | 15 | 4,845 |
 | **Total** | **41** | **14,542** |
+
+*(2026-08-26: now 30 + 15 tracked files, 14,999 lines — Stage 1 added `paths.mjs`, `subject.mjs`,
+`benchmark.config.json` and a harness-local `.gitignore`. The product side is 10,689 lines, so the
+ratio is now ~1.4×, not 1.9×. The argument is unchanged.)*
 
 The harness is ~1.9× the size of the product it is nested inside. It also imposes on `paper`:
 a devDependency (`better-sqlite3`), two npm scripts, a second vitest config, an `exclude` rule in

@@ -1,8 +1,25 @@
 # Migrating Paper off Vercel Hobby onto AWS
 
-Status: **plan only — no files modified, no AWS resources created**
-Date: 2026-07-25
+Status: **still plan only — no files modified, no AWS resources created.**
+Re-verified 2026-08-26: no `cdk.json`, no `infra/`, no `aws-cdk` or `@aws-sdk`
+dependency, and `vercel.json` is still the live deployment contract. The stack
+remains Vercel + MongoDB Atlas.
+Date: 2026-07-25 (plan) · status re-verified 2026-08-26
 Target: steady-state $0/month inside AWS always-free allowances
+
+> **Numbers that have drifted since 2026-07-25** — none of them change a decision,
+> but do not quote them as current:
+>
+> - §0 says "14 plain Node handlers … grouped behind 4 thin dispatchers". It is now
+>   **18 handlers behind 5 dispatchers** (`api/shell.ts` landed 2026-07-30, plus the
+>   brews routes). The 12-function cap in §11 is therefore *closer*, not further away
+>   — 5 of 12 used.
+> - The `dist/` size in §1 and the traffic inputs in §2 were measured in July and have
+>   not been re-measured.
+>
+> §11's conclusion is unchanged and is the reason nothing has been built: at this
+> traffic the migration saves no money, and the only real motive is escaping the
+> function cap.
 
 ---
 

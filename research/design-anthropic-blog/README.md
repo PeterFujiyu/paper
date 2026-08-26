@@ -6,11 +6,18 @@
 
 ---
 
-> **状态更新（2026-07-31）：本文最醒目的那个"回归 bug"已经修好了。**
-> 测量宽度已由 `ce3ebf4`（*fix(design): restore golden reading measure to 68ch*）修复，
-> `src/style.css` 现为 `--measure: 68ch`，落在本文所述 50–75ch 区间内。
-> 下文 [执行摘要](#这份研究包含什么) 与 [`03-blog-audit.md`](03-blog-audit.md) 中关于 `81.25ch` 的描述
-> **已过时，请勿据此再"修"一次**。其余建议未逐条核对。
+> **状态更新（2026-08-26）：本研究的建议已全部落地，本文档转为历史记录。**
+> [`04-recommendations.md`](04-recommendations.md) 已按代码逐条复核，P0/P1/P2 待办清零。
+> 下面的[优先级清单](#优先级清单)保留原样，是"当时看到什么"的记录，不再是待办列表。
+>
+> 两处**已过时、请勿据此再改**的描述：
+>
+> 1. **测量宽度 `81.25ch`** —— 已由 `ce3ebf4`（*fix(design): restore golden reading measure to 68ch*）
+>    修复，`src/style.css` 现为 `--measure: 68ch`，落在本文所述 50–75ch 区间内。
+>    下文执行摘要与 [`03-blog-audit.md`](03-blog-audit.md) 中的相关段落均已划掉。
+> 2. **`03-blog-audit.md` 整篇是 2026-06-18 的快照**，其行号与"缺强调色/缺封面图/缺 tags/
+>    暗色模式不持久化/`<title>papar>` 拼写"等结论**都已不成立**；它现在的用途是解释建议的由来，
+>    不是现状描述。
 >
 > 原型文件 `design.html` 已从仓库根目录移入本目录（它是排版参考，不是页面）。
 

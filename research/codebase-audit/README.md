@@ -1,10 +1,24 @@
 # Codebase audit — prioritized backlog
 
-**Status:** written as a report; **A1, B1–B6 and C2 were then acted on** in the commits landing
-alongside this document. Still open: **B7** (orphaned cursor PNGs), **C1** (the `validation.ts`
-seam — now more relevant, not less, since a third concern has since been added to that file),
-and the per-document `research/` reconciliation in [item D](01-inventory.md#d).
-**Date:** 2026-07-31
+**Status (re-checked 2026-08-26):** written as a report; **A1, B1–B6 and C2 were acted on** in the
+commits landing alongside this document — verified, not assumed:
+
+- **A1** — `AGENTS.md` is now a nine-line pointer at `CLAUDE.md` (`6a3f347`), which is the "reduce it
+  to a pointer" option rather than the deletion.
+- **B1** — `coverage/` is untracked and `.gitignore:13` covers it. **B2** — `CLAUDE.md:21` names all
+  five groups. **B3–B5** — `src/data/posts.ts`, `src/components/HelloWorld.vue`, `src/assets/vue.svg`
+  and `public/vite.svg` are all gone (`43e5597`). **B6** — `design.html` moved into
+  `research/design-anthropic-blog/` and `src/style.css:20` now cites it at its new path (`d8658f9`).
+- **C2** — resolved by *documenting* rather than removing: `b6b00a6` added comments explaining why
+  the unscoped blocks are deliberate. `TiptapEditor.vue` has since grown a third `<style>` block
+  (`:359` scoped, `:418` and `:477` global); the same rationale covers it.
+- **Item D** — **done.** Every `research/` document has now been reconciled against the code and
+  carries its own verified status header. See [item D](01-inventory.md#d) for the results.
+
+**Still open:** **B7** (5 orphaned cursor PNGs — all still present, still referenced by no CSS rule),
+**C1** (`server/lib/validation.ts`, still 520 lines, still two concerns), and one **new** item
+**B8** below.
+**Date:** 2026-07-31 (audit) · status re-checked 2026-08-26
 **Scope:** everything in `paper` *except* `agent-benchmark/` and `tests/agent-benchmark/`, which
 have their own plan in [`../benchmark-extraction/`](../benchmark-extraction/README.md).
 
@@ -16,6 +30,10 @@ Evidence for every item is in [`01-inventory.md`](01-inventory.md).
 
 **The codebase is in better shape than "mountain of crap" implies.** `typecheck`, `lint`, and
 `npm test` (30 files, 331 tests) all pass on a clean tree. There is no broken code here.
+
+*2026-08-26: `npm test` is now 33 files / 377 tests, still green, and `typecheck` is still clean.
+`lint` no longer is — see B8. The product has grown to 10,689 LOC (brews/Coffee Time, empty-state
+artwork, the pre-paint theme bootstrap).*
 
 More to the point, **four of the things that looked worst turned out to be fine**, and three of them
 would have been actively damaged by a cleanup that trusted appearances. Those are listed under
@@ -71,6 +89,22 @@ cause; correcting the stale one just resets the clock.
 B3–B5 are unambiguous deletions. B1 is a deletion plus a `.gitignore` line. B2 is a one-word edit.
 B6 needs a decision first (see [inventory](01-inventory.md#b6)). B7 is trivial and near-worthless.
 
+### B8. `eslint.config.js` no longer ignores the benchmark's runtime directory *(new, 2026-08-26)*
+
+`npm run lint` reports **6 errors, all inside
+`agent-benchmark/.agent-benchmark/workspaces/…`** — generated copies of `paper` materialized by a
+benchmark run, not source code.
+
+The benchmark-extraction work (`48640f2`) moved runtime state out of the repo root and under the
+harness. `agent-benchmark/.gitignore:5` was updated to match, which is why `git status` stays clean
+and this went unnoticed. `eslint.config.js:18` was not: it still lists `'.agent-benchmark/**'`,
+which in a flat config resolves relative to the config file's own directory and therefore misses
+`agent-benchmark/.agent-benchmark/`.
+
+**Fix:** `'**/.agent-benchmark/**'`. One line, and it restores a clean `lint` for anyone who has run
+the benchmark locally. Tracked as the second of the two failing Stage 1 exit criteria in
+[`../benchmark-extraction/01-stage-1-harden-in-place.md`](../benchmark-extraction/01-stage-1-harden-in-place.md#stage-1-exit-criteria).
+
 ---
 
 ## Priority 3 — structural debt
@@ -117,14 +151,23 @@ cleanup pass that trusted appearances.
 
 ## Suggested order
 
-1. **A1** — the only item that causes wrong behavior. One deletion.
-2. **B2** — one word, and it is in the file every session loads.
-3. **B1, B3, B4, B5** — mechanical deletions, ~110 LOC and 276 KB, zero risk. One commit.
-4. **Stale research docs** — annotate `research/design-anthropic-blog/` as resolved so the next
-   reader does not re-open a fixed bug. See [inventory](01-inventory.md#d-stale-research-docs).
-5. **B6** — decide `design.html`'s status before deleting it.
-6. **C1, C2** — real but optional. Do them when next in those files, not as a campaign.
-7. **B7, C3, C4** — leave alone.
+~~1. **A1** — the only item that causes wrong behavior. One deletion.~~ **Done** (`6a3f347`).
+~~2. **B2** — one word, and it is in the file every session loads.~~ **Done.**
+~~3. **B1, B3, B4, B5** — mechanical deletions, ~110 LOC and 276 KB, zero risk. One commit.~~
+   **Done** (`43e5597`).
+~~4. **Stale research docs** — annotate `research/design-anthropic-blog/` as resolved so the next
+   reader does not re-open a fixed bug.~~ **Done, and extended:** all eight `research/` documents
+   now carry a verified status header. See [inventory](01-inventory.md#d).
+~~5. **B6** — decide `design.html`'s status before deleting it.~~ **Done** (`d8658f9`) — kept, moved
+   into its research directory, citation in `src/style.css:20` re-pointed.
+~~6. **C2**~~ **Done** by documenting the two blocks (`b6b00a6`).
+
+What is left, in order:
+
+1. **B8** — one line in `eslint.config.js`, and `lint` is green again. Do this first; it is the only
+   item that makes a standard command fail today.
+2. **C1** — `validation.ts`'s 520-line seam. Still optional, still best done when next in that file.
+3. **B7, C3, C4** — leave alone.
 
 ---
 

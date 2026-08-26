@@ -2,6 +2,14 @@
 
 > 逐文件、逐 token 的事实记录，作为建议（04）的依据。所有行号基于 2026-06-18 仓库状态。
 
+> ⚠️ **这是 2026-06-18 的快照，不是现状。** 2026-08-26 复核：本文列出的缺口**已全部补上**——
+> `--accent: #D97757` / `--accent-ink: #B85333`（`src/style.css:16-17`）、
+> `--font-sans` 标题声部（`:42`）、`coverImage` / `tags` / `readingMinutes`
+> （`src/types/content.ts:30-33`）、`<title>Paper</title>`（`index.html:19`）、
+> 暗色模式持久化并在首帧前生效（`public/theme-init.js`）、结尾"Continue reading"、
+> 顶部阅读进度条。落地对照见 [`04-recommendations.md`](04-recommendations.md)。
+> 本文保留下来是为了解释建议的**由来**，其中的行号与结论请勿当作当前代码使用。
+
 ---
 
 ## 1. 设计 token（`src/style.css`）

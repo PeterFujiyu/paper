@@ -6,6 +6,10 @@ Everything here happens **inside `paper`**, with `agent-benchmark/` still nested
 The goal is that Stage 2 becomes a file move plus a config value — no logic changes, nothing to
 debug in a repo without a working test suite.
 
+**Status: landed in `48640f2` (2026-08-01), with two exit criteria still failing.** Sections 1–8
+below were all implemented as written — verified section by section against the code on 2026-08-26,
+not taken from the commit message. The gaps are in the exit criteria at the end of this file.
+
 ---
 
 ## The key insight that makes Stage 1 safe
@@ -310,14 +314,48 @@ entirely (see §2.4).
 
 ## Stage 1 exit criteria
 
-- [ ] `npm test` — 331 tests green (`paper` unaffected).
-- [ ] `npm run benchmark:test` — 97 tests green.
-- [ ] `npm run typecheck` and `npm run lint` clean.
-- [ ] `npm run benchmark -- validate --json` — 10 cases, `valid: true`, zero errors.
-- [ ] `npm run benchmark -- doctor` — `ready: true`.
-- [ ] `npm run benchmark -- validate --run-gold` passes for at least one harness-oracle case
-      (proves the oracle still rejects baseline and accepts reference after re-anchoring).
+Measured 2026-08-26 on a clean tree. **Six of eight pass; two fail, and Stage 2 must not start
+until they do** — its whole premise is that the suite is green before anything moves.
+
+- [x] `npm test` — green. (331 at the time of writing; **377 across 33 files** today, since `paper`
+      kept shipping. `paper` is unaffected by the refactor, which was the point.)
+- [ ] ~~`npm run benchmark:test` — 97 tests green.~~ **FAILS: 76 pass, 3 of 15 files fail to
+      collect, 22 tests never run.**
+
+      ```
+      TypeError: The URL must be of scheme file
+       ❯ agent-benchmark/src/paths.mjs:17:29
+       ❯ agent-benchmark/src/catalog.mjs:6:1
+      ```
+
+      `paths.mjs:17` is `fileURLToPath(new URL('..', import.meta.url))`. Run by Node that is a
+      `file:` URL; run through Vitest's transform pipeline it is not, so every test that imports
+      `catalog.mjs` / `engine.mjs` / `runner.mjs` dies at import:
+      `tests/agent-benchmark/{engine-v2,history-runner,runner}.test.ts`. The 12 files that pass
+      either avoid those modules or shell out to `cli.mjs` as a subprocess, where the URL is a real
+      `file:`. §1's own note — *"derived from this module's own location so the same expression is
+      correct before and after the extraction"* — is right about the extraction and wrong about the
+      test runner. The fix belongs in `paths.mjs` (fall back to a path-based derivation when
+      `import.meta.url` is not `file:`), not in the tests.
+- [ ] ~~`npm run typecheck` and `npm run lint` clean.~~ **`typecheck` clean; `lint` FAILS with 6
+      errors**, every one of them inside
+      `agent-benchmark/.agent-benchmark/workspaces/…` — generated copies of `paper`, not source.
+      §3 moved runtime state under the harness and `agent-benchmark/.gitignore:5` was updated to
+      match, but `eslint.config.js:18` still lists only the repo-root `.agent-benchmark/**`, which
+      in a flat config is anchored to the config's own directory. One line:
+      `'**/.agent-benchmark/**'`.
+- [x] `npm run benchmark -- validate --json` — `valid: true`, `caseCount: 10`, `errors: []`; all 10
+      cases report `parentMatches`, `onSourceRef`, `oracleFilesPresent`, `statsMatches`.
+- [x] `npm run benchmark -- doctor` — ready. Environment ready, source worktree clean, harness
+      worktree clean, all 11 tool checks OK.
+- [ ] `npm run benchmark -- validate --run-gold` for a harness-oracle case — **not re-run in this
+      reconciliation** (it materializes workspaces and takes minutes). Unverified, not failed.
 - [ ] A full `prepare` → `evaluate` cycle writes nothing outside
-      `agent-benchmark/.agent-benchmark/`; `git status` on `paper` stays clean.
-- [ ] `benchmarks.json` `harnessFiles[].source` values are already in post-split form
-      (`oracles/…`), and all 21 tag fields are populated and verified.
+      `agent-benchmark/.agent-benchmark/`; `git status` on `paper` stays clean. — **Partially
+      evidenced:** `git status` is clean and the runtime tree
+      (`benchmark.sqlite3`, `recovery/`, `results/`, `workspaces/`) does sit under
+      `agent-benchmark/.agent-benchmark/`, but no fresh cycle was run for this check.
+- [x] `benchmarks.json` `harnessFiles[].source` values in post-split form, and all 21 tag fields
+      populated and verified. **All 21 annotated tags exist** — `benchmark/<case>/base` and
+      `/ref` for the 10 cases, plus `benchmark/content-auth-security/oracle` — and `validate`
+      confirms them.

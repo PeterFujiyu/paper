@@ -1,6 +1,9 @@
 # 04 · 建议与落地状态
 
-> 基于 01–03 的分析，给出可执行建议，并标注截至 2026-07-04 的落地情况（对照 `git log`）。
+> 基于 01–03 的分析，给出可执行建议，并标注落地情况。
+>
+> **状态：全部落地。** 2026-08-26 逐条对照代码复核（不只看 commit message），
+> P0/P1/P2 已无待办项。下表中 2026-07-04 之后新增的三条单独标注。
 
 ---
 
@@ -20,17 +23,20 @@
 | 强化正文链接可供性 | `9eb72c2` | `.prose a` 用 `--accent-ink` 着色 + 强调色下划线，hover 加粗 |
 | 文章结尾加相关内容 | `8539011` | "Continue reading" 区块，`PostView.vue:46-54` |
 | 阅读进度条 | `23b81e1` | 顶部进度条，附带覆盖了部分"阅读反馈"诉求 |
+| **P2-6 阅读时长估算** | `b8d1f23` | `src/shared/reading-time.ts` 估算 + `resolveReadingMinutes` 可手动覆写；`PostView.vue:47` 渲染 "x min read" |
+| **P2-7 首页 section 小标题锚点** | `a7d5540` | `.section-heading` 前加了一枚线描图标（Writing 用笔尖、Notes 等各有其形），`HomeView.vue:24,80,129`；不是加粗或色块，而是与本站插画语言一致的做法 |
+| **P2-8 暗色模式首屏闪烁** | `efb796f` | `public/theme-init.js` 从 `<head>` 同步执行，在样式表之前把 `dark` / `high-contrast` / `less-artwork` / 光标两项写到 `<html>`；`src/main.ts` 退化为兜底。注：当初判断"CSP 禁止内联脚本所以做不了"只对了一半——`script-src 'self'` 允许**外部**同源脚本 |
 
 ---
 
 ## 待办 ❌（按优先级）
 
-P0、P1 均已落地。剩余为 P2 可选增强：
+**空。** P0、P1、P2 全部落地（2026-08-26 复核）。
 
-### P2 — 可选增强
-6. **阅读时长估算**："x min read"，可由 content 长度直接估算，无需存储字段。
-7. **首页 section 小标题视觉锚点弱**（`HomeView.vue:150-157`，0.75rem uppercase muted）——如需强化扫描锚点，可加粗或加左侧色块，但优先级低，非必须。
-8. **暗色模式首屏闪烁**：`isDark` 的 class 切换发生在 `onMounted`，若用户已保存 dark 偏好，首帧会先渲染浅色再切换。彻底解决需在 `index.html` 加一段内联 script，在 Vue 挂载前读取 `localStorage`/`prefers-color-scheme` 并设置 class。
+清单外、后来自行发展出来的相关工作：高对比度调色板（`a842e0e`）、
+空状态插画与"减少插画"偏好（`a7d5540`、`efb796f`）、路由转场
+（`c213305`，见 [`../page-transitions/design.md`](../page-transitions/design.md)）、
+光标主题（`27903b3`，见 [`../cursor-theme.md`](../cursor-theme.md)）。
 
 ---
 

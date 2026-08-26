@@ -1,5 +1,12 @@
 # Stage 2 — the split
 
+**Status: not started (checked 2026-08-26).** No `filter-repo` run, no separate repository, no CI
+workflow; `agent-benchmark/`, `tests/agent-benchmark/` and `vitest.benchmark.config.ts` are all
+still in `paper`. **The prerequisite below is not met** — two Stage 1 exit criteria fail
+(`benchmark:test` collects 3 files with an error; `lint` reports 6 errors from generated
+workspaces). Fix those first; the whole sequencing decision exists so this stage starts from a
+green suite.
+
 Prerequisite: every [Stage 1 exit criterion](01-stage-1-harden-in-place.md#stage-1-exit-criteria)
 is met. At that point the harness already resolves its own root from `import.meta.url`, reads its
 subject from config, writes runtime state next to itself, and validates against tags. Stage 2 moves

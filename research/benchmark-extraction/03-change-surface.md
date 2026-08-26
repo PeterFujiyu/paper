@@ -4,6 +4,11 @@ Reference material for [Stage 1](01-stage-1-harden-in-place.md) and
 [Stage 2](02-stage-2-split.md). Every claim here was verified against the code at
 commit `a69dc1d` (2026-07-31).
 
+> **Pre-Stage-1 snapshot.** Stage 1 landed in `48640f2`, so the `repoRoot` file:line inventory
+> below describes the code *before* the split into `HARNESS_ROOT` / `subjectRoot`. It is still the
+> map of what Stage 2 has to move, but do not use its line numbers against the current tree —
+> `agent-benchmark/src/paths.mjs` and `src/subject.mjs` did not exist when it was written.
+
 ---
 
 ## 1. The four meanings of `repoRoot`

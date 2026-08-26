@@ -4,6 +4,13 @@ Replaces every cursor on the site with Bibata Modern Ice, with a footer opt-out.
 Written before implementation; kept afterwards as the reference for why the CSS
 looks the way it does.
 
+**Status: shipped.** Art vendored in `44212f4`, the theme itself in `27903b3`
+(2026-07-30). Reconciled against the code 2026-08-26: `src/styles/cursors.css`
+(536 lines), 86 PNGs in `public/cursors/`, `src/shared/cursor.ts` with
+`CURSOR_SIZES = [24, 32, 48, 64]`, and `tests/src/styles/cursors.test.ts` guarding
+the manifest and the per-size blocks. Two paragraphs below have been superseded
+since — both are marked inline.
+
 **Scope decision: re-skin only.** The site's existing cursor states are given new
 art. No new cursor states were invented, so `wait`, `progress`, `crosshair`,
 `grab` and the whole `*-resize` family are shipped as art but never appear —
@@ -197,6 +204,16 @@ weaken a policy that has to stay aligned across `vercel.json` and
 `server/lib/security.ts`. The preference is read at the top of `src/main.ts`
 instead — a module script, CSP-clean, and it runs before `app.mount()`.
 
+> **Superseded (`efb796f`, 2026-08-12).** The reasoning above is right about
+> *inline* scripts and wrong about the conclusion: `script-src 'self'` allows an
+> **external** first-party script, so `public/theme-init.js` is now fetched and
+> executed synchronously from `<head>` ahead of the stylesheet and sets
+> `native-cursor` and `data-cursor-size` (plus `dark`, `high-contrast` and
+> `less-artwork`) before the first paint. `src/main.ts` still applies all five as
+> the fallback for a visitor who never receives that file — it is no longer the
+> primary path. `src/shared/cursor.ts` remains the source of truth for the keys and
+> values; `tests/src/styles/theme-init.test.ts` fails if the copy drifts.
+
 The default arrow is inlined as a base64 `data:` URI (~4.6 KB across the 1x and
 retina blocks; CSP already allows `data:` under `img-src`). It is on screen for
 almost the whole visit, so a cold-cache round trip would show the visitor's own
@@ -240,6 +257,9 @@ the resting footer is unchanged.
 - Pre-existing inconsistency left alone: a disabled save button is
   `not-allowed` in `PostEditView.vue` but `default` in `NoteEditView.vue`. Both
   were re-skinned faithfully rather than reconciled.
-- Dark mode still reads `localStorage` in `onMounted` (`App.vue`), so it keeps its
+- ~~Dark mode still reads `localStorage` in `onMounted` (`App.vue`), so it keeps its
   own first-paint flash. The cursor preference deliberately does not; unifying
-  them was out of scope.
+  them was out of scope.~~
+  **Closed.** `efb796f` unified them: `public/theme-init.js` applies theme,
+  contrast, artwork *and* both cursor hooks before the first paint, and
+  `src/shared/theme.ts` carries the note explaining why `onMounted` was too late.
