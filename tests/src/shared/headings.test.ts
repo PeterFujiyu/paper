@@ -78,6 +78,15 @@ describe('collectHeadings', () => {
     expect(result.map(entry => entry.id)).toEqual(['notes', 'notes-2', 'notes-3'])
   })
 
+  it('steps around an id the rest of the page has already claimed', () => {
+    const result = collectHeadings([
+      { level: 2, text: 'Main' },
+      { level: 2, text: 'Openings' },
+    ], ['main', 'footer-settings'])
+
+    expect(result.map(entry => entry.id)).toEqual(['main-2', 'openings'])
+  })
+
   it('falls back to a named section when the text carries no letters', () => {
     const result = collectHeadings([
       { level: 2, text: '···' },
@@ -180,6 +189,41 @@ describe('decorateHeadings', () => {
       'Accessibility and Motion',
     ])
     expect(body.querySelectorAll('a.head-anchor')).toHaveLength(2)
+  })
+
+  it('does not take an id the surrounding page already uses', () => {
+    // PostView wraps the article in <main id="main">; a section called "Main"
+    // would otherwise make getElementById('main') answer with the wrapper.
+    const page = document.createElement('main')
+    page.id = 'main'
+    const body = renderBody('<h2>Main</h2><h2>Openings</h2>')
+    page.append(body)
+    document.body.append(page)
+
+    try {
+      const result = decorateHeadings(body)
+
+      expect(result.map(entry => entry.id)).toEqual(['main-2', 'openings'])
+      expect(document.getElementById('main')).toBe(page)
+      expect(document.getElementById('main-2')).toBe(body.querySelector('h2'))
+    } finally {
+      page.remove()
+    }
+  })
+
+  it('keeps its own ids on a second pass over a body that is in the page', () => {
+    const body = renderBody('<h2>Openings</h2><h2>Endings</h2>')
+    document.body.append(body)
+
+    try {
+      const first = decorateHeadings(body)
+      const second = decorateHeadings(body)
+
+      expect(second).toEqual(first)
+      expect(second.map(entry => entry.id)).toEqual(['openings', 'endings'])
+    } finally {
+      body.remove()
+    }
   })
 
   it('returns nothing for a body with no sections', () => {

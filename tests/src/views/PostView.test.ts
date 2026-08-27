@@ -98,6 +98,25 @@ describe('PostView section anchors', () => {
     })
   })
 
+  it('hands the router a raw hash, leaving the encoding to it', async () => {
+    // The router percent-encodes on its way to the URL and reports `route.hash`
+    // decoded, so an already-encoded hash would be encoded a second time and the
+    // section would land in history under a hash its own permalink never uses.
+    const wrapper = await mountPost(samplePost({
+      content: essayContent(['可访问性', 'Accessibility and Motion', 'Endings']),
+    }))
+    const anchor = wrapper.find('.post-body h2 a.head-anchor')
+
+    expect(anchor.attributes('href')).toBe('#%E5%8F%AF%E8%AE%BF%E9%97%AE%E6%80%A7')
+    await anchor.trigger('click')
+
+    expect(push).toHaveBeenCalledWith({
+      path: '/writing/an-essay',
+      query: {},
+      hash: '#可访问性',
+    })
+  })
+
   it('leaves a modified permalink click to the browser', async () => {
     const wrapper = await mountPost(samplePost())
     await wrapper.find('.post-body h2 a.head-anchor').trigger('click', { metaKey: true })

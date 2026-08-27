@@ -116,7 +116,6 @@ import { scrollToHash } from '../shared/scroll'
 import {
   ANCHOR_CLASS,
   decorateHeadings,
-  headingHash,
   shouldShowToc,
   type HeadingEntry,
 } from '../shared/headings'
@@ -312,12 +311,17 @@ function decodeHeadingId(raw: string): string {
  * shareable, and the scroll clears the fixed header. Re-selecting the section
  * already in the URL is not a navigation, so it is scrolled directly instead —
  * the router would discard it as a duplicate and nothing would move.
+ *
+ * The hash goes to the router raw: `route.hash` is decoded, and the router does
+ * its own percent-encoding on the way to the URL. Handing it an already-encoded
+ * hash would encode the `%` again, so a non-Latin section would land in history
+ * under a different hash than its own permalink carries.
  */
 function goToHeading(id: string): void {
   if (!id) return
   activeHeadingId.value = id
 
-  const hash = headingHash(id)
+  const hash = `#${id}`
   if (route.hash === hash) {
     scrollToHash(hash)
     return

@@ -53,9 +53,17 @@ export function slugifyHeading(text: string): string {
  * first `Notes` keeps `notes`; the next becomes `notes-2`. The counter keeps
  * climbing past any id already taken, so a literal heading named `Notes 2`
  * can't be shadowed by a generated one.
+ *
+ * `reserved` holds ids the rest of the page has already claimed — the page
+ * wrapper's `main`, a form control's, anything outside the article body. A
+ * heading that would take one of those is numbered aside instead, so
+ * `getElementById` keeps resolving section links to the section.
  */
-export function collectHeadings(raw: Array<{ level: HeadingLevel, text: string }>): HeadingEntry[] {
-  const used = new Set<string>()
+export function collectHeadings(
+  raw: Array<{ level: HeadingLevel, text: string }>,
+  reserved: Iterable<string> = [],
+): HeadingEntry[] {
+  const used = new Set<string>(reserved)
 
   return raw.map(({ level, text }) => {
     const trimmed = text.trim()
@@ -106,7 +114,7 @@ export function decorateHeadings(root: ParentNode): HeadingEntry[] {
   const entries = collectHeadings(nodes.map(node => ({
     level: node.tagName === 'H3' ? 3 : 2,
     text: node.textContent ?? '',
-  })))
+  })), documentIds(nodes))
 
   nodes.forEach((node, index) => {
     const entry = entries[index]
@@ -115,6 +123,23 @@ export function decorateHeadings(root: ParentNode): HeadingEntry[] {
   })
 
   return entries
+}
+
+/**
+ * Ids already spoken for elsewhere in the document. The headings being
+ * decorated are excluded, so a second pass over a body that is already in the
+ * page doesn't treat last pass's ids as somebody else's and renumber them.
+ */
+function documentIds(nodes: HTMLElement[]): Set<string> {
+  const doc = nodes[0]?.ownerDocument
+  if (!doc) return new Set()
+
+  const own = new Set<Element>(nodes)
+  const taken = new Set<string>()
+  for (const el of doc.querySelectorAll('[id]')) {
+    if (!own.has(el)) taken.add(el.id)
+  }
+  return taken
 }
 
 function buildAnchor(doc: Document, entry: HeadingEntry): HTMLAnchorElement {
