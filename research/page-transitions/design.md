@@ -134,7 +134,8 @@ the jump lands in the gap between leave and enter.
 6. [x] `src/views/PostView.vue:7-18` — the reading-progress bar is
    `<Teleport to="body">`-ed, with the comment explaining the transformed-ancestor
    hazard.
-7. [x] `npm run typecheck` clean, `npm test` green (33 files, 377 tests).
+7. [x] `npm run typecheck` clean, `npm test` green (37 files, 433 tests as of 2026-08-27;
+   33 files / 377 tests when this was reconciled on 2026-08-26).
    `npm run lint` is clean for the app but currently reports errors from generated
    benchmark workspaces — unrelated to this work, see
    [`../benchmark-extraction/01-stage-1-harden-in-place.md`](../benchmark-extraction/01-stage-1-harden-in-place.md).

@@ -272,13 +272,14 @@ already holds the notes equivalent — so the convention exists and this file is
 
 ```
 src/admin/components/TiptapEditor.vue:359  <style scoped>
-src/admin/components/TiptapEditor.vue:410  <style>          <- global
-src/views/PostView.vue:290                 <style scoped>
-src/views/PostView.vue:482                 <style>          <- global
+src/admin/components/TiptapEditor.vue:418  <style>          <- global
+src/admin/components/TiptapEditor.vue:477  <style>          <- global
+src/views/PostView.vue:454                 <style scoped>
+src/views/PostView.vue:661                 <style>          <- global
 ```
 
-Both files declare an unscoped block alongside their scoped one — 174 lines in `TiptapEditor.vue`,
-47 in `PostView.vue`. Almost certainly deliberate (styling TipTap's rendered output and prose
+Both files declare unscoped blocks alongside their scoped one — 173 lines across two blocks in
+`TiptapEditor.vue`, 79 in `PostView.vue`. Almost certainly deliberate (styling TipTap's rendered output and prose
 content, neither of which scoping can reach), but it means global CSS is declared in two component
 files rather than in `src/style.css`, where the design tokens live.
 

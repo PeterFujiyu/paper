@@ -317,7 +317,7 @@ entirely (see §2.4).
 Measured 2026-08-26 on a clean tree. **Six of eight pass; two fail, and Stage 2 must not start
 until they do** — its whole premise is that the suite is green before anything moves.
 
-- [x] `npm test` — green. (331 at the time of writing; **377 across 33 files** today, since `paper`
+- [x] `npm test` — green. (331 at the time of writing; **433 across 37 files** on 2026-08-27, since `paper`
       kept shipping. `paper` is unaffected by the refactor, which was the point.)
 - [ ] ~~`npm run benchmark:test` — 97 tests green.~~ **FAILS: 76 pass, 3 of 15 files fail to
       collect, 22 tests never run.**

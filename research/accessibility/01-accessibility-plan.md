@@ -15,13 +15,14 @@ full. Phase by phase, checked against the working tree rather than against the c
 |---|---|---|
 | 1 — global CSS & head | Done | `.sr-only` `src/style.css:122`; focus ring extended to `input`/`textarea`/`select` `src/style.css:106-110`; `main:focus` reset `:117`; the global reduced-motion block `:207`; paired light/dark `theme-color` `index.html:21-22` |
 | 2 — app shell | Done | skip link `src/App.vue:5` with `skipToMain()` `:269`; `<nav aria-label="Primary">` `:19`; sr-only eth status `:114`; `main#main` in `src/admin/AdminLayout.vue:5` |
-| 3 — public views | Done | `main#main[tabindex="-1"]` in `src/views/HomeView.vue:2` and `src/views/PostView.vue:2`; persistent `role="status"` wrappers `HomeView.vue:44,102` and `PostView.vue:22`; cover `alt=""` `PostView.vue:53` |
+| 3 — public views | Done | `main#main[tabindex="-1"]` in `src/views/HomeView.vue:2` and `src/views/PostView.vue:2`; persistent `role="status"` wrappers `HomeView.vue:44,102` and `PostView.vue:36`; cover `alt=""` `PostView.vue:75` |
 | 4 — admin forms | Done | `LoginView.vue:2` root is `main#main`, `role="alert"` error `:43`; `PostEditView.vue:19,53`; `NoteEditView.vue:14,16`. The *optional* list-view pattern was applied as well (`PostsListView.vue:13`, `NotesListView.vue:13`) |
 | 5 — editor | Done | `role="group"` on both toolbars `TiptapEditor.vue:3,40`; per-button `aria-label`/`aria-pressed` `:12-13`; `aria-hidden focusable="false"` on every table SVG; `aria-label: 'Body'` on ProseMirror `:193`; upload `role="status"` `:103` |
 | 6 — dialog | Done | `useId()` `src/shared/AppDialog.vue:51`; `getClientRects()` filter `:87`; document-level keydown listener `:106` |
 | 7 — tests | Done | all five files exist and pass: `tests/src/App.test.ts`, `tests/src/views/HomeView.test.ts`, `tests/src/shared/AppDialog.test.ts`, `tests/src/admin/LoginView.test.ts`, `tests/src/admin/PostEditView.test.ts` |
 
-`npm test` at the time of this reconciliation: 33 files, 377 tests, green.
+`npm test` at the time of this reconciliation (2026-08-26): 33 files, 377 tests, green. On
+2026-08-27, after the contents rail landed: 37 files, 433 tests, still green.
 
 **Landed on top of the plan.** Two later commits extend the same surface this document deliberately
 left alone: `a842e0e` added an opt-in high-contrast palette (`:root.high-contrast` in

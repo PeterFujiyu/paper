@@ -31,7 +31,7 @@ Evidence for every item is in [`01-inventory.md`](01-inventory.md).
 **The codebase is in better shape than "mountain of crap" implies.** `typecheck`, `lint`, and
 `npm test` (30 files, 331 tests) all pass on a clean tree. There is no broken code here.
 
-*2026-08-26: `npm test` is now 33 files / 377 tests, still green, and `typecheck` is still clean.
+*2026-08-27: `npm test` is now 37 files / 433 tests, still green, and `typecheck` is still clean.
 `lint` no longer is — see B8. The product has grown to 10,689 LOC (brews/Coffee Time, empty-state
 artwork, the pre-paint theme bootstrap).*
 
@@ -112,7 +112,7 @@ the benchmark locally. Tracked as the second of the two failing Stage 1 exit cri
 | # | Item | Assessment |
 |---|---|---|
 | C1 | `server/lib/validation.ts` — 520 lines | **Real seam.** Lines 1–215 are request-body validation; 216–520 are TipTap content sanitization. Two different concerns, and the sanitizer is 59% of the file. Splitting is defensible. |
-| C2 | Two components declare **global** `<style>` blocks | `TiptapEditor.vue:410` and `PostView.vue:482` each carry an unscoped `<style>` alongside their scoped one — global CSS declared inside a component. Small, real architectural smell. |
+| C2 | Two components declare **global** `<style>` blocks | `TiptapEditor.vue:418,477` and `PostView.vue:661` each carry an unscoped `<style>` alongside their scoped one — global CSS declared inside a component. Small, real architectural smell. |
 | C3 | Five Vue SFCs over 500 lines | **Not worth splitting.** In every one, ~40–55% of the file is its own scoped CSS. That is idiomatic Vue SFC structure, not a file doing several jobs. Named here so the line counts stop reading as a finding. |
 | C4 | `vitest.benchmark.config.ts` is never typechecked | `tsconfig.json` includes `vite.config.ts` and `vitest.config.ts` but not this one. **Moot** — the file is deleted by the benchmark extraction. |
 

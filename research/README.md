@@ -2,7 +2,9 @@
 
 Long-form plans and audits written ahead of (or alongside) implementation. Every document below was
 reconciled against the code on **2026-08-26** and carries its own status header with file:line
-evidence; this table is the summary.
+evidence; this table is the summary. The suite numbers and the `PostView.vue` line citations were
+refreshed on **2026-08-27**, after the section anchors and contents rail landed: `npm test` is
+**37 files / 433 tests**, green.
 
 The rule these documents live by: **a plan that has landed is a historical record, not a todo
 list.** Three of them had headers claiming work was unstarted when it had shipped months earlier,

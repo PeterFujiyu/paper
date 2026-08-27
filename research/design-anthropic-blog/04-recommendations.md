@@ -21,9 +21,9 @@
 | 补充 meta 信息 | (本次) | description、Open Graph、Twitter Card、`theme-color` |
 | 暗色模式持久化 | (本次) | `App.vue` 读写 `localStorage`，首次加载读 `prefers-color-scheme` |
 | 强化正文链接可供性 | `9eb72c2` | `.prose a` 用 `--accent-ink` 着色 + 强调色下划线，hover 加粗 |
-| 文章结尾加相关内容 | `8539011` | "Continue reading" 区块，`PostView.vue:46-54` |
+| 文章结尾加相关内容 | `8539011` | "Continue reading" 区块，`PostView.vue:87-98` |
 | 阅读进度条 | `23b81e1` | 顶部进度条，附带覆盖了部分"阅读反馈"诉求 |
-| **P2-6 阅读时长估算** | `b8d1f23` | `src/shared/reading-time.ts` 估算 + `resolveReadingMinutes` 可手动覆写；`PostView.vue:47` 渲染 "x min read" |
+| **P2-6 阅读时长估算** | `b8d1f23` | `src/shared/reading-time.ts` 估算 + `resolveReadingMinutes` 可手动覆写；`PostView.vue:61` 渲染 "x min read" |
 | **P2-7 首页 section 小标题锚点** | `a7d5540` | `.section-heading` 前加了一枚线描图标（Writing 用笔尖、Notes 等各有其形），`HomeView.vue:24,80,129`；不是加粗或色块，而是与本站插画语言一致的做法 |
 | **P2-8 暗色模式首屏闪烁** | `efb796f` | `public/theme-init.js` 从 `<head>` 同步执行，在样式表之前把 `dark` / `high-contrast` / `less-artwork` / 光标两项写到 `<html>`；`src/main.ts` 退化为兜底。注：当初判断"CSP 禁止内联脚本所以做不了"只对了一半——`script-src 'self'` 允许**外部**同源脚本 |
 
