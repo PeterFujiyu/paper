@@ -449,7 +449,9 @@ function sanitizeTableCellAttrs(attrs: Record<string, unknown>): ValidationResul
     next.rowspan = attrs.rowspan
   }
 
-  if (typeof attrs.colwidth !== 'undefined') {
+  // TipTap's schema default for an unresized column is `null`, and getJSON()
+  // emits it verbatim — so null must read as "no width", not as a bad value.
+  if (attrs.colwidth != null) {
     if (!Array.isArray(attrs.colwidth) || attrs.colwidth.some((value) => !isSafePositiveInteger(value))) {
       return { ok: false, error: 'Table colwidth must be an array of positive integers.' }
     }
