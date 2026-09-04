@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "paper-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "api:dev"],
+      "port": 3001
     }
   ]
 }
