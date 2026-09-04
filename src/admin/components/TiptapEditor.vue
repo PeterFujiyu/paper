@@ -1,6 +1,6 @@
 <template>
-  <div class="editor-shell">
-    <div class="toolbar" role="group" aria-label="Formatting">
+  <div ref="shellRef" class="editor-shell">
+    <div ref="toolbarRef" class="toolbar" role="group" aria-label="Formatting">
       <button
         v-for="btn in toolbarButtons"
         :key="btn.label"
@@ -84,6 +84,23 @@
               </svg>
             </button>
 
+            <!-- Highlight column -->
+            <button
+              type="button"
+              class="tbl-btn"
+              :class="{ 'tbl-btn--active': columnHighlighted }"
+              title="Highlight column"
+              aria-label="Highlight column"
+              :aria-pressed="columnHighlighted"
+              @click="editorCmd('toggleColumnHighlight')"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                <rect x="1" y="1" width="12" height="12" rx="0.5" stroke="currentColor" stroke-width="1.1" opacity="0.4"/>
+                <rect x="5" y="1" width="4" height="12" fill="currentColor" opacity="0.35"/>
+                <rect x="5" y="1" width="4" height="12" stroke="currentColor" stroke-width="1.1"/>
+              </svg>
+            </button>
+
             <div class="tbl-sep"></div>
 
             <!-- Delete table -->
@@ -105,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onBeforeUnmount, computed } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit   from '@tiptap/starter-kit'
 import Placeholder  from '@tiptap/extension-placeholder'
@@ -116,8 +133,7 @@ import TextAlign    from '@tiptap/extension-text-align'
 import Image        from '@tiptap/extension-image'
 import { Table }    from '@tiptap/extension-table'
 import TableRow     from '@tiptap/extension-table-row'
-import TableHeader  from '@tiptap/extension-table-header'
-import TableCell    from '@tiptap/extension-table-cell'
+import { ColumnHighlight, HighlightableTableCell, HighlightableTableHeader } from '../../shared/tiptap-extensions'
 import { alertDialog } from '../../shared/dialog'
 import type { JsonValue } from '../../types/content'
 
@@ -130,9 +146,30 @@ const emit = defineEmits(['update:modelValue'])
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
 
+// ─── Toolbar height ───────────────────────────────────────
+// The toolbar is sticky under the site header, so anything else that pins in
+// the body (a table's header row) has to park under the toolbar, whose height
+// depends on how its buttons wrap. Publish it as a custom property on the shell.
+const shellRef = ref<HTMLElement | null>(null)
+const toolbarRef = ref<HTMLElement | null>(null)
+let toolbarObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  const shell = shellRef.value
+  const toolbar = toolbarRef.value
+  if (!shell || !toolbar || typeof ResizeObserver === 'undefined') return
+  const publish = (): void => {
+    shell.style.setProperty('--editor-toolbar-h', `${toolbar.offsetHeight}px`)
+  }
+  publish()
+  toolbarObserver = new ResizeObserver(publish)
+  toolbarObserver.observe(toolbar)
+})
+
 // ─── Table toolbar state ──────────────────────────────────
 const tableToolbarVisible = ref(false)
 const tableToolbarPos = ref<{ top: number; left: number } | null>(null)
+const columnHighlighted = ref(false)
 
 function updateTableToolbar() {
   const e = editor.value
@@ -142,6 +179,9 @@ function updateTableToolbar() {
   tableToolbarVisible.value = inTable
 
   if (!inTable) return
+
+  columnHighlighted.value =
+    e.getAttributes('tableCell').highlight === true || e.getAttributes('tableHeader').highlight === true
 
   // Find the tableWrapper DOM node for the currently selected table
   const { state, view } = e
@@ -184,8 +224,9 @@ const editor = useEditor({
     Image.configure({ inline: false, allowBase64: true }),
     Table.configure({ resizable: true }),
     TableRow,
-    TableHeader,
-    TableCell,
+    HighlightableTableHeader,
+    HighlightableTableCell,
+    ColumnHighlight,
   ],
   content: props.modelValue,
   editorProps: {
@@ -222,10 +263,19 @@ watch(() => props.modelValue, (val) => {
   }
 })
 
-onBeforeUnmount(() => editor.value?.destroy())
+onBeforeUnmount(() => {
+  toolbarObserver?.disconnect()
+  editor.value?.destroy()
+})
 
 // ─── Table command helper ─────────────────────────────────
-type TableCmd = 'addRowAfter' | 'deleteRow' | 'addColumnAfter' | 'deleteColumn' | 'deleteTable'
+type TableCmd =
+  | 'addRowAfter'
+  | 'deleteRow'
+  | 'addColumnAfter'
+  | 'deleteColumn'
+  | 'toggleColumnHighlight'
+  | 'deleteTable'
 
 function editorCmd(cmd: TableCmd) {
   const e = editor.value
@@ -236,6 +286,7 @@ function editorCmd(cmd: TableCmd) {
   else if (cmd === 'deleteRow') chain.deleteRow().run()
   else if (cmd === 'addColumnAfter') chain.addColumnAfter().run()
   else if (cmd === 'deleteColumn') chain.deleteColumn().run()
+  else if (cmd === 'toggleColumnHighlight') chain.toggleColumnHighlight().run()
   else if (cmd === 'deleteTable') chain.deleteTable().run()
 
   updateTableToolbar()
@@ -448,6 +499,10 @@ const toolbarButtons = computed(() => {
   color: var(--text-main, #111);
   background: color-mix(in srgb, currentColor 7%, transparent);
 }
+.tbl-btn--active {
+  color: var(--accent-ink, #b85333);
+  background: color-mix(in srgb, var(--accent, #d97757) 14%, transparent);
+}
 .tbl-btn--danger:hover {
   color: #c0392b;
   background: color-mix(in srgb, #c0392b 8%, transparent);
@@ -511,29 +566,58 @@ const toolbarButtons = computed(() => {
 }
 .editor-content .ProseMirror li { margin-bottom: 0.3em; }
 
+ /* Tables mirror the reading view (see the .prose rules in PostView.vue): the
+   header row pins under the sticky toolbar, borders sit on the cells so they
+   travel with it, and a highlighted column carries the same tint. The wrapper
+   clips rather than scrolls — a scroll container would pin the row to itself,
+   not the page — so a table dragged wider than the shell is cut, as it would
+   be on the published page. */
 .editor-content .ProseMirror .tableWrapper {
   margin: 2rem 0;
-  overflow-x: auto;
+  overflow-x: clip;
 }
 
 .editor-content .ProseMirror table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   width: 100%;
   table-layout: fixed;
-  overflow: hidden;
 }
 
 .editor-content .ProseMirror th,
 .editor-content .ProseMirror td {
-  border: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   padding: 0.7rem 0.8rem;
   vertical-align: top;
   text-align: left;
+  overflow-wrap: anywhere;
 }
+.editor-content .ProseMirror th:first-child,
+.editor-content .ProseMirror td:first-child { border-left: 1px solid var(--border); }
+.editor-content .ProseMirror tr:first-child th,
+.editor-content .ProseMirror tr:first-child td { border-top: 1px solid var(--border); }
 
 .editor-content .ProseMirror th {
   font-weight: 600;
   background: var(--bg-subtle, var(--bg));
+}
+
+.editor-content .ProseMirror tr:first-child th {
+  position: sticky;
+  top: calc(var(--header-h) + var(--editor-toolbar-h, 0px));
+  z-index: 1;
+}
+
+.editor-content .ProseMirror [data-highlight] {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  box-shadow: inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent);
+}
+.editor-content .ProseMirror tr:first-child [data-highlight] {
+  box-shadow: inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent), inset 0 2px 0 var(--accent);
+}
+.editor-content .ProseMirror tr:last-child [data-highlight] {
+  box-shadow: inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent), inset 0 -2px 0 var(--accent);
 }
 
 .editor-content .ProseMirror .column-resize-handle {

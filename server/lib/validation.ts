@@ -456,6 +456,15 @@ function sanitizeTableCellAttrs(attrs: Record<string, unknown>): ValidationResul
     next.colwidth = attrs.colwidth
   }
 
+  // Column highlight (see src/shared/tiptap-extensions.ts). Only `true` is
+  // stored; `false` is the schema default and would just be noise.
+  if (typeof attrs.highlight !== 'undefined') {
+    if (typeof attrs.highlight !== 'boolean') {
+      return { ok: false, error: 'Table highlight must be a boolean.' }
+    }
+    if (attrs.highlight) next.highlight = true
+  }
+
   return { ok: true, value: Object.keys(next).length ? next : null }
 }
 
