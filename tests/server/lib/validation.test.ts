@@ -316,6 +316,28 @@ describe('sanitizePostContent', () => {
     }
   })
 
+  it('accepts the editor\'s default null colwidth on an unresized table cell', () => {
+    const result = sanitizePostContent({
+      type: 'doc',
+      content: [{
+        type: 'table',
+        content: [{
+          type: 'tableRow',
+          content: [{
+            type: 'tableCell',
+            attrs: { colspan: 1, rowspan: 1, colwidth: null, highlight: false },
+            content: [{ type: 'paragraph', content: [] }],
+          }],
+        }],
+      }],
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      const cell = result.value.content?.[0]?.content?.[0]?.content?.[0]
+      expect(cell?.attrs).toEqual({ colspan: 1, rowspan: 1 })
+    }
+  })
+
   it('keeps a true table-cell highlight and drops a false one', () => {
     const doc = (highlight: unknown) => ({
       type: 'doc',
