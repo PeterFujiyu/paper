@@ -707,25 +707,58 @@ async function reportReadCompletion(): Promise<void> {
 .prose hr  { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
 .prose ul, .prose ol { padding-left: 1.5rem; margin: 0 0 1.4em; }
 .prose li  { margin-bottom: 0.4em; line-height: 1.7; }
-.prose .tableWrapper {
-  margin: 2rem 0;
-  overflow-x: auto;
-}
+/* Tables. The read-only renderer emits a bare <table> (no .tableWrapper), and
+   nothing between it and the viewport scrolls, so the header row can pin to the
+   site header with plain `position: sticky` — a long comparison table keeps its
+   column labels in view the whole way down, like a print table's repeated head.
+
+   Two things make the pinned row read as part of the table rather than a strip
+   floating over it. Borders are drawn per cell (`separate`, not `collapse`):
+   collapsed borders belong to the table's grid, so a sticky cell would slide
+   out from under them. And the header tint is opaque — body rows scroll beneath
+   the pinned row, and a translucent tint would show them through. */
 .prose table {
   width: 100%;
-  border-collapse: collapse;
+  margin: 2rem 0;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
 }
 .prose th,
 .prose td {
-  border: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   padding: 0.75rem 0.8rem;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
+.prose th:first-child,
+.prose td:first-child { border-left: 1px solid var(--border); }
+.prose tr:first-child th,
+.prose tr:first-child td { border-top: 1px solid var(--border); }
 .prose th {
   font-weight: 600;
-  background: color-mix(in srgb, var(--bg) 82%, var(--text-main) 3%);
+  background: color-mix(in srgb, var(--bg) 97%, var(--text-main));
+}
+.prose tr:first-child th {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 1;
+}
+/* A highlighted column (`data-highlight`, set per cell by the editor's column
+   toggle): an accent tint plus a 2px accent rule drawn inside the cell, so the
+   column reads as one framed strip without disturbing the hairline grid. The
+   tint mixes two opaque colours, so it stays opaque on the pinned header. */
+.prose [data-highlight] {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  box-shadow: inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent);
+}
+.prose tr:first-child [data-highlight] {
+  box-shadow: inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent), inset 0 2px 0 var(--accent);
+}
+.prose tr:last-child [data-highlight] {
+  box-shadow: inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent), inset 0 -2px 0 var(--accent);
 }
 .prose img {
   max-width: 100%;

@@ -316,6 +316,36 @@ describe('sanitizePostContent', () => {
     }
   })
 
+  it('keeps a true table-cell highlight and drops a false one', () => {
+    const doc = (highlight: unknown) => ({
+      type: 'doc',
+      content: [{
+        type: 'table',
+        content: [{
+          type: 'tableRow',
+          content: [{ type: 'tableCell', attrs: { highlight }, content: [{ type: 'paragraph', content: [] }] }],
+        }],
+      }],
+    })
+    const kept = sanitizePostContent(doc(true))
+    expect(kept.ok).toBe(true)
+    if (kept.ok) {
+      const cell = kept.value.content?.[0]?.content?.[0]?.content?.[0]
+      expect(cell?.attrs).toEqual({ highlight: true })
+    }
+
+    const dropped = sanitizePostContent(doc(false))
+    expect(dropped.ok).toBe(true)
+    if (dropped.ok) {
+      const cell = dropped.value.content?.[0]?.content?.[0]?.content?.[0]
+      expect(cell?.attrs).toBeUndefined()
+    }
+
+    const rejected = sanitizePostContent(doc('yes'))
+    expect(rejected.ok).toBe(false)
+    if (!rejected.ok) expect(rejected.error).toMatch(/highlight must be a boolean/)
+  })
+
   it('rejects prototype-pollution keys', () => {
     const malicious = Object.create(null) as Record<string, unknown>
     malicious['__proto__'] = {}
