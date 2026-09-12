@@ -22,7 +22,7 @@ Reuse existing variables before inventing new ones. Key tokens:
 | `--accent-ink` | `#B85333` | `#E8916F` | link TEXT (WCAG AA against `--bg`) |
 | `--measure` | `68ch` | — | golden reading measure; do not widen prose |
 
-Two-voice typography: `--font-sans` (Montserrat/Noto Sans SC) for titles, nav, and UI chrome (including dialogs/confirmation boxes); `--font-serif` (Georgia/Songti SC) for prose body.
+Two-voice typography: `--font-sans` (Montserrat/Noto Sans SC) for titles, nav, and UI chrome (including dialogs/confirmation boxes); `--font-serif` (Georgia/Songti SC) for prose body. Always consume `--font-*`, never `--stack-*` or a literal family: the footer's type preference (`html[data-font]`) reassigns the voices, and a hardcoded stack is the one place it would not reach (`tests/src/styles/fonts.test.ts` enforces this).
 
 ## Rules
 

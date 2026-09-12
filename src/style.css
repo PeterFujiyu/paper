@@ -45,10 +45,18 @@
      "two-voice" academic-journal contrast). Montserrat is already loaded.
      Mono is a third, narrow voice: literal strings the reader may retype or
      copy — tool names, field names, shell commands. Never used for prose.
-     System stack only, so it costs no webfont. */
-  --font-serif: "Georgia", "Times New Roman", "Songti SC", "SimSun", serif;
-  --font-sans:  "Montserrat", "Google Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono:  ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+     System stack only, so it costs no webfont.
+
+     The literal stacks live in --stack-*; --font-* are the voices components
+     consume. The type preference below reassigns a voice to another stack, and
+     keeping the two apart is what stops that from ever forming a var() cycle.
+     Components read --font-*, never --stack-* or a literal stack. */
+  --stack-serif: "Georgia", "Times New Roman", "Songti SC", "SimSun", serif;
+  --stack-sans:  "Montserrat", "Google Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --stack-mono:  ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --font-serif: var(--stack-serif);
+  --font-sans:  var(--stack-sans);
+  --font-mono:  var(--stack-mono);
 
   /* Typography */
   font-family: var(--font-serif);
@@ -106,6 +114,31 @@
   --accent-ink: #F2A183;
 }
 
+/* Type preference — html[data-font], set by src/shared/theme.ts from the footer
+   settings; no attribute is the two-voice default above. A reader who finds one
+   family easier can have the whole site in it: "sans" / "serif" move every voice
+   but the mono one, since code set in a proportional face loses its alignment;
+   "-all" moves that too, for the reader who asked for one face and meant it.
+   Montserrat is already loaded and the serif stack is system-only, so no choice
+   costs a request. Nothing about size, measure or spacing changes. */
+:root[data-font="sans"] {
+  --font-serif: var(--stack-sans);
+}
+
+:root[data-font="sans-all"] {
+  --font-serif: var(--stack-sans);
+  --font-mono:  var(--stack-sans);
+}
+
+:root[data-font="serif"] {
+  --font-sans: var(--stack-serif);
+}
+
+:root[data-font="serif-all"] {
+  --font-sans: var(--stack-serif);
+  --font-mono: var(--stack-serif);
+}
+
 ::selection {
   background: var(--selection-bg);
   color: var(--text-main);
@@ -122,9 +155,21 @@ select:focus-visible {
   border-radius: 1px;
 }
 
+/* Keyboard mode — the footer opt-in (src/shared/theme.ts), also switched on for
+   the session by the first Tab press. A heavier ring, held off the control by a
+   halo of the ground colour so it still reads when it lands on a filled surface
+   or a border of a similar weight. Cross-component, so it lives here. */
+:root.keyboard-nav :is(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline-width: 3px;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px var(--bg);
+}
+
 /* Skip-link target: focused programmatically, so suppress the ring on it. */
-main:focus {
+main:focus,
+:root.keyboard-nav main:focus {
   outline: none;
+  box-shadow: none;
 }
 
 /* Screen-reader-only utility — removed from the visual flow, still announced. */
@@ -223,5 +268,23 @@ body {
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Windows High Contrast and the like: the OS owns every colour, and both
+   contrast palettes above are simply ignored, which is right. What does not
+   survive is anything drawn with a shadow or a filled ground alone — those are
+   dropped — so the states that relied on them get a border, an underline or a
+   system colour beside their own rule. The global ones are here; each component
+   keeps its own next to the rule it backs up. Nothing opts out of forcing. */
+@media (forced-colors: active) {
+  ::selection {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  :root.keyboard-nav :is(a, button, input, textarea, select, [tabindex]):focus-visible {
+    /* The halo would be dropped anyway; the wider ring is enough on its own. */
+    box-shadow: none;
   }
 }

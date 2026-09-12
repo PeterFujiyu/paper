@@ -21,6 +21,7 @@ vi.mock('../../src/shared/AppDialog.vue', () => ({
 
 import App from '../../src/App.vue'
 import { CURSOR_SIZES, DEFAULT_CURSOR_SIZE } from '../../src/shared/cursor'
+import { DEFAULT_FONT_CHOICE, FONT_CHOICES } from '../../src/shared/theme'
 
 const writeText = vi.fn().mockResolvedValue(undefined)
 
@@ -178,8 +179,10 @@ describe('footer cursor setting', () => {
     expect(wrapper.find('.settings-credit').text()).toContain('GPL-3.0')
   })
 
+  // The type card below shares the card styling, so the queries are scoped by
+  // the group's label rather than by class.
   const sizeRadios = (wrapper: ReturnType<typeof mount>) =>
-    wrapper.findAll<HTMLInputElement>('.size-choice input[type="radio"]')
+    wrapper.findAll<HTMLInputElement>('[aria-labelledby="cursor-size-label"] input[type="radio"]')
 
   const checkedSize = (wrapper: ReturnType<typeof mount>) =>
     sizeRadios(wrapper).find((radio) => radio.element.checked)?.element.value
@@ -191,9 +194,9 @@ describe('footer cursor setting', () => {
     // A <select> would render in OS chrome, defeating both the type and the theme.
     expect(wrapper.find('select').exists()).toBe(false)
 
-    const group = wrapper.find('.size-choice')
+    const group = wrapper.find('[aria-labelledby="cursor-size-label"]')
     expect(group.attributes('role')).toBe('radiogroup')
-    expect(group.attributes('aria-labelledby')).toBe('cursor-size-label')
+    expect(group.classes()).toContain('size-choice')
     expect(wrapper.find('#cursor-size-label').text()).toBe('Size')
   })
 
@@ -378,5 +381,185 @@ describe('footer', () => {
 
     expect(targets).toContain('/mcp')
     expect(wrapper.find('.footer-link').text()).toBe('MCP docs')
+  })
+})
+
+describe('footer type setting', () => {
+  afterEach(() => {
+    localStorage.clear()
+    delete document.documentElement.dataset.font
+  })
+
+  const fontRadios = (wrapper: ReturnType<typeof mount>) =>
+    wrapper.findAll<HTMLInputElement>('[aria-labelledby="font-choice-label"] input[type="radio"]')
+
+  const checkedFont = (wrapper: ReturnType<typeof mount>) =>
+    fontRadios(wrapper).find((radio) => radio.element.checked)?.element.value
+
+  it('renders the choices as a labelled radiogroup', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    const group = wrapper.find('[aria-labelledby="font-choice-label"]')
+    expect(group.attributes('role')).toBe('radiogroup')
+    expect(wrapper.find('#font-choice-label').text()).toBe('Type')
+  })
+
+  it('offers every choice, each label bound to its own input', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    expect(fontRadios(wrapper).map((radio) => radio.element.value)).toEqual([...FONT_CHOICES])
+    for (const label of wrapper.findAll('[aria-labelledby="font-choice-label"] label')) {
+      expect(wrapper.find(`#${label.attributes('for')}`).exists()).toBe(true)
+    }
+  })
+
+  it('starts on the default pairing with no attribute set', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    expect(checkedFont(wrapper)).toBe(DEFAULT_FONT_CHOICE)
+    expect(document.documentElement.dataset.font).toBeUndefined()
+    expect(localStorage.getItem('font')).toBeNull()
+  })
+
+  it('choosing a family sets the attribute and persists it', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    await wrapper.find('#font-choice-sans').trigger('change')
+
+    expect(document.documentElement.dataset.font).toBe('sans')
+    expect(localStorage.getItem('font')).toBe('sans')
+    expect(checkedFont(wrapper)).toBe('sans')
+  })
+
+  it('keeps the choice exclusive', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    await wrapper.find('#font-choice-serif').trigger('change')
+    await wrapper.find('#font-choice-serif-all').trigger('change')
+
+    expect(fontRadios(wrapper).filter((radio) => radio.element.checked)).toHaveLength(1)
+    expect(document.documentElement.dataset.font).toBe('serif-all')
+  })
+
+  it('returning to the default removes the attribute again', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    await wrapper.find('#font-choice-sans-all').trigger('change')
+    await wrapper.find('#font-choice-default').trigger('change')
+
+    expect(document.documentElement.dataset.font).toBeUndefined()
+    expect(localStorage.getItem('font')).toBe('default')
+  })
+
+  it('reflects a stored choice into the card on mount', async () => {
+    localStorage.setItem('font', 'serif')
+
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    expect(checkedFont(wrapper)).toBe('serif')
+  })
+
+  it('ignores a stored choice that is not on offer', async () => {
+    localStorage.setItem('font', 'comic')
+
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    expect(checkedFont(wrapper)).toBe(DEFAULT_FONT_CHOICE)
+  })
+})
+
+describe('keyboard mode', () => {
+  afterEach(() => {
+    localStorage.clear()
+    document.documentElement.classList.remove('keyboard-nav')
+  })
+
+  it('offers three skip links, content first', () => {
+    const wrapper = mount(App)
+
+    const links = wrapper.findAll('.skip-link')
+    expect(links.map((link) => link.attributes('href'))).toEqual(['#main', '#primary-nav', '#footer-settings'])
+    expect(wrapper.find('a').attributes('href')).toBe('#main')
+    expect(wrapper.find('#primary-nav').exists()).toBe(true)
+  })
+
+  it('skipping to settings opens the disclosure and moves focus into it', async () => {
+    const wrapper = mount(App, { attachTo: document.body })
+
+    expect(wrapper.find('#footer-settings').exists()).toBe(false)
+    await wrapper.findAll('.skip-link')[2].trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('#footer-settings').exists()).toBe(true)
+    expect(document.activeElement?.id).toBe('setting-themed-cursor')
+
+    wrapper.unmount()
+  })
+
+  it('stays off until the visitor asks or presses Tab', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    expect(wrapper.find<HTMLInputElement>('#setting-keyboard-mode').element.checked).toBe(false)
+    expect(document.documentElement.classList.contains('keyboard-nav')).toBe(false)
+  })
+
+  it('ticking the box sets the class and persists the choice', async () => {
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    await wrapper.find('#setting-keyboard-mode').trigger('change')
+
+    expect(document.documentElement.classList.contains('keyboard-nav')).toBe(true)
+    expect(localStorage.getItem('keyboard')).toBe('on')
+  })
+
+  // The first Tab is the same signal the browser uses for :focus-visible, so a
+  // keyboard reader sees the heavier ring before they could have found the box.
+  it('turns on for the session at the first Tab press without writing storage', async () => {
+    const wrapper = mount(App)
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }))
+    expect(document.documentElement.classList.contains('keyboard-nav')).toBe(false)
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }))
+    await flushPromises()
+
+    expect(document.documentElement.classList.contains('keyboard-nav')).toBe(true)
+    expect(localStorage.getItem('keyboard')).toBeNull()
+
+    await wrapper.find('.settings-toggle').trigger('click')
+    expect(wrapper.find<HTMLInputElement>('#setting-keyboard-mode').element.checked).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('leaves a stored opt-out alone even after Tab', async () => {
+    localStorage.setItem('keyboard', 'off')
+    const wrapper = mount(App)
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }))
+    await flushPromises()
+
+    expect(document.documentElement.classList.contains('keyboard-nav')).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('reflects a stored opt-in into the checkbox on mount', async () => {
+    localStorage.setItem('keyboard', 'on')
+
+    const wrapper = mount(App)
+    await wrapper.find('.settings-toggle').trigger('click')
+
+    expect(wrapper.find<HTMLInputElement>('#setting-keyboard-mode').element.checked).toBe(true)
   })
 })

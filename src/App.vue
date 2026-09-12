@@ -1,8 +1,13 @@
 <template>
   <div :class="{ dark: isDark, 'high-contrast': highContrast, 'less-artwork': lessArtwork, 'shell-wide': route.meta.wide }" style="min-height: 100vh; background-color: var(--bg); color: var(--text-main); transition: background-color 0.3s ease, color 0.3s ease;">
 
-    <!-- Keyboard skip target — the only element hidden until :focus-visible -->
+    <!-- Keyboard skip links — the only elements hidden until :focus-visible.
+         Content first, so the first Tab on any page still lands on it; the
+         other two save a keyboard reader the walk through the header or down
+         the whole page to reach the settings disclosure. -->
     <a class="skip-link" href="#main" @click.prevent="skipToMain">Skip to content</a>
+    <a class="skip-link" href="#primary-nav" @click.prevent="skipToNav">Skip to navigation</a>
+    <a class="skip-link" href="#footer-settings" @click.prevent="skipToSettings">Skip to settings</a>
 
     <!-- ─── Header (fixed) ─── -->
     <header class="site-header">
@@ -16,7 +21,7 @@
         >{{ char }}</span>
       </RouterLink>
       <div class="header-right">
-        <nav class="site-nav" aria-label="Primary">
+        <nav id="primary-nav" class="site-nav" aria-label="Primary">
           <RouterLink to="/#writing">
             <span>Writing</span>
             <svg class="nav-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z"/></svg>
@@ -173,6 +178,33 @@
               <input id="setting-less-artwork" type="checkbox" :checked="lessArtwork" @change="toggleArtwork" />
               <span>Less artwork</span>
             </label>
+            <!-- One family for the whole site, for a reader who finds the
+                 two-voice pairing harder work than it is worth. Same hidden-radio
+                 card as the cursor size, for the same reasons. -->
+            <span class="settings-row">
+              <span id="font-choice-label">Type</span>
+              <span class="size-choice" role="radiogroup" aria-labelledby="font-choice-label">
+                <template v-for="option in FONT_CHOICE_OPTIONS" :key="option.value">
+                  <input
+                    :id="`font-choice-${option.value}`"
+                    class="sr-only"
+                    type="radio"
+                    name="font-choice"
+                    :value="option.value"
+                    :checked="fontChoice === option.value"
+                    @change="changeFontChoice(option.value)"
+                  />
+                  <label :for="`font-choice-${option.value}`" class="size-option">{{ option.label }}</label>
+                </template>
+              </span>
+            </span>
+            <!-- The heavier focus ring. Ticked here it is remembered; it also
+                 switches itself on for the session at the first Tab press, so a
+                 keyboard reader sees it before they could have found this box. -->
+            <label class="settings-row">
+              <input id="setting-keyboard-mode" type="checkbox" :checked="keyboardMode" @change="toggleKeyboard" />
+              <span>Keyboard mode</span>
+            </label>
             <!-- Bibata is GPL-3.0, so the credit travels with the art. The panel is
                  collapsed by default, so this costs the footer nothing at rest. -->
             <span class="settings-credit">Cursor: Bibata Modern Ice · GPL-3.0</span>
@@ -188,7 +220,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import AppDialog from './shared/AppDialog.vue'
 import type { CursorSize } from './shared/cursor'
@@ -199,13 +231,20 @@ import {
   setNativeCursor,
   storedCursorSize,
 } from './shared/cursor'
+import type { FontChoice } from './shared/theme'
 import {
+  FONT_CHOICE_OPTIONS,
+  applyKeyboardMode,
   prefersDarkTheme,
   prefersHighContrast,
+  prefersKeyboardMode,
   prefersLessArtwork,
   setDarkTheme,
+  setFontChoice,
   setHighContrast,
+  setKeyboardMode,
   setLessArtwork,
+  storedFontChoice,
 } from './shared/theme'
 
 // ─── Route transition ───
@@ -266,14 +305,52 @@ function toggleArtwork(): void {
   setLessArtwork(lessArtwork.value)
 }
 
+const fontChoice = ref<FontChoice>(storedFontChoice())
+
+function changeFontChoice(choice: FontChoice): void {
+  fontChoice.value = choice
+  setFontChoice(choice)
+}
+
+// ─── Keyboard mode ───
+// A stored choice wins. With none, the first Tab press switches the heavier
+// ring on for this session only — the same signal the browser uses to decide
+// :focus-visible, so a pointer-only visitor never sees it — and nothing is
+// written until the visitor ticks the box themselves.
+const storedKeyboard = prefersKeyboardMode()
+const keyboardMode = ref(storedKeyboard === true)
+
+function toggleKeyboard(): void {
+  keyboardMode.value = !keyboardMode.value
+  setKeyboardMode(keyboardMode.value)
+}
+
+function onFirstTab(event: KeyboardEvent): void {
+  if (event.key !== 'Tab') return
+  document.removeEventListener('keydown', onFirstTab)
+  keyboardMode.value = true
+  applyKeyboardMode(true)
+}
+
 // ─── Current year ───
 const year = computed(() => new Date().getFullYear())
 
-// Skip link: focus the current view's <main> directly. A raw #main hash click
-// behaves oddly with createWebHistory + the router's scrollBehavior, so we
-// keep the href for semantics/no-JS but drive focus imperatively.
+// Skip links: focus the target directly. A raw hash click behaves oddly with
+// createWebHistory + the router's scrollBehavior, so we keep the hrefs for
+// semantics/no-JS but drive focus imperatively.
 function skipToMain(): void {
   document.getElementById('main')?.focus()
+}
+
+function skipToNav(): void {
+  document.querySelector<HTMLElement>('#primary-nav a')?.focus()
+}
+
+// The panel is collapsed at rest, so reaching it means opening it first.
+async function skipToSettings(): Promise<void> {
+  showSettings.value = true
+  await nextTick()
+  document.querySelector<HTMLElement>('#footer-settings input')?.focus()
 }
 
 const showEth = ref(false)
@@ -317,9 +394,13 @@ function onScroll() {
   }, 320)
 }
 
-onMounted(() => window.addEventListener('scroll', onScroll, { passive: true }))
+onMounted(() => {
+  window.addEventListener('scroll', onScroll, { passive: true })
+  if (storedKeyboard === null) document.addEventListener('keydown', onFirstTab)
+})
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
+  document.removeEventListener('keydown', onFirstTab)
   if (scrollTimer) clearTimeout(scrollTimer)
   if (copiedTimer) clearTimeout(copiedTimer)
 })
@@ -705,6 +786,13 @@ onUnmounted(() => {
   outline-offset: -2px;
 }
 
+/* Keyboard mode: the sitewide rule in src/style.css cannot reach a ring that
+   sits on a label, so the same weight is repeated here. */
+:root.keyboard-nav .size-choice input:focus-visible + .size-option {
+  outline-width: 3px;
+  outline-offset: -3px;
+}
+
 .size-choice input:disabled + .size-option {
   opacity: 0.4;
   cursor: var(--cursor-not-allowed);
@@ -734,6 +822,26 @@ onUnmounted(() => {
 
 :root.high-contrast .size-choice input:disabled + .size-option {
   opacity: 0.65;
+}
+
+/* Forced colours: the selected segment was a filled ground and an inset shadow,
+   the current link a shade of the text colour — none of which survive. Each
+   gets a system colour or an underline the OS will keep. */
+@media (forced-colors: active) {
+  .size-choice input:checked + .size-option {
+    color: Highlight;
+    border-bottom: 2px solid Highlight;
+  }
+
+  .size-choice input:disabled + .size-option {
+    color: GrayText;
+    opacity: 1;
+  }
+
+  .site-nav a.router-link-active,
+  .footer-link.router-link-active {
+    text-decoration: underline;
+  }
 }
 
 .eth-fade-enter-active,
