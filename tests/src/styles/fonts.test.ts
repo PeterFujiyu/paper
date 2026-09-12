@@ -69,10 +69,15 @@ describe('type voices', () => {
   it('keeps every component on the voices rather than a literal stack', () => {
     // A hardcoded family is the one place a reader's choice would not reach —
     // the admin editor once did this and disagreed with the published essay.
+    // So every font-family a component declares must be a voice or `inherit`;
+    // a generic keyword, a named face or a --stack-* all fail.
     for (const file of vueFiles(join(ROOT, 'src'))) {
       const source = readFileSync(file, 'utf8')
-      expect(source, file).not.toMatch(/font-family:\s*["']?(Georgia|Montserrat|Times New Roman)/)
-      expect(source, file).not.toContain('var(--stack-')
+      for (const [, value] of source.matchAll(/font-family:\s*([^;}]+)/g)) {
+        expect(value.trim(), `${file}: font-family: ${value.trim()}`).toMatch(
+          /^(var\(--font-(serif|sans|mono)\)|inherit)$/
+        )
+      }
     }
   })
 })
@@ -83,7 +88,10 @@ describe('keyboard mode and forced colours', () => {
     expect(start).toBeGreaterThan(-1)
     const block = css.slice(start, css.indexOf('}', start))
     expect(block).toContain(':focus-visible')
-    expect(block).toContain('outline-width: 3px')
+    // The full shorthand, so it also restores the ring where a component set
+    // `outline: none`; and no shadow, which would hide a selected segment's own.
+    expect(block).toContain('outline: 3px solid var(--accent)')
+    expect(block).not.toContain('box-shadow')
   })
 
   it('carries a forced-colors layer, since neither contrast palette survives one', () => {
