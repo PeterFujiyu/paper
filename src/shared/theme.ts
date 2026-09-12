@@ -54,6 +54,20 @@ const ON = 'on'
 const OFF = 'off'
 const KEYBOARD_CLASS = 'keyboard-nav'
 
+/**
+ * Writes a choice, or does not: storage throws when the visitor has blocked
+ * it, and then the choice simply will not survive the session. Every setter
+ * below applies first and remembers second, so a refused write never costs
+ * the visitor the change they just made.
+ */
+function remember(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // The choice just will not survive the session.
+  }
+}
+
 /** The visitor's stored choice, falling back to the OS preference. */
 export function prefersDarkTheme(): boolean {
   try {
@@ -73,11 +87,7 @@ export function applyDarkTheme(dark: boolean): void {
 /** Records the choice and reflects it onto <html>. */
 export function setDarkTheme(dark: boolean): void {
   applyDarkTheme(dark)
-  try {
-    localStorage.setItem(THEME_KEY, dark ? DARK : LIGHT)
-  } catch {
-    // The choice just will not survive the session.
-  }
+  remember(THEME_KEY, dark ? DARK : LIGHT)
 }
 
 /**
@@ -104,11 +114,7 @@ export function applyHighContrast(high: boolean): void {
 /** Records the contrast choice and reflects it onto <html>. */
 export function setHighContrast(high: boolean): void {
   applyHighContrast(high)
-  try {
-    localStorage.setItem(CONTRAST_KEY, high ? MORE : NORMAL)
-  } catch {
-    // The choice just will not survive the session.
-  }
+  remember(CONTRAST_KEY, high ? MORE : NORMAL)
 }
 
 /**
@@ -136,11 +142,7 @@ export function applyLessArtwork(less: boolean): void {
 /** Records the artwork choice and reflects it onto <html>. */
 export function setLessArtwork(less: boolean): void {
   applyLessArtwork(less)
-  try {
-    localStorage.setItem(ARTWORK_KEY, less ? LESS : FULL)
-  } catch {
-    // The choice just will not survive the session.
-  }
+  remember(ARTWORK_KEY, less ? LESS : FULL)
 }
 
 function isFontChoice(value: string | null): value is FontChoice {
@@ -178,11 +180,7 @@ export function applyFontChoice(choice: FontChoice): void {
 /** Records the typeface choice and reflects it onto <html>. */
 export function setFontChoice(choice: FontChoice): void {
   applyFontChoice(choice)
-  try {
-    localStorage.setItem(FONT_KEY, choice)
-  } catch {
-    // The choice just will not survive the session.
-  }
+  remember(FONT_KEY, choice)
 }
 
 /**
@@ -211,9 +209,5 @@ export function applyKeyboardMode(on: boolean): void {
 /** Records the keyboard choice and reflects it onto <html>. */
 export function setKeyboardMode(on: boolean): void {
   applyKeyboardMode(on)
-  try {
-    localStorage.setItem(KEYBOARD_KEY, on ? ON : OFF)
-  } catch {
-    // The choice just will not survive the session.
-  }
+  remember(KEYBOARD_KEY, on ? ON : OFF)
 }

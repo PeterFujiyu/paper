@@ -316,7 +316,11 @@ function changeFontChoice(choice: FontChoice): void {
 // A stored choice wins. With none, the first Tab press switches the heavier
 // ring on for this session only — the same signal the browser uses to decide
 // :focus-visible, so a pointer-only visitor never sees it — and nothing is
-// written until the visitor ticks the box themselves.
+// written until the visitor touches the box themselves. A keyboard reader who
+// reaches the box therefore finds it already ticked: unticking it stores "off",
+// which also stops the heuristic on later visits, and a reader who wants the
+// ring keeps it without storing anything, since the next visit's first Tab
+// brings it back. Only the opt-out needs remembering.
 const storedKeyboard = prefersKeyboardMode()
 const keyboardMode = ref(storedKeyboard === true)
 
@@ -326,7 +330,8 @@ function toggleKeyboard(): void {
 }
 
 function onFirstTab(event: KeyboardEvent): void {
-  if (event.key !== 'Tab') return
+  // Shift+Tab is still navigation; a Tab with another modifier is a shortcut.
+  if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return
   document.removeEventListener('keydown', onFirstTab)
   keyboardMode.value = true
   applyKeyboardMode(true)

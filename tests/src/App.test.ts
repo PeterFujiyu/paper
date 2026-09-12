@@ -542,6 +542,45 @@ describe('keyboard mode', () => {
     wrapper.unmount()
   })
 
+  it('ignores a Tab that carries a shortcut modifier', async () => {
+    const wrapper = mount(App)
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', metaKey: true }))
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', ctrlKey: true }))
+    await flushPromises()
+    expect(document.documentElement.classList.contains('keyboard-nav')).toBe(false)
+
+    // Shift+Tab is still navigation.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true }))
+    await flushPromises()
+    expect(document.documentElement.classList.contains('keyboard-nav')).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  // A keyboard reader reaches the box by Tab, so it is already ticked when
+  // they get there; unticking it is the opt-out, and it has to stick.
+  it('lets a keyboard reader opt out after the heuristic, and remembers that', async () => {
+    const first = mount(App)
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }))
+    await flushPromises()
+    await first.find('.settings-toggle').trigger('click')
+
+    const box = first.find<HTMLInputElement>('#setting-keyboard-mode')
+    expect(box.element.checked).toBe(true)
+    await box.trigger('change')
+
+    expect(document.documentElement.classList.contains('keyboard-nav')).toBe(false)
+    expect(localStorage.getItem('keyboard')).toBe('off')
+    first.unmount()
+
+    const second = mount(App)
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }))
+    await flushPromises()
+    expect(document.documentElement.classList.contains('keyboard-nav')).toBe(false)
+    second.unmount()
+  })
+
   it('leaves a stored opt-out alone even after Tab', async () => {
     localStorage.setItem('keyboard', 'off')
     const wrapper = mount(App)

@@ -156,20 +156,21 @@ select:focus-visible {
 }
 
 /* Keyboard mode — the footer opt-in (src/shared/theme.ts), also switched on for
-   the session by the first Tab press. A heavier ring, held off the control by a
-   halo of the ground colour so it still reads when it lands on a filled surface
-   or a border of a similar weight. Cross-component, so it lives here. */
-:root.keyboard-nav :is(a, button, input, textarea, select, [tabindex]):focus-visible {
-  outline-width: 3px;
+   the session by the first Tab press. A heavier ring, set further off the
+   control. The full shorthand rather than a width: the search fields and the
+   editor body swap the ring for a border-colour change (`outline: none` at a
+   lower specificity), and in this mode that is not enough — every focusable
+   thing gets the ring back. Outline only, no shadow, so a control that draws
+   its own state with a shadow (a selected segment) keeps it while focused.
+   Cross-component, so it lives here. */
+:root.keyboard-nav :is(a, button, input, textarea, select, [contenteditable]):focus-visible {
+  outline: 3px solid var(--accent);
   outline-offset: 3px;
-  box-shadow: 0 0 0 3px var(--bg);
 }
 
 /* Skip-link target: focused programmatically, so suppress the ring on it. */
-main:focus,
-:root.keyboard-nav main:focus {
+main:focus {
   outline: none;
-  box-shadow: none;
 }
 
 /* Screen-reader-only utility — removed from the visual flow, still announced. */
@@ -281,10 +282,5 @@ body {
   ::selection {
     background: Highlight;
     color: HighlightText;
-  }
-
-  :root.keyboard-nav :is(a, button, input, textarea, select, [tabindex]):focus-visible {
-    /* The halo would be dropped anyway; the wider ring is enough on its own. */
-    box-shadow: none;
   }
 }

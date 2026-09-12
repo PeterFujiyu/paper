@@ -32,7 +32,7 @@ first-frame flash this plan did not cover. On 2026-09-12 the footer gained two m
 and the stylesheet a third: a **type preference** (`html[data-font]` — Default · Sans · All sans ·
 Serif · All serif, where "All" moves code out of mono too; the literal stacks moved to `--stack-*`
 so `--font-*` can be reassigned without a `var()` cycle, and the admin editor's hardcoded Georgia
-now follows the choice), a **keyboard mode** (`:root.keyboard-nav` — a 3px haloed focus ring,
+now follows the choice), a **keyboard mode** (`:root.keyboard-nav` — a 3px focus ring set with the full `outline` shorthand so it also reaches controls that swapped theirs for a border change,
 ticked in the footer or switched on for the session by the first Tab press, never persisted by the
 heuristic) with two further skip links ("Skip to navigation", "Skip to settings", the latter opening
 the disclosure), and a **`forced-colors: active` layer** backing up every state that was drawn with
