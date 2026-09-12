@@ -13,7 +13,7 @@ something, update the header.
 
 | Document | Status | One line |
 |---|---|---|
-| [`accessibility/01-accessibility-plan.md`](accessibility/01-accessibility-plan.md) | ✅ **Implemented** | All 7 phases landed in `a83a54c`, tests included. |
+| [`accessibility/01-accessibility-plan.md`](accessibility/01-accessibility-plan.md) | ✅ **Implemented** | All 7 phases landed in `a83a54c`, tests included. Later extended with high contrast, less artwork, a type preference, keyboard mode and a forced-colours layer — see its "Landed on top" note. |
 | [`page-transitions/design.md`](page-transitions/design.md) | ✅ **Implemented** | `c213305`, built exactly to spec. |
 | [`cursor-theme.md`](cursor-theme.md) | ✅ **Shipped** | `44212f4` + `27903b3`; two paragraphs superseded by the pre-paint bootstrap and marked inline. |
 | [`design-anthropic-blog/`](design-anthropic-blog/README.md) | ✅ **All recommendations landed** | P0–P2 complete. `03-blog-audit.md` is a June snapshot whose findings are all now false — banner added. |

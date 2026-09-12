@@ -534,7 +534,7 @@ const toolbarButtons = computed(() => {
   min-height: 420px;
   padding: 1.5rem;
   outline: none;
-  font-family: "Georgia", "Times New Roman", serif;
+  font-family: var(--font-serif);
   font-size: 1rem;
   line-height: 1.8;
   color: var(--text-main);

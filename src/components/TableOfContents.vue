@@ -122,6 +122,15 @@ function select(event: MouseEvent, id: string): void {
   border-left-color: var(--accent);
 }
 
+/* Forced colours keep the border but flatten its colour into the text's, so
+   the current entry also gets an underline the OS will not remove. */
+@media (forced-colors: active) {
+  .toc-link--current {
+    text-decoration: underline;
+    border-left-color: Highlight;
+  }
+}
+
 /* ─── Desktop side rail ───
    Fixed and measured off the viewport centre so it parks beside the reading
    column without joining it — the 68ch measure is untouched. */

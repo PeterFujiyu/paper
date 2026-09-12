@@ -1,6 +1,6 @@
 // Pre-paint bootstrap for the visitor's stored appearance choices.
 //
-// src/main.ts applies the same five settings, but it is a module script: it does
+// src/main.ts applies the same seven settings, but it is a module script: it does
 // not run until its whole dependency graph has loaded, while the stylesheet is
 // render-blocking and ready long before that. On a cold or throttled load a
 // dark-mode or high-contrast visitor could still watch the default palette paint
@@ -43,6 +43,17 @@
 
   // No OS query behind this one — see prefersLessArtwork in src/shared/theme.ts.
   root.classList.toggle('less-artwork', stored('artwork') === 'less')
+
+  // Nor this one. Only a stored 'on' counts: the first-Tab heuristic that also
+  // switches it on lives in src/App.vue and is deliberately never persisted.
+  root.classList.toggle('keyboard-nav', stored('keyboard') === 'on')
+
+  // 'default' is the unqualified token block in src/style.css, so like the
+  // cursor size it wants no attribute rather than an attribute naming it.
+  var font = stored('font')
+  if (font === 'sans' || font === 'sans-all' || font === 'serif' || font === 'serif-all') {
+    root.dataset.font = font
+  }
 
   root.classList.toggle('native-cursor', stored('cursor') === 'native')
 

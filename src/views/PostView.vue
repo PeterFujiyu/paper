@@ -760,6 +760,14 @@ async function reportReadCompletion(): Promise<void> {
 .prose tr:last-child [data-highlight] {
   box-shadow: inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent), inset 0 -2px 0 var(--accent);
 }
+/* Forced colours drop both the tint and the inset rules; an outline in a system
+   colour is kept, so the highlighted column still reads as a strip. */
+@media (forced-colors: active) {
+  .prose [data-highlight] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
 .prose img {
   max-width: 100%;
   height: auto;

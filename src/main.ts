@@ -6,11 +6,15 @@ import router from './router'
 import { applyCursorSize, applyNativeCursor, prefersNativeCursor, storedCursorSize } from './shared/cursor'
 import {
   applyDarkTheme,
+  applyFontChoice,
   applyHighContrast,
+  applyKeyboardMode,
   applyLessArtwork,
   prefersDarkTheme,
   prefersHighContrast,
+  prefersKeyboardMode,
   prefersLessArtwork,
+  storedFontChoice,
 } from './shared/theme'
 
 // public/theme-init.js has normally already done this, synchronously and ahead of
@@ -24,5 +28,9 @@ applyCursorSize(storedCursorSize())
 applyDarkTheme(prefersDarkTheme())
 applyHighContrast(prefersHighContrast())
 applyLessArtwork(prefersLessArtwork())
+applyFontChoice(storedFontChoice())
+// Only an explicit choice here; an unset one is decided by the first Tab press
+// in src/App.vue.
+applyKeyboardMode(prefersKeyboardMode() === true)
 
 createApp(App).use(router).mount('#app')

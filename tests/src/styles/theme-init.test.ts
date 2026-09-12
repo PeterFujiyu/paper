@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { CURSOR_SIZES, DEFAULT_CURSOR_SIZE } from '../../../src/shared/cursor'
+import { DEFAULT_FONT_CHOICE, FONT_CHOICES } from '../../../src/shared/theme'
 
 // public/theme-init.js is a hand-written copy of the preference reads in
 // src/shared/theme.ts and src/shared/cursor.ts — it cannot import them, because a
@@ -64,6 +65,16 @@ describe('pre-paint appearance bootstrap', () => {
       // attribute would break the match rather than merely be redundant.
       expect(mentioned, `size ${size}`).toBe(size !== DEFAULT_CURSOR_SIZE)
     }
+  })
+
+  it('sets the type attribute for every choice except the default', () => {
+    for (const choice of FONT_CHOICES) {
+      const mentioned = bootstrap.includes(`=== '${choice}'`)
+      // The default is the unqualified token block in style.css; naming it in
+      // the attribute would match nothing rather than merely be redundant.
+      expect(mentioned, `choice ${choice}`).toBe(choice !== DEFAULT_FONT_CHOICE)
+    }
+    expect(bootstrap).toContain('root.dataset.font = font')
   })
 
   it('survives blocked storage, since that throws rather than returning null', () => {

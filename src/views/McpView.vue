@@ -873,6 +873,15 @@ onBeforeUnmount(() => {
   box-shadow: inset 0 -1.5px 0 var(--accent);
 }
 
+/* Forced colours drop the tint and the shadow; a real border in a system colour
+   keeps the selection visible. */
+@media (forced-colors: active) {
+  .segment--on {
+    color: Highlight;
+    border-bottom: 2px solid Highlight;
+  }
+}
+
 /* ─── Code framing ─── */
 .code-head {
   display: flex;

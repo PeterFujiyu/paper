@@ -28,7 +28,16 @@ full. Phase by phase, checked against the working tree rather than against the c
 left alone: `a842e0e` added an opt-in high-contrast palette (`:root.high-contrast` in
 `src/style.css`, toggled from the footer settings disclosure), and `efb796f` added a `less-artwork`
 preference plus `public/theme-init.js`, a pre-paint bootstrap that also removes the dark-mode
-first-frame flash this plan did not cover.
+first-frame flash this plan did not cover. On 2026-09-12 the footer gained two more accommodations
+and the stylesheet a third: a **type preference** (`html[data-font]` — Default · Sans · All sans ·
+Serif · All serif, where "All" moves code out of mono too; the literal stacks moved to `--stack-*`
+so `--font-*` can be reassigned without a `var()` cycle, and the admin editor's hardcoded Georgia
+now follows the choice), a **keyboard mode** (`:root.keyboard-nav` — a 3px haloed focus ring,
+ticked in the footer or switched on for the session by the first Tab press, never persisted by the
+heuristic) with two further skip links ("Skip to navigation", "Skip to settings", the latter opening
+the disclosure), and a **`forced-colors: active` layer** backing up every state that was drawn with
+a shadow or filled ground alone. Tests: `tests/src/styles/fonts.test.ts` plus new blocks in
+`App.test.ts`, `theme.test.ts` and `theme-init.test.ts`.
 
 Everything below is the original plan, kept as the record of *why* the code reads the way it does.
 

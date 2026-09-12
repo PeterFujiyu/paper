@@ -436,7 +436,7 @@ async function remove() {
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--border);
-  font-family: "Georgia", serif;
+  font-family: var(--font-serif);
   font-size: clamp(1.6rem, 3vw, 2.2rem);
   font-weight: 400;
   letter-spacing: -0.02em;
@@ -510,7 +510,7 @@ async function remove() {
 .field-textarea {
   background: transparent;
   border: 1px solid var(--border);
-  font-family: "Georgia", serif;
+  font-family: var(--font-serif);
   font-size: 0.9rem;
   color: var(--text-muted);
   padding: 0.6rem 0.8rem;
