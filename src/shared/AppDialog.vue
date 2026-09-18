@@ -20,6 +20,7 @@
           <div class="dialog-actions">
             <button
               v-if="dialog.variant === 'confirm'"
+              ref="cancelBtn"
               type="button"
               class="dialog-btn dialog-btn--cancel"
               @click="onCancel"
@@ -54,6 +55,7 @@ const messageId = `dialog-message-${uid}`
 
 const panel = ref<HTMLElement | null>(null)
 const confirmBtn = ref<HTMLButtonElement | null>(null)
+const cancelBtn = ref<HTMLButtonElement | null>(null)
 // Element focused before the dialog opened, so we can hand focus back on close.
 let lastFocused: HTMLElement | null = null
 
@@ -105,7 +107,9 @@ watch(dialog, async (val, prev) => {
     // Document-level so Escape/Tab are caught even if focus lands on <body>.
     document.addEventListener('keydown', onKeydown)
     await nextTick()
-    confirmBtn.value?.focus()
+    // A destructive confirm opens on Cancel, so a stray Enter can't delete.
+    const initial = val.tone === 'danger' ? cancelBtn.value ?? confirmBtn.value : confirmBtn.value
+    initial?.focus()
   } else if (!val && prev) {
     document.body.style.overflow = ''
     document.removeEventListener('keydown', onKeydown)
@@ -139,10 +143,15 @@ onUnmounted(() => {
   padding: 1.75rem;
   background: var(--bg);
   color: var(--text-main);
-  border: 1px solid var(--border);
+  /* The shadow alone lifts the panel on the light ground; the transparent edge
+     is there for the cases it can't — dark, below, and forced colours. */
+  border: 1px solid transparent;
   border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
   font-family: var(--font-sans);
+}
+:root.dark .dialog {
+  border-color: var(--border);
 }
 
 .dialog-title {
@@ -168,10 +177,10 @@ onUnmounted(() => {
 
 .dialog-btn {
   font-family: inherit;
-  font-size: 0.875rem;
-  padding: 0.45rem 1.2rem;
+  font-size: 0.95rem;
+  padding: 0.4rem 1.4rem;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: var(--cursor-pointer);
   transition: opacity 0.2s, background-color 0.2s;
 }
@@ -193,13 +202,27 @@ onUnmounted(() => {
   opacity: 0.8;
 }
 
-/* Destructive actions: accent hue works against --bg text in both themes. */
+/* Destructive actions: the danger red, with --bg text on top in every palette. */
 .dialog-btn--danger {
-  background: var(--accent-ink);
+  background: var(--danger);
   color: var(--bg);
+}
+/* The ring takes the button's red rather than the terracotta, which would sit
+   against it as a second, near-miss hue. Colour only — the widths (and the
+   heavier keyboard-mode ring) stay global; two classes to outrank that rule. */
+.dialog-btn.dialog-btn--danger:focus-visible {
+  outline-color: var(--danger);
 }
 .dialog-btn--danger:hover {
   opacity: 0.85;
+}
+
+/* Forced colours drop the filled ground, which is all that marks the confirm
+   button as a button — give it an edge to stand on. */
+@media (forced-colors: active) {
+  .dialog-btn--confirm {
+    border-color: ButtonText;
+  }
 }
 
 /* Fade the overlay, lift the panel. */

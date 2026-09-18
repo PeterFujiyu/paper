@@ -45,6 +45,16 @@ describe('AppDialog', () => {
     await promise
   })
 
+  it('opens a destructive confirm on Cancel rather than the confirm button', async () => {
+    const promise = confirmDialog({ message: 'Delete this post?', tone: 'danger' })
+    await flushPromises()
+
+    expect(document.activeElement).toBe(cancelButton())
+
+    cancelButton().click()
+    await promise
+  })
+
   it('traps Tab within the dialog', async () => {
     const promise = confirmDialog({ message: 'Are you sure?' })
     await flushPromises()

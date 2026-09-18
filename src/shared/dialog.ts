@@ -16,7 +16,7 @@ export interface DialogOptions {
   confirmText?: string
   /** Label for the dismissive button (confirm variant only, default "Cancel"). */
   cancelText?: string
-  /** `danger` paints the confirm button in the accent hue for destructive actions. */
+  /** `danger` paints the confirm button in the danger red for destructive actions. */
   tone?: DialogTone
 }
 
