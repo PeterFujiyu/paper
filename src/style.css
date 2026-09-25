@@ -20,6 +20,9 @@
      on top, so each palette keeps it at WCAG AA against --bg. */
   --danger: #C0392B;
 
+  /* Native controls (scrollbars, form fields, autofill) follow the palette. */
+  color-scheme: light;
+
   /* Layout — golden reading measure (~50-75 chars;
      see research/design-anthropic-blog/design.html) */
   --measure: 68ch;
@@ -87,6 +90,7 @@
   --accent:     #D97757;
   --accent-ink: #E8916F;
   --danger:     #E5695B;
+  color-scheme: dark;
 }
 
 /* High-contrast token overrides — opt-in from the footer settings, defaulting to
@@ -119,6 +123,34 @@
   --accent:     #E8916F;
   --accent-ink: #F2A183;
   --danger:     #F08A7D;
+}
+
+/* Wide-gamut terracotta — on P3 displays each accent keeps its OKLCH lightness
+   and hue and takes 20% more chroma, a warmer ink rather than a louder one.
+   Every value is held at or above the WCAG contrast of the sRGB hex it replaces,
+   so the notes above still hold. sRGB screens never match and keep the hexes.
+   Each palette is re-declared in the same order as above: equal specificity,
+   so source order still settles dark vs high contrast. */
+@media (color-gamut: p3) {
+  :root {
+    --accent:     color(display-p3 0.837 0.458 0.317);
+    --accent-ink: color(display-p3 0.709 0.314 0.172);
+  }
+
+  :root.dark {
+    --accent:     color(display-p3 0.837 0.458 0.317);
+    --accent-ink: color(display-p3 0.9 0.566 0.416);
+  }
+
+  :root.high-contrast {
+    --accent:     color(display-p3 0.709 0.314 0.172);
+    --accent-ink: color(display-p3 0.551 0.217 0.081);
+  }
+
+  :root.dark.high-contrast {
+    --accent:     color(display-p3 0.9 0.566 0.416);
+    --accent-ink: color(display-p3 0.94 0.63 0.497);
+  }
 }
 
 /* Type preference — html[data-font], set by src/shared/theme.ts from the footer

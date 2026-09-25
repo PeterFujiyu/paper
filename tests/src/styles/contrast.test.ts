@@ -57,3 +57,33 @@ describe('high-contrast palette', () => {
     expect(css.indexOf(':root.dark.high-contrast {')).toBeGreaterThan(css.indexOf(':root.high-contrast {'))
   })
 })
+
+describe('wide-gamut accent', () => {
+  const start = css.indexOf('@media (color-gamut: p3) {')
+  const p3 = css.slice(start)
+  const PALETTES = [':root', ':root.dark', ':root.high-contrast', ':root.dark.high-contrast']
+
+  it('re-declares both accents for every palette', () => {
+    expect(start, 'P3 block is missing from style.css').toBeGreaterThan(-1)
+    for (const selector of PALETTES) {
+      const at = p3.indexOf(`  ${selector} {`)
+      expect(at, `${selector} is missing from the P3 block`).toBeGreaterThan(-1)
+      const block = p3.slice(at, p3.indexOf('}', at))
+      expect(block, selector).toMatch(/--accent:\s*color\(display-p3 /)
+      expect(block, selector).toMatch(/--accent-ink:\s*color\(display-p3 /)
+    }
+  })
+
+  it('comes after the sRGB palettes and keeps their order', () => {
+    expect(start).toBeGreaterThan(css.indexOf(':root.dark.high-contrast {'))
+    const order = PALETTES.map((selector) => p3.indexOf(`  ${selector} {`))
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+  })
+})
+
+describe('color-scheme', () => {
+  it('tells the browser which palette native controls should use', () => {
+    expect(css.slice(css.indexOf(':root {'), css.indexOf('}', css.indexOf(':root {')))).toMatch(/color-scheme:\s*light;/)
+    expect(css.slice(css.indexOf(':root.dark {'), css.indexOf('}', css.indexOf(':root.dark {')))).toMatch(/color-scheme:\s*dark;/)
+  })
+})
