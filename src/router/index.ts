@@ -11,6 +11,7 @@ import HomeView from '../views/HomeView.vue'
 import PostView from '../views/PostView.vue'
 
 const McpView = () => import('../views/McpView.vue')
+const NotFoundView = () => import('../views/NotFoundView.vue')
 const AdminLayout = () => import('../admin/AdminLayout.vue')
 const LoginView = () => import('../admin/views/LoginView.vue')
 const PostsListView = () => import('../admin/views/PostsListView.vue')
@@ -45,6 +46,9 @@ const routes: RouteRecordRaw[] = [
       { path: 'brews/:id',  name: 'brew-edit',   component: BrewEditView },
     ],
   },
+
+  // ─── Fallback ─── anything unmatched; vercel.json already serves the SPA shell.
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
 ]
 
 /**

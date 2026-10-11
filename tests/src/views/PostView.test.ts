@@ -181,3 +181,23 @@ describe('PostView table of contents', () => {
     expect(document.body.querySelector('.toc--rail')).not.toBeNull()
   })
 })
+
+describe('PostView missing essay', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('shows the shared not-found page when the essay does not exist', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: false,
+      status: 404,
+      json: () => Promise.resolve({ error: 'Not found' }),
+    })))
+    const wrapper = mount(PostView, { props: { slug: 'no-such-slug' } })
+    await flushPromises()
+    await flushPromises()
+
+    expect(wrapper.find('.not-found-title').text()).toBe('Essay not found')
+    expect(wrapper.find('button.slot-machine').exists()).toBe(true)
+  })
+})

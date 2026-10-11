@@ -39,14 +39,11 @@
     </div>
 
     <!-- 404 -->
-    <div v-if="!loading && !post" class="not-found">
-      <EditorialArt name="torn-page" class="not-found-art" />
-      <div>
-        <p class="not-found-code">404</p>
-        <p class="not-found-msg">This essay doesn't exist.</p>
-        <RouterLink to="/" class="back-link">← Back to writing</RouterLink>
-      </div>
-    </div>
+    <NotFound
+      v-if="!loading && !post"
+      title="Essay not found"
+      message="This essay doesn't exist, or it has been unpublished."
+    />
 
     <!-- Article -->
     <article v-else-if="post" ref="articleRef" class="post">
@@ -119,8 +116,8 @@ import {
   shouldShowToc,
   type HeadingEntry,
 } from '../shared/headings'
-import EditorialArt from '../components/EditorialArt.vue'
 import LoadingIndicator from '../components/LoadingIndicator.vue'
+import NotFound from '../components/NotFound.vue'
 import TableOfContents from '../components/TableOfContents.vue'
 import type { PostDocument, PostMetrics, PostSummary } from '../types/content'
 
@@ -551,38 +548,6 @@ async function reportReadCompletion(): Promise<void> {
   margin-top: 4rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border);
-}
-
-.not-found {
-  padding: 4rem 0;
-  display: flex;
-  align-items: center;
-  gap: 2.5rem;
-  flex-wrap: wrap;
-}
-
-.not-found-art {
-  width: 7rem;
-  height: 7rem;
-}
-
-/* The link already carries the block's bottom spacing. */
-.not-found .back-link { margin-bottom: 0; }
-
-.not-found-code {
-  font-family: var(--font-sans);
-  font-size: 4rem;
-  font-weight: 400;
-  color: var(--text-muted);
-  margin: 0 0 0.5rem 0;
-  letter-spacing: -0.05em;
-}
-
-.not-found-msg {
-  font-size: 1rem;
-  color: var(--text-muted);
-  font-style: italic;
-  margin: 0 0 2rem 0;
 }
 
 /* ─── Related / Continue reading ─── */

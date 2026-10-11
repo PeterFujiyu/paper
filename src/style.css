@@ -257,7 +257,8 @@ body {
 :root.less-artwork .editorial-art,
 :root.less-artwork .head-mark,
 :root.less-artwork .cup,
-:root.less-artwork .loading-mark {
+:root.less-artwork .loading-mark,
+:root.less-artwork .slot-machine {
   display: none;
 }
 
