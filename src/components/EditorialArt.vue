@@ -51,31 +51,11 @@
         <path d="M62 150C83 155 117 155 138 149" stroke-width="3.4" />
       </g>
     </template>
-
-    <!-- A page torn in two, the halves drifted apart. -->
-    <template v-else-if="name === 'torn-page'">
-      <path
-        class="art-carrier"
-        d="M48 32C43 32 40 36 40 41L42 158C42 164 46 168 52 168L91 166L86 148L95 130L86 111L95 91L86 70L93 49L90 32Z"
-      />
-      <path
-        class="art-carrier"
-        d="M107 43L102 57L111 75L101 94L110 113L100 132L106 152L103 175L149 173C155 173 159 169 159 163L157 50C157 44 153 40 147 40Z"
-      />
-      <g class="art-ink">
-        <!-- Thinner than the other three because this one is displayed at 7rem,
-             not 5rem: 3.2 here and 4.5 there both land near 1.8px on screen. -->
-        <path d="M58 70C66 68 73 71 80 68" stroke-width="3.2" />
-        <path d="M58 94C64 92 70 95 76 93" stroke-width="2.6" />
-        <path d="M120 85C129 82 138 86 147 83" stroke-width="3.2" />
-        <path d="M119 113C126 111 133 114 141 112" stroke-width="2.6" />
-      </g>
-    </template>
   </svg>
 </template>
 
 <script setup lang="ts">
-export type ArtName = 'blank-page' | 'scrap' | 'empty-cup' | 'torn-page'
+export type ArtName = 'blank-page' | 'scrap' | 'empty-cup'
 
 defineProps<{ name: ArtName }>()
 </script>
