@@ -9,13 +9,14 @@ export default [
 
   {
     name: 'app/files-to-ignore',
-    // `.agent-benchmark/` and `agent-benchmark-claude/` hold generated benchmark
+    // `.agent-benchmark/` (at any depth — the CLI writes it under
+    // `agent-benchmark/`) and `agent-benchmark-claude/` hold generated benchmark
     // workspaces — gitignored copies of the app that would otherwise be linted.
     ignores: [
       '**/dist/**',
       '**/dist-ssr/**',
       '**/coverage/**',
-      '.agent-benchmark/**',
+      '**/.agent-benchmark/**',
       'agent-benchmark-claude/**',
     ],
   },
